@@ -83,7 +83,20 @@ static int32_t copy_comms(scap_t *handle, const char **suppressed_comms)
 }
 
 #if !defined(HAS_CAPTURE) || defined(CYGWING_AGENT) || defined(_WIN32)
+<<<<<<< HEAD
 scap_t* scap_open_live_int(char *error, int32_t *rc, scap_open_args* oargs)
+=======
+scap_t* scap_open_live_int(char *error, int32_t *rc,
+			   proc_entry_callback proc_callback,
+			   void* proc_callback_context,
+			   bool import_users,
+			   const char *bpf_probe,
+			   const char **suppressed_comms,
+			   interesting_ppm_sc_set *ppm_sc_of_interest,
+			   void(*debug_log_fn)(const char* msg),
+			   uint64_t proc_scan_timeout_ms,
+			   uint64_t proc_scan_log_interval_ms)
+>>>>>>> 85d2bc76 (Enhancements to initial scan of /proc, for supportability)
 {
 	snprintf(error, SCAP_LASTERR_SIZE, "live capture not supported on %s", PLATFORM_NAME);
 	*rc = SCAP_NOT_SUPPORTED;
@@ -96,7 +109,10 @@ scap_t* scap_open_udig_int(char *error, int32_t *rc,
 			   proc_entry_callback proc_callback,
 			   void* proc_callback_context,
 			   bool import_users,
-			   const char **suppressed_comms)
+			   const char **suppressed_comms,
+			   void(*debug_log_fn)(const char* msg),
+			   uint64_t proc_scan_timeout_ms,
+			   uint64_t proc_scan_log_interval_ms)
 {
 	snprintf(error, SCAP_LASTERR_SIZE, "udig capture not supported on %s", PLATFORM_NAME);
 	*rc = SCAP_NOT_SUPPORTED;
@@ -105,7 +121,20 @@ scap_t* scap_open_udig_int(char *error, int32_t *rc,
 #else
 
 #ifndef _WIN32
+<<<<<<< HEAD
 scap_t* scap_open_live_int(char *error, int32_t *rc, scap_open_args* oargs)
+=======
+scap_t* scap_open_live_int(char *error, int32_t *rc,
+			   proc_entry_callback proc_callback,
+			   void* proc_callback_context,
+			   bool import_users,
+			   const char *bpf_probe,
+			   const char **suppressed_comms,
+			   interesting_ppm_sc_set *ppm_sc_of_interest,
+			   void(*debug_log_fn)(const char* msg),
+			   uint64_t proc_scan_timeout_ms,
+			   uint64_t proc_scan_log_interval_ms)
+>>>>>>> 85d2bc76 (Enhancements to initial scan of /proc, for supportability)
 {
 	char filename[SCAP_MAX_PATH_SIZE] = {0};
 	scap_t* handle = NULL;
@@ -125,7 +154,16 @@ scap_t* scap_open_live_int(char *error, int32_t *rc, scap_open_args* oargs)
 	// Preliminary initializations
 	//
 	handle->m_mode = SCAP_MODE_LIVE;
+<<<<<<< HEAD
 	if(strncmp(oargs->engine_name, BPF_ENGINE, BPF_ENGINE_LEN) == 0)
+=======
+	handle->m_udig = false;
+	handle->m_debug_log_fn = debug_log_fn;
+	handle->m_proc_scan_timeout_ms = proc_scan_timeout_ms;
+	handle->m_proc_scan_log_interval_ms = proc_scan_log_interval_ms;
+
+	if(scap_bpf_engine.match(&oargs))
+>>>>>>> 85d2bc76 (Enhancements to initial scan of /proc, for supportability)
 	{
 		handle->m_vtable = &scap_bpf_engine;
 	}
@@ -277,7 +315,10 @@ scap_t* scap_open_udig_int(char *error, int32_t *rc,
 			   proc_entry_callback proc_callback,
 			   void* proc_callback_context,
 			   bool import_users,
-			   const char **suppressed_comms)
+			   const char **suppressed_comms,
+			   void(*debug_log_fn)(const char* msg),
+			   uint64_t proc_scan_timeout_ms,
+			   uint64_t proc_scan_log_interval_ms)
 {
 	char filename[SCAP_MAX_PATH_SIZE];
 	scap_t* handle = NULL;
@@ -297,6 +338,12 @@ scap_t* scap_open_udig_int(char *error, int32_t *rc,
 	// Preliminary initializations
 	//
 	handle->m_mode = SCAP_MODE_LIVE;
+	handle->m_udig = true;
+	handle->m_debug_log_fn = debug_log_fn;
+	handle->m_proc_scan_timeout_ms = proc_scan_timeout_ms;
+	handle->m_proc_scan_log_interval_ms = proc_scan_log_interval_ms;
+	handle->m_bpf = false;
+	handle->m_udig_capturing = false;
 	handle->m_ncpus = 1;
 
 	handle->m_vtable = &scap_udig_engine;
@@ -614,7 +661,7 @@ scap_t* scap_open_offline_int(scap_open_args* oargs, int* rc, char* error)
 	//
 	// Allocate the handle
 	//
-	handle = (scap_t*)malloc(sizeof(scap_t));
+	handle = (scap_t*)calloc(sizeof(scap_t), 1);
 	if(!handle)
 	{
 		snprintf(error, SCAP_LASTERR_SIZE, "error allocating the scap_t structure");
@@ -686,10 +733,46 @@ scap_t* scap_open_offline_int(scap_open_args* oargs, int* rc, char* error)
 	return handle;
 }
 
+scap_t* scap_open_offline(const char* fname, char *error, int32_t* rc)
+{
+	gzFile gzfile = gzopen(fname, "rb");
+	if(gzfile == NULL)
+	{
+		snprintf(error, SCAP_LASTERR_SIZE, "can't open file %s", fname);
+		*rc = SCAP_FAILURE;
+		return NULL;
+	}
+	scap_reader_t* reader = scap_reader_open_gzfile(gzfile);
+
+	return scap_open_offline_int(reader, error, rc, NULL, NULL, true, 0, NULL);
+}
+
+scap_t* scap_open_offline_fd(int fd, char *error, int32_t *rc)
+{
+	gzFile gzfile = gzdopen(fd, "rb");
+	if(gzfile == NULL)
+	{
+		snprintf(error, SCAP_LASTERR_SIZE, "can't open fd %d", fd);
+		*rc = SCAP_FAILURE;
+		return NULL;
+	}
+	scap_reader_t* reader = scap_reader_open_gzfile(gzfile);
+
+	return scap_open_offline_int(reader, error, rc, NULL, NULL, true, 0, NULL);
+}
+
+scap_t* scap_open_live(char *error, int32_t *rc)
+{
+	return scap_open_live_int(error, rc, NULL, NULL, true, NULL, NULL, NULL, NULL, SCAP_PROC_SCAN_TIMEOUT_NONE, SCAP_PROC_SCAN_LOG_NONE);
+}
+
 scap_t* scap_open_nodriver_int(char *error, int32_t *rc,
 			       proc_entry_callback proc_callback,
 			       void* proc_callback_context,
-			       bool import_users)
+			       bool import_users,
+			       void(*debug_log_fn)(const char* msg),
+			       uint64_t proc_scan_timeout_ms,
+			       uint64_t proc_scan_log_interval_ms)
 {
 #if !defined(HAS_CAPTURE)
 	snprintf(error, SCAP_LASTERR_SIZE, "live capture not supported on %s", PLATFORM_NAME);
@@ -702,7 +785,7 @@ scap_t* scap_open_nodriver_int(char *error, int32_t *rc,
 	//
 	// Allocate the handle
 	//
-	handle = (scap_t*)malloc(sizeof(scap_t));
+	handle = (scap_t*)calloc(sizeof(scap_t), 1);
 	if(!handle)
 	{
 		snprintf(error, SCAP_LASTERR_SIZE, "error allocating the scap_t structure");
@@ -728,6 +811,9 @@ scap_t* scap_open_nodriver_int(char *error, int32_t *rc,
 	handle->m_proclist.m_proc_callback = proc_callback;
 	handle->m_proclist.m_proc_callback_context = proc_callback_context;
 	handle->m_proclist.m_proclist = NULL;
+	handle->m_debug_log_fn = debug_log_fn;
+	handle->m_proc_scan_timeout_ms = proc_scan_timeout_ms;
+	handle->m_proc_scan_log_interval_ms = proc_scan_log_interval_ms;
 
 	//
 	// Extract machine information
@@ -925,6 +1011,7 @@ scap_t* scap_open(scap_open_args* oargs, char *error, int32_t *rc)
 	{
 		return scap_open_live_int(error, rc, oargs);
 	}
+<<<<<<< HEAD
 	else if(strncmp(engine_name, NODRIVER_ENGINE, NODRIVER_ENGINE_LEN) == 0)
 	{
 		return scap_open_nodriver_int(error, rc, oargs->proc_callback,
@@ -934,6 +1021,71 @@ scap_t* scap_open(scap_open_args* oargs, char *error, int32_t *rc)
 	else if(strncmp(engine_name, SOURCE_PLUGIN_ENGINE, SOURCE_PLUGIN_ENGINE_LEN) == 0)
 	{
 		return scap_open_plugin_int(error, rc, oargs);
+=======
+	case SCAP_MODE_LIVE:
+#ifndef CYGWING_AGENT
+		if(args.udig)
+		{
+			return scap_open_udig_int(error, rc, args.proc_callback,
+						args.proc_callback_context,
+						args.import_users,
+						args.suppressed_comms,
+						args.debug_log_fn,
+						args.proc_scan_timeout_ms,
+						args.proc_scan_log_interval_ms);
+		}
+		else if (args.gvisor)
+		{
+			return scap_open_gvisor_int(error, rc, &args);
+		}
+		{
+			return scap_open_live_int(error, rc, args.proc_callback,
+						args.proc_callback_context,
+						args.import_users,
+						args.bpf_probe,
+						args.suppressed_comms,
+						&args.ppm_sc_of_interest,
+						args.debug_log_fn,
+						args.proc_scan_timeout_ms,
+						args.proc_scan_log_interval_ms);
+		}
+#else
+		snprintf(error,	SCAP_LASTERR_SIZE, "scap_open: live mode currently not supported on Windows.");
+		*rc = SCAP_NOT_SUPPORTED;
+		return NULL;
+#endif
+	case SCAP_MODE_NODRIVER:
+		return scap_open_nodriver_int(error, rc, args.proc_callback,
+					      args.proc_callback_context,
+					      args.import_users,
+					      args.debug_log_fn,
+					      args.proc_scan_timeout_ms,
+					      args.proc_scan_log_interval_ms);
+	case SCAP_MODE_PLUGIN:
+		handle = scap_open_plugin_int(error, rc, args.input_plugin, args.input_plugin_params);
+		if(handle && handle->m_vtable)
+		{
+			int32_t res = handle->m_vtable->init(handle, &args);
+			if(res != SCAP_SUCCESS)
+			{
+				strlcpy(error, handle->m_lasterr, SCAP_LASTERR_SIZE);
+				scap_close(handle);
+				handle = NULL;
+			}
+			*rc = res;
+			return handle;
+		}
+#ifdef HAS_ENGINE_MODERN_BPF
+	case SCAP_MODE_MODERN_BPF:
+	    /* Temp workaround until the v-table implementation
+		 * is completed.
+		 */
+		return scap_open_modern_bpf_int(error, rc, &args);
+#endif		
+	case SCAP_MODE_NONE:
+		// error
+		break;
+>>>>>>> 85d2bc76 (Enhancements to initial scan of /proc, for supportability)
 	}
 
 	snprintf(error, SCAP_LASTERR_SIZE, "incorrect engine '%s'", engine_name);

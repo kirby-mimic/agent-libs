@@ -121,10 +121,25 @@ struct iovec;
 //
 #define SCAP_LASTERR_SIZE 256
 
+<<<<<<< HEAD
 // 
 // This is the dimension we used before introducing the variable buffer size.
 //
 #define DEFAULT_DRIVER_BUFFER_BYTES_DIM 8 * 1024 * 1024
+=======
+//
+// Value for proc_scan_timeout_ms field in scap_open_args, to specify
+// that scan should run to completion without any timeout imposed
+//
+#define SCAP_PROC_SCAN_TIMEOUT_NONE 0
+
+//
+// Value for proc_scan_log_interval_ms field in scap_open_args, to specify
+// that no progress logging should be performed
+//
+#define SCAP_PROC_SCAN_LOG_NONE 0
+
+>>>>>>> 85d2bc76 (Enhancements to initial scan of /proc, for supportability)
 
 /*!
   \brief Statistics about an in progress capture
@@ -315,6 +330,73 @@ typedef struct {
 	uint32_t dev; ///< device number
 	UT_hash_handle hh; ///< makes this structure hashable
 } scap_mountinfo;
+
+typedef void (*proc_entry_callback)(void* context,
+									scap_t* handle,
+									int64_t tid,
+									scap_threadinfo* tinfo,
+									scap_fdinfo* fdinfo);
+
+/*!
+  \brief Arguments for scap_open
+*/
+typedef enum {
+	/*!
+	 * Default value that mostly exists so that sinsp can have a valid value
+	 * before it is initialized.
+	 */
+	SCAP_MODE_NONE = 0,
+	/*!
+	 * Read system call data from a capture file.
+	 */
+	SCAP_MODE_CAPTURE,
+	/*!
+	 * Read system call data from the underlying operating system.
+	 */
+	SCAP_MODE_LIVE,
+	/*!
+	 * Do not read system call data. If next is called, a dummy event is
+	 * returned.
+	 */
+	SCAP_MODE_NODRIVER,
+	/*!
+	 * Do not read system call data. Events come from the configured input plugin.
+	 */
+	SCAP_MODE_PLUGIN,
+} scap_mode_t;
+
+/*!
+  \brief Argument for scap_open
+  Set any PPM_SC syscall idx to true to enable its tracing at driver level,
+  otherwise syscalls are not traced (so called "uninteresting syscalls").
+*/
+typedef struct {
+	bool ppm_sc[PPM_SC_MAX];
+} interesting_ppm_sc_set;
+
+typedef struct scap_open_args
+{
+	scap_mode_t mode;
+	int fd; // If non-zero, will be used instead of fname.
+	const char* fname; ///< The name of the file to open. NULL for live captures.
+	proc_entry_callback proc_callback; ///< Callback to be invoked for each thread/fd that is extracted from /proc, or NULL if no callback is needed.
+	void* proc_callback_context; ///< Opaque pointer that will be included in the calls to proc_callback. Ignored if proc_callback is NULL.
+	bool import_users; ///< true if the user list should be created when opening the capture.
+	uint64_t start_offset; ///< Used to start reading a capture file from an arbitrary offset. This is leveraged when opening merged files.
+	const char *bpf_probe; ///< The name of the BPF probe to open. If NULL, the kernel driver will be used.
+	const char *suppressed_comms[SCAP_MAX_SUPPRESSED_COMMS]; ///< A list of processes (comm) for which no
+	                                                         // events should be returned, with a trailing NULL value.
+	                                                         // You can provide additional comm
+	                                                         // values via scap_suppress_events_comm().
+	bool udig; ///< If true, UDIG will be used for event capture. Otherwise, the kernel driver will be used.
+	interesting_ppm_sc_set ppm_sc_of_interest;
+
+	scap_source_plugin* input_plugin; ///< use this to configure a source plugin that will produce the events for this capture
+	char* input_plugin_params; ///< optional parameters string for the source plugin pointed by src_plugin
+	void(*debug_log_fn)(const char* msg); // Function which SCAP may use to log a debug message
+	uint64_t proc_scan_timeout_ms; // Timeout in msec, after which so-far-successful scan of /proc should be cut short with success return
+	uint64_t proc_scan_log_interval_ms; // Interval for logging progress messages from /proc scan
+}scap_open_args;
 
 //
 // The following stuff is byte aligned because we save it to disk.

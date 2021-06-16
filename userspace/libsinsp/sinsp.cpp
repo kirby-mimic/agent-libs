@@ -129,6 +129,9 @@ sinsp::sinsp(bool static_container, const std::string &static_id, const std::str
 	m_self_pid = getpid();
 #endif
 
+	m_proc_scan_timeout_ms = SCAP_PROC_SCAN_TIMEOUT_NONE;
+	m_proc_scan_log_interval_ms = SCAP_PROC_SCAN_LOG_NONE;
+
 	uint32_t evlen = sizeof(scap_evt) + 2 * sizeof(uint16_t) + 2 * sizeof(uint64_t);
 	m_meinfo.m_piscapevt = (scap_evt*)new char[evlen];
 	m_meinfo.m_piscapevt->type = PPME_PROCINFO_E;
@@ -495,7 +498,13 @@ void sinsp::fill_ppm_sc_of_interest(scap_open_args *oargs, const std::unordered_
 			oargs->ppm_sc_of_interest.ppm_sc[i] = ppm_sc_of_interest.find(i) != ppm_sc_of_interest.end();
 		}
 	}
+<<<<<<< HEAD
 }
+=======
+	oargs.debug_log_fn = &sinsp_scap_debug_log_fn;
+	oargs.proc_scan_timeout_ms = m_proc_scan_timeout_ms;
+	oargs.proc_scan_log_interval_ms = m_proc_scan_log_interval_ms;
+>>>>>>> 85d2bc76 (Enhancements to initial scan of /proc, for supportability)
 
 void sinsp::fill_tp_of_interest(scap_open_args *oargs, const std::unordered_set<uint32_t> &tp_of_interest)
 {
@@ -636,12 +645,20 @@ void sinsp::open_savefile(const std::string& filename, int fd)
 		params.fname = NULL;
 		m_filesize = 0;
 	}
+<<<<<<< HEAD
 	else
 	{
 		if(filename.empty())
 		{
 			throw sinsp_exception("When you use the 'savefile' engine you need to provide a path to the file.");
 		}
+=======
+	oargs.import_users = m_usergroup_manager.m_import_users;
+	oargs.debug_log_fn = &sinsp_scap_debug_log_fn;
+	oargs.proc_scan_timeout_ms = m_proc_scan_timeout_ms;
+	oargs.proc_scan_log_interval_ms = m_proc_scan_log_interval_ms;
+	fill_syscalls_of_interest(&oargs);
+>>>>>>> 85d2bc76 (Enhancements to initial scan of /proc, for supportability)
 
 		params.fname = filename.c_str();
 		params.fd = 0;
@@ -810,6 +827,96 @@ std::string sinsp::get_error_desc(const std::string& msg)
 	return errstr;
 }
 
+<<<<<<< HEAD
+=======
+void sinsp::open_int()
+{
+	char error[SCAP_LASTERR_SIZE] = {0};
+
+	//
+	// Reset the thread manager
+	//
+	m_thread_manager->clear();
+
+	//
+	// Start the capture
+	//
+	m_mode = SCAP_MODE_CAPTURE;
+	scap_open_args oargs;
+	oargs.mode = SCAP_MODE_CAPTURE;
+	if(m_input_fd != 0)
+	{
+		oargs.fd = m_input_fd;
+	}
+	else
+	{
+		oargs.fd = 0;
+		oargs.fname = m_input_filename.c_str();
+	}
+	oargs.proc_callback = NULL;
+	oargs.proc_callback_context = NULL;
+	oargs.import_users = m_usergroup_manager.m_import_users;
+	oargs.start_offset = 0;
+	fill_syscalls_of_interest(&oargs);
+
+	add_suppressed_comms(oargs);
+
+	oargs.debug_log_fn = &sinsp_scap_debug_log_fn;
+	oargs.proc_scan_timeout_ms = m_proc_scan_timeout_ms;
+	oargs.proc_scan_log_interval_ms = m_proc_scan_log_interval_ms;
+
+	int32_t scap_rc;
+
+	m_h = scap_open(oargs, error, &scap_rc);
+
+	if(m_h == NULL)
+	{
+		throw scap_open_exception(error, scap_rc);
+	}
+
+	if(m_input_fd != 0)
+	{
+		// We can't get a reliable filesize
+		m_filesize = 0;
+	}
+	else
+	{
+		m_filesize = get_file_size(m_input_filename, error);
+
+		if(m_filesize < 0)
+		{
+			throw sinsp_exception(error);
+		}
+	}
+
+	init();
+}
+
+void sinsp::open(const std::string &filename)
+{
+	if(filename.empty())
+	{
+		open();
+		return;
+	}
+
+	m_input_filename = filename;
+
+	g_logger.log("starting offline capture");
+
+	open_int();
+}
+
+void sinsp::fdopen(int fd)
+{
+	m_input_fd = fd;
+
+	g_logger.log("starting offline capture");
+
+	open_int();
+}
+
+>>>>>>> 85d2bc76 (Enhancements to initial scan of /proc, for supportability)
 void sinsp::close()
 {
 	if(m_h)
@@ -2586,6 +2693,16 @@ void sinsp::set_thread_purge_interval_s(uint32_t val)
 void sinsp::set_thread_timeout_s(uint32_t val)
 {
 	m_thread_timeout_ns = (uint64_t)val * ONE_SECOND_IN_NS;
+}
+
+void sinsp::set_proc_scan_timeout_ms(uint64_t val)
+{
+	m_proc_scan_timeout_ms = val;
+}
+
+void sinsp::set_proc_scan_log_interval_ms(uint64_t val)
+{
+	m_proc_scan_log_interval_ms = val;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
