@@ -292,6 +292,8 @@ int32_t scap_init_test_input_int(scap_t* handle, scap_open_args* oargs)
 	handle->m_proclist.m_proclist = NULL;
 
 	handle->m_debug_log_fn = oargs->debug_log_fn;
+	handle->m_proc_scan_timeout_ms = oargs->proc_scan_timeout_ms;
+	handle->m_proc_scan_log_interval_ms = oargs->proc_scan_log_interval_ms;
 
 	if ((rc = scap_suppress_init(&handle->m_suppress, oargs->suppressed_comms)) != SCAP_SUCCESS)
 	{
@@ -339,6 +341,8 @@ int32_t scap_init_gvisor_int(scap_t* handle, scap_open_args* oargs)
 	handle->m_proclist.m_proclist = NULL;
 
 	handle->m_debug_log_fn = oargs->debug_log_fn;
+	handle->m_proc_scan_timeout_ms = oargs->proc_scan_timeout_ms;
+	handle->m_proc_scan_log_interval_ms = oargs->proc_scan_log_interval_ms;
 
 	if ((rc = scap_suppress_init(&handle->m_suppress, oargs->suppressed_comms)) != SCAP_SUCCESS)
 	{
@@ -515,6 +519,8 @@ int32_t scap_init_plugin_int(scap_t* handle, scap_open_args* oargs)
 	handle->m_proclist.m_proclist = NULL;
 
 	handle->m_debug_log_fn = oargs->debug_log_fn;
+	handle->m_proc_scan_timeout_ms = oargs->proc_scan_timeout_ms;
+	handle->m_proc_scan_log_interval_ms = oargs->proc_scan_log_interval_ms;
 
 	//
 	// Extract machine information
