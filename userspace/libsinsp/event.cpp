@@ -2722,7 +2722,7 @@ bool evtcpy(sinsp_evt& dest, const sinsp_evt& src)
 	// tinfo
 	if (src.m_tinfo_ref && src.m_tinfo && src.m_tinfo_ref.get() != src.m_tinfo)
 	{
-		// bad data
+		// both not null and not equal: bad data
 		return false;
 	}
 
@@ -2743,9 +2743,6 @@ bool evtcpy(sinsp_evt& dest, const sinsp_evt& src)
 		}
 		dest.m_tinfo = dest.m_tinfo_ref.get();
 	}
-
-	dest.m_tinfo_ref = src.m_tinfo_ref;
-	dest.m_tinfo = src.m_tinfo;
 
 	// scalars
 	dest.m_cpuid = src.m_cpuid;
