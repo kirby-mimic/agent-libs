@@ -17,6 +17,8 @@ or GPL2.txt for full copies of the license.
 #include <linux/in.h>
 #include <linux/fdtable.h>
 #include <linux/net.h>
+/* SYSDIG -- Fix Little-Endian assumptions */
+#include <endian.h>
 
 #include "../ppm_flag_helpers.h"
 #include "builtins.h"
@@ -460,8 +462,12 @@ static __always_inline u32 bpf_compute_snaplen(struct filler_data *data,
 		if (lookahead_size >= 5) {
 			u32 buf = *(u32 *)&get_buf(0);
 
-#ifdef CONFIG_S390
+/* SYSDIG -- Fix Little-Endian assumptions */
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+#elif __BYTE_ORDER == __BIG_ENDIAN
 			buf = __builtin_bswap32(buf);
+#else
+#error UNDEFINED __BYTE_ORDER
 #endif
 			if (buf == BPF_HTTP_GET ||
 			    buf == BPF_HTTP_POST ||
