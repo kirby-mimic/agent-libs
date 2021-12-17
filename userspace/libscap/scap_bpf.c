@@ -455,7 +455,7 @@ static int32_t load_tracepoint(scap_t* handle, const char *event, struct bpf_ins
 
 	handle->m_bpf_prog_fds[handle->m_bpf_prog_cnt++] = fd;
 
-	if(memcmp(event, "filler/", sizeof("filler/") - 1) == 0)
+	if(memcmp(event, "filler/", sizeof("filler/") - 1) == 0) // ******
 	{
 		int prog_id;
 

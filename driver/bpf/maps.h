@@ -9,6 +9,8 @@ or GPL2.txt for full copies of the license.
 #ifndef __MAPS_H
 #define __MAPS_H
 
+#ifndef __KERNEL__ // TODO Fix this
+
 struct bpf_map_def {
 	unsigned int type;
 	unsigned int key_size;
@@ -18,6 +20,7 @@ struct bpf_map_def {
 	unsigned int inner_map_idx;
 	unsigned int numa_node;
 };
+#endif
 
 #ifdef __KERNEL__
 struct bpf_map_def __bpf_section("maps") perf_map = {

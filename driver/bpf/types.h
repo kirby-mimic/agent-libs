@@ -11,14 +11,16 @@ or GPL2.txt for full copies of the license.
 
 #ifdef __KERNEL__
 
-#define __bpf_section(NAME) __attribute__((section(NAME), used))
+#include <bpf/bpf_helpers.h>
+//#define __bpf_section(NAME) __attribute__((section(NAME), used))
+#define __bpf_section(NAME) SEC(NAME)
 
 #ifndef __always_inline
 #define __always_inline inline __attribute__((always_inline))
 #endif
 
 #ifdef BPF_SUPPORTS_RAW_TRACEPOINTS
-#define TP_NAME "raw_tracepoint/"
+#define TP_NAME "raw_tp/"
 #else
 #define TP_NAME "tracepoint/"
 #endif

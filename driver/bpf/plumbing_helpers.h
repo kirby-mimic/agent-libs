@@ -29,7 +29,7 @@ or GPL2.txt for full copies of the license.
 		bpf_trace_printk(s, sizeof(s), ##__VA_ARGS__);	\
 	} while (0)
 #else
-#define bpf_printk(fmt, ...)
+//#define bpf_printk(fmt, ...)
 #endif
 
 #ifndef BPF_SUPPORTS_RAW_TRACEPOINTS

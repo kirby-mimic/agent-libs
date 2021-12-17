@@ -9,6 +9,7 @@ or GPL2.txt for full copies of the license.
 #ifndef __BPF_HELPERS_H
 #define __BPF_HELPERS_H
 
+#if 0
 static void *(*bpf_map_lookup_elem)(void *map, void *key) =
 	(void *)BPF_FUNC_map_lookup_elem;
 static int (*bpf_map_update_elem)(void *map, void *key, void *value,
@@ -85,5 +86,5 @@ static int (*bpf_skb_under_cgroup)(void *ctx, void *map, int index) =
 	(void *)BPF_FUNC_skb_under_cgroup;
 static int (*bpf_skb_change_head)(void *, int len, int flags) =
 	(void *)BPF_FUNC_skb_change_head;
-
+#endif
 #endif
