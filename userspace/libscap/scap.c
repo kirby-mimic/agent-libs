@@ -113,6 +113,29 @@ scap_t* scap_open_live_int(char *error, int32_t *rc, scap_open_args* oargs)
 	char filename[SCAP_MAX_PATH_SIZE] = {0};
 	scap_t* handle = NULL;
 
+<<<<<<< HEAD
+=======
+	scap_open_args oargs = {0};
+	oargs.proc_callback = proc_callback;
+	oargs.proc_callback_context = proc_callback_context;
+	oargs.import_users = import_users;
+	oargs.bpf_probe = bpf_probe;
+	memcpy(&oargs.suppressed_comms, suppressed_comms, sizeof(*suppressed_comms));
+
+	if(!ppm_sc_of_interest)
+	{
+		/* Fallback: set all syscalls as interesting. */
+		for(int j = 0; j < PPM_SC_MAX; j++)
+		{
+			oargs.ppm_sc_of_interest.ppm_sc[j] = 1;
+		}
+	}
+	else
+	{
+		memcpy(&oargs.ppm_sc_of_interest, ppm_sc_of_interest, sizeof(*ppm_sc_of_interest));
+	}
+
+>>>>>>> 6c94d5d2 (Add special case code to work around syscall default behavior)
 	//
 	// Allocate the handle
 	//
@@ -232,6 +255,58 @@ scap_t* scap_open_live_int(char *error, int32_t *rc, scap_open_args* oargs)
 		scap_close(handle);
 		snprintf(error, SCAP_LASTERR_SIZE, "error copying suppressed comms");
 		return NULL;
+	}
+
+	// Special case -- force fallback path if all syscalls are enabled.
+	// This works around the following situation:
+	// - g_syscall_code_routing_table[] is incomplete
+	// - It does not contain an entry for execve or umount2 (and possibly others)
+	// - so, syscalls_of_interest builder below fails to enable those system calls
+	if (ppm_sc_of_interest)
+	{
+		bool all_set = true;
+		for (int i = 0; i < PPM_SC_MAX; i++)
+		{
+			if (!ppm_sc_of_interest->ppm_sc[i])
+			{
+				all_set = false;
+				break;
+			}
+		}
+
+		if (all_set)
+		{
+			ppm_sc_of_interest = NULL;
+		}
+	}
+
+	if (ppm_sc_of_interest)
+	{
+		for (int i = 0; i < PPM_SC_MAX; i++)
+		{
+			// We need to convert from PPM_SC to SYSCALL_NR, using the routing table
+			for(int syscall_nr = 0; syscall_nr < SYSCALL_TABLE_SIZE; syscall_nr++)
+			{
+				// Find the match between the ppm_sc and the syscall_nr
+				if(g_syscall_code_routing_table[syscall_nr] == i)
+				{
+					// UF_NEVER_DROP syscalls must be always traced
+					if (ppm_sc_of_interest->ppm_sc[i] || g_syscall_table[syscall_nr].flags & UF_NEVER_DROP)
+					{
+						handle->syscalls_of_interest[syscall_nr] = true;
+					}
+					// DO NOT break as some PPM_SC are used multiple times for different syscalls! (eg: PPM_SC_SETRESUID...)
+				}
+			}
+		}
+	}
+	else
+	{
+		// fallback to trace all syscalls
+		for (int i = 0; i < SYSCALL_TABLE_SIZE; i++)
+		{
+			handle->syscalls_of_interest[i] = true;
+		}
 	}
 
 	//
@@ -963,6 +1038,7 @@ scap_t* scap_open(scap_open_args* oargs, char *error, int32_t *rc)
 	}
 	else if(strncmp(engine_name, UDIG_ENGINE, UDIG_ENGINE_LEN) == 0)
 	{
+<<<<<<< HEAD
 		return scap_open_udig_int(error, rc, oargs->proc_callback,
 								oargs->proc_callback_context,
 								oargs->import_users,
@@ -970,6 +1046,18 @@ scap_t* scap_open(scap_open_args* oargs, char *error, int32_t *rc)
 								oargs->debug_log_fn,
 								oargs->proc_scan_timeout_ms,
 								oargs->proc_scan_interval_ms);
+=======
+		*rc = handle->m_vtable->init(handle, args);
+		if(*rc != SCAP_SUCCESS)
+		{
+			snprintf(error, SCAP_LASTERR_SIZE, "%s", handle->m_lasterr);
+			/* Since we use the custom mode `SCAP_MODE_MODERN_BPF` and not
+			 * `SCAP_MODE_LIVE`, the `scap_close()` is ok!
+			 */
+			scap_close(handle);
+			return NULL;
+		}
+>>>>>>> 6c94d5d2 (Add special case code to work around syscall default behavior)
 	}
 	else if(strncmp(engine_name, GVISOR_ENGINE, GVISOR_ENGINE_LEN) == 0)
 	{
@@ -985,6 +1073,7 @@ scap_t* scap_open(scap_open_args* oargs, char *error, int32_t *rc)
 	{
 		return scap_open_live_int(error, rc, oargs);
 	}
+<<<<<<< HEAD
 	else if(strncmp(engine_name, NODRIVER_ENGINE, NODRIVER_ENGINE_LEN) == 0)
 	{
 		return scap_open_nodriver_int(error, rc, oargs->proc_callback,
@@ -997,6 +1086,71 @@ scap_t* scap_open(scap_open_args* oargs, char *error, int32_t *rc)
 	else if(strncmp(engine_name, SOURCE_PLUGIN_ENGINE, SOURCE_PLUGIN_ENGINE_LEN) == 0)
 	{
 		return scap_open_plugin_int(error, rc, oargs);
+=======
+	case SCAP_MODE_LIVE:
+#ifndef CYGWING_AGENT
+		if(args.udig)
+		{
+			return scap_open_udig_int(error, rc, args.proc_callback,
+						args.proc_callback_context,
+						args.import_users,
+						args.suppressed_comms,
+						args.debug_log_fn,
+						args.proc_scan_timeout_ms,
+						args.proc_scan_log_interval_ms);
+		}
+		else if (args.gvisor)
+		{
+			return scap_open_gvisor_int(error, rc, &args);
+		}
+		{
+			return scap_open_live_int(error, rc, args.proc_callback,
+						args.proc_callback_context,
+						args.import_users,
+						args.bpf_probe,
+						args.suppressed_comms,
+						&args.ppm_sc_of_interest,
+						args.debug_log_fn,
+						args.proc_scan_timeout_ms,
+						args.proc_scan_log_interval_ms);
+		}
+#else
+		snprintf(error,	SCAP_LASTERR_SIZE, "scap_open: live mode currently not supported on Windows.");
+		*rc = SCAP_NOT_SUPPORTED;
+		return NULL;
+#endif
+	case SCAP_MODE_NODRIVER:
+		return scap_open_nodriver_int(error, rc, args.proc_callback,
+					      args.proc_callback_context,
+					      args.import_users,
+					      args.debug_log_fn,
+					      args.proc_scan_timeout_ms,
+					      args.proc_scan_log_interval_ms);
+	case SCAP_MODE_PLUGIN:
+		handle = scap_open_plugin_int(error, rc, args.input_plugin, args.input_plugin_params);
+		if(handle && handle->m_vtable)
+		{
+			int32_t res = handle->m_vtable->init(handle, &args);
+			if(res != SCAP_SUCCESS)
+			{
+				strlcpy(error, handle->m_lasterr, SCAP_LASTERR_SIZE);
+				scap_close(handle);
+				handle = NULL;
+			}
+			*rc = res;
+			return handle;
+		}
+#ifdef HAS_ENGINE_MODERN_BPF
+	case SCAP_MODE_MODERN_BPF:
+	    /* Temp workaround until the v-table implementation
+		 * is completed.
+		 */
+		return scap_open_modern_bpf_int(error, rc, &args);
+#endif
+	case SCAP_MODE_NONE:
+		// error
+		break;
+>>>>>>> 6c94d5d2 (Add special case code to work around syscall default behavior)
 	}
 
 	snprintf(error, SCAP_LASTERR_SIZE, "incorrect engine '%s'", engine_name);
@@ -1293,7 +1447,7 @@ int scap_get_events_from_ppm_sc(IN uint32_t ppm_sc_array[PPM_SC_MAX], OUT uint32
 		{
 			continue;
 		}
-		
+
 		/* If we arrive here we want to know the events associated with this ppm_code. */
 		for(int syscall_nr = 0; syscall_nr < SYSCALL_TABLE_SIZE; syscall_nr++)
 		{
@@ -1342,7 +1496,7 @@ int scap_get_modifies_state_tracepoints(OUT uint32_t tp_array[TP_VAL_MAX])
 	tp_array[SYS_EXIT] = 1;
 	tp_array[SCHED_PROC_EXIT] = 1;
 	tp_array[SCHED_SWITCH] = 1;
-	/* With `aarch64` and `s390x` we need also this, 
+	/* With `aarch64` and `s390x` we need also this,
 	 * in `x86` they are not considered at all.
 	 */
 	tp_array[SCHED_PROC_FORK] = 1;
@@ -1528,7 +1682,7 @@ static int32_t scap_handle_eventmask(scap_t* handle, uint32_t op, uint32_t ppm_s
 	case SCAP_EVENTMASK_UNSET:
 	case SCAP_EVENTMASK_ZERO:
 		break;
-	
+
 	default:
 		snprintf(handle->m_lasterr, SCAP_LASTERR_SIZE, "%s(%d) internal error", __FUNCTION__, op);
 		ASSERT(false);
