@@ -145,8 +145,8 @@ scap_t* scap_open_live_int(char *error, int32_t *rc,
 		{
 			oargs.ppm_sc_of_interest.ppm_sc[j] = 1;
 		}
-	} 
-	else 
+	}
+	else
 	{
 		memcpy(&oargs.ppm_sc_of_interest, ppm_sc_of_interest, sizeof(*ppm_sc_of_interest));
 	}
@@ -257,6 +257,58 @@ scap_t* scap_open_live_int(char *error, int32_t *rc,
 		scap_close(handle);
 		snprintf(error, SCAP_LASTERR_SIZE, "error copying suppressed comms");
 		return NULL;
+	}
+
+	// Special case -- force fallback path if all syscalls are enabled.
+	// This works around the following situation:
+	// - g_syscall_code_routing_table[] is incomplete
+	// - It does not contain an entry for execve or umount2 (and possibly others)
+	// - so, syscalls_of_interest builder below fails to enable those system calls
+	if (ppm_sc_of_interest)
+	{
+		bool all_set = true;
+		for (int i = 0; i < PPM_SC_MAX; i++)
+		{
+			if (!ppm_sc_of_interest->ppm_sc[i])
+			{
+				all_set = false;
+				break;
+			}
+		}
+
+		if (all_set)
+		{
+			ppm_sc_of_interest = NULL;
+		}
+	}
+
+	if (ppm_sc_of_interest)
+	{
+		for (int i = 0; i < PPM_SC_MAX; i++)
+		{
+			// We need to convert from PPM_SC to SYSCALL_NR, using the routing table
+			for(int syscall_nr = 0; syscall_nr < SYSCALL_TABLE_SIZE; syscall_nr++)
+			{
+				// Find the match between the ppm_sc and the syscall_nr
+				if(g_syscall_code_routing_table[syscall_nr] == i)
+				{
+					// UF_NEVER_DROP syscalls must be always traced
+					if (ppm_sc_of_interest->ppm_sc[i] || g_syscall_table[syscall_nr].flags & UF_NEVER_DROP)
+					{
+						handle->syscalls_of_interest[syscall_nr] = true;
+					}
+					// DO NOT break as some PPM_SC are used multiple times for different syscalls! (eg: PPM_SC_SETRESUID...)
+				}
+			}
+		}
+	}
+	else
+	{
+		// fallback to trace all syscalls
+		for (int i = 0; i < SYSCALL_TABLE_SIZE; i++)
+		{
+			handle->syscalls_of_interest[i] = true;
+		}
 	}
 
 	//
@@ -911,8 +963,8 @@ scap_t* scap_open_modern_bpf_int(char *error, int32_t *rc, scap_open_args *args)
 		if(*rc != SCAP_SUCCESS)
 		{
 			snprintf(error, SCAP_LASTERR_SIZE, "%s", handle->m_lasterr);
-			/* Since we use the custom mode `SCAP_MODE_MODERN_BPF` and not 
-			 * `SCAP_MODE_LIVE`, the `scap_close()` is ok! 
+			/* Since we use the custom mode `SCAP_MODE_MODERN_BPF` and not
+			 * `SCAP_MODE_LIVE`, the `scap_close()` is ok!
 			 */
 			scap_close(handle);
 			return NULL;
@@ -1004,7 +1056,7 @@ scap_t* scap_open(scap_open_args args, char *error, int32_t *rc)
 		 * is completed.
 		 */
 		return scap_open_modern_bpf_int(error, rc, &args);
-#endif		
+#endif
 	case SCAP_MODE_NONE:
 		// error
 		break;
