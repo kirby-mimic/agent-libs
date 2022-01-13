@@ -67,9 +67,8 @@ class ipv6net
 {
 private:
 	ipv6addr m_addr;
-	uint32_t m_mask_len_bytes;
+	uint32_t m_mask_len_ints;
 	uint32_t m_mask_tail_bits;
-	void init(const std::string &str);
 public:
 	ipv6net(const std::string &str);
 	bool in_cidr(const ipv6addr &other) const;

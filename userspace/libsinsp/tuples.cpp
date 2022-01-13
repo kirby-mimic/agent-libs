@@ -76,10 +76,15 @@ bool ipv6addr::in_subnet(const ipv6addr &other) const
 		m_b[1] == other.m_b[1]);
 }
 
-void ipv6net::init(const std::string &str)
+ipv6net::ipv6net(const std::string &str)
 {
 	std::stringstream ss(str);
 	std::string ip, mask;
+
+	if (strchr(str.c_str(), '/') == nullptr)
+	{
+		throw sinsp_exception("unrecognized IP network " + std::string(str));
+	}
 
 	getline(ss, ip, '/');
 	getline(ss, mask);
@@ -96,41 +101,25 @@ void ipv6net::init(const std::string &str)
 		throw sinsp_exception("invalid v6 netmask " + mask);
 	}
 
-	m_mask_len_bytes = prefix_len / 8;
-	m_mask_tail_bits = 8 - (prefix_len % 8);
+	m_mask_len_ints  = prefix_len / 32;
+	m_mask_tail_bits = 32 - prefix_len % 32;
 
-	if (m_mask_tail_bits == 8)
+	if (m_mask_tail_bits == 32)
 	{
-		--m_mask_len_bytes;
+		--m_mask_len_ints;
 		m_mask_tail_bits = 0;
-	}
-}
-
-ipv6net::ipv6net(const std::string &str)
-{
-	if(strchr(str.c_str(), '/') != nullptr)
-	{
-		init(str);
-	}
-	else
-	{
-		g_logger.format(sinsp_logger::SEV_INFO, "using legacy netV6 formatting with '/64' bit prefix for '%'", str.c_str());
-		init(str + "/64");
 	}
 }
 
 bool ipv6net::in_cidr(const ipv6addr &other) const
 {
-	auto this_bytes  = (const uint8_t*)(&m_addr.m_b);
-	auto other_bytes = (const uint8_t*)(&other.m_b);
-
 	int i = 0;
-	for (; i < m_mask_len_bytes; i++)
+	for (; i < m_mask_len_ints; i++)
 	{
-		if(this_bytes[i] != other_bytes[i])
+		if(m_addr.m_b[i] != other.m_b[i])
 		{
 			return false;
 		}
 	}
-	return (this_bytes[i] >> m_mask_tail_bits) == (other_bytes[i] >> m_mask_tail_bits);
+	return (m_addr.m_b[i] >> m_mask_tail_bits) == (other.m_b[i] >> m_mask_tail_bits);
 }
