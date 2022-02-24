@@ -503,10 +503,16 @@ void sinsp_threadinfo::set_args(const char* args, size_t len)
 	m_args.clear();
 
 	size_t offset = 0;
+	m_cmd_line = get_comm();
 	while(offset < len)
 	{
-		m_args.push_back(args + offset);
+		m_args.emplace_back(args + offset);
 		offset += m_args.back().length() + 1;
+		if (!m_cmd_line.empty())
+		{
+			m_cmd_line += " ";
+			m_cmd_line += m_args.back();
+		}
 	}
 }
 
@@ -950,12 +956,18 @@ void sinsp_threadinfo::traverse_parent_state(visitor_func_t &visitor)
 
 void sinsp_threadinfo::populate_cmdline(string &cmdline, const sinsp_threadinfo *tinfo)
 {
-	cmdline = tinfo->get_comm();
-
-	for (const auto& arg : tinfo->m_args)
+	if (tinfo->m_cmd_line.empty())
 	{
-		cmdline += " ";
-		cmdline += arg;
+		cmdline = tinfo->get_comm();
+		for (const auto& arg : tinfo->m_args)
+		{
+			cmdline += " ";
+			cmdline += arg;
+		}
+	}
+	else
+	{
+		cmdline = tinfo->m_cmd_line;
 	}
 }
 
