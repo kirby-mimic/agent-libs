@@ -2803,15 +2803,17 @@ inline const filtercheck_field_info* filter_check_cache_key(const filtercheck_fi
 void sinsp_evt::filter_check_cache_save(const filtercheck_field_info* f_info,
                                        bool sanitized,
                                        uint8_t* val,
-                                       size_t len)
+                                       size_t len) noexcept(false)
 {
 	if (m_falco_cache == nullptr)
 	{
 		return;
 	}
-	std::vector<uint8_t> v(len);
-	memcpy(&v[0], val, len);
-	(*m_falco_cache)[filter_check_cache_key(f_info, sanitized)] = std::move(v);
+	if (len == 0 || val == nullptr)
+	{
+		throw std::runtime_error("invalid value nullptr to save into filter_check_cache");
+	}
+	(*m_falco_cache)[filter_check_cache_key(f_info, sanitized)] = std::vector<uint8_t> (val, val +len);
 }
 
 size_t sinsp_evt::filter_check_cache_get(const filtercheck_field_info* f_info,
@@ -2856,14 +2858,14 @@ size_t sinsp_evt::filter_check_cache_get(const filtercheck_field_info* f_info,
 	{
 		last_ts = sinsp_utils::get_current_time_ns();
 		std::multimap<uint64_t, const filtercheck_field_info*, greater<uint64_t>> freq_ordered_map;
-		for (auto e : frequencies)
+		for (const auto& e : frequencies)
 		{
 			freq_ordered_map.emplace(e.second, e.first);
 		}
 
 		std::string most_used_fields;
 		int i = 0;
-		for (auto e : freq_ordered_map)
+		for (const auto& e : freq_ordered_map)
 		{
 			if (++i >= 10)
 			{

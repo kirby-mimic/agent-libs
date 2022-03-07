@@ -490,7 +490,7 @@ private:
 	static bool evtcpy(sinsp_evt& dest, const sinsp_evt& src);
 
 	void filter_check_cache_init();
-	void filter_check_cache_save(const filtercheck_field_info*, bool sanitized, uint8_t* val, size_t len);
+	void filter_check_cache_save(const filtercheck_field_info*, bool sanitized, uint8_t* val, size_t len) noexcept(false);
 	size_t filter_check_cache_get(const filtercheck_field_info *f_info, bool sanitized, uint8_t  *&ret);
 
 VISIBILITY_PRIVATE
