@@ -2783,13 +2783,13 @@ bool sinsp_evt::evtcpy(sinsp_evt& dest, const sinsp_evt& src)
 	return true;
 }
 
-void sinsp_evt::falco_cache_init()
+void sinsp_evt::filter_check_cache_init()
 {
 	m_falco_cache.reset(
 	    new std::unordered_map<const filtercheck_field_info*, std::vector<uint8_t>>);
 }
 
-inline const filtercheck_field_info* falco_cache_key(const filtercheck_field_info* f_info,
+inline const filtercheck_field_info* filter_check_cache_key(const filtercheck_field_info* f_info,
                                                      bool sanitized)
 {
 	if (sanitized)
@@ -2800,7 +2800,7 @@ inline const filtercheck_field_info* falco_cache_key(const filtercheck_field_inf
 	return f_info;
 }
 
-void sinsp_evt::falco_cache_save_value(const filtercheck_field_info* f_info,
+void sinsp_evt::filter_check_cache_save(const filtercheck_field_info* f_info,
                                        bool sanitized,
                                        uint8_t* val,
                                        size_t len)
@@ -2811,10 +2811,10 @@ void sinsp_evt::falco_cache_save_value(const filtercheck_field_info* f_info,
 	}
 	std::vector<uint8_t> v(len);
 	memcpy(&v[0], val, len);
-	(*m_falco_cache)[falco_cache_key(f_info, sanitized)] = std::move(v);
+	(*m_falco_cache)[filter_check_cache_key(f_info, sanitized)] = std::move(v);
 }
 
-size_t sinsp_evt::falco_cache_get_value(const filtercheck_field_info* f_info,
+size_t sinsp_evt::filter_check_cache_get(const filtercheck_field_info* f_info,
                                         bool sanitized,
                                         uint8_t*& ret)
 {
@@ -2840,7 +2840,7 @@ size_t sinsp_evt::falco_cache_get_value(const filtercheck_field_info* f_info,
 	}
 
 	size_t len = 0;
-	const auto it = m_falco_cache->find(falco_cache_key(f_info, sanitized));
+	const auto it = m_falco_cache->find(filter_check_cache_key(f_info, sanitized));
 	if (it != m_falco_cache->end())
 	{
 		hits++;
