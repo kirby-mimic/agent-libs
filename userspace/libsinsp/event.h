@@ -28,6 +28,7 @@ limitations under the License.
 #include "gen_filter.h"
 #include "settings.h"
 
+#include <unordered_map>
 typedef class sinsp sinsp;
 typedef class sinsp_threadinfo sinsp_threadinfo;
 
@@ -488,6 +489,10 @@ private:
 
 	static bool evtcpy(sinsp_evt& dest, const sinsp_evt& src);
 
+	void falco_cache_init();
+	void falco_cache_save_value (const filtercheck_field_info*, bool sanitized, uint8_t* val, size_t len);
+	size_t falco_cache_get_value(const filtercheck_field_info *f_info, bool sanitized, uint8_t  *&ret);
+
 VISIBILITY_PRIVATE
 	enum flags
 	{
@@ -529,6 +534,8 @@ VISIBILITY_PRIVATE
 	const struct ppm_event_info* m_event_info_table;
 
 	std::shared_ptr<sinsp_fdinfo_t> m_fdinfo_ref;
+
+	std::shared_ptr<std::unordered_map<const filtercheck_field_info*, std::vector<uint8_t>>> m_falco_cache;
 
 	friend class sinsp;
 	friend class sinsp_parser;

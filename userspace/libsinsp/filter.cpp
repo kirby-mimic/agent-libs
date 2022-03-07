@@ -1261,6 +1261,25 @@ uint8_t* sinsp_filter_check::extract(gen_event *evt, OUT uint32_t* len, bool san
 	return extract((sinsp_evt *) evt, len, sanitize_strings);
 }
 
+uint8_t* sinsp_filter_check::extract(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
+{
+	uint8_t* ret = nullptr;
+	auto f_len = evt->falco_cache_get_value(m_field, sanitize_strings, ret);
+	if (f_len == 0)
+	{
+		ret = extract_v(evt, len, sanitize_strings);
+		f_len = *len;
+
+		if (f_len != 0)
+		{
+			evt->falco_cache_save_value(m_field, sanitize_strings, ret, f_len);
+		}
+	}
+
+	*len = (uint32_t) f_len;
+	return ret;
+}
+
 uint8_t* sinsp_filter_check::extract_cached(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
 {
 	if(m_extraction_cache_entry != NULL)

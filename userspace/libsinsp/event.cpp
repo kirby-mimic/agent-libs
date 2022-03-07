@@ -33,6 +33,7 @@ limitations under the License.
 #include "sinsp_int.h"
 
 #include "scap.h"
+#include "event.h"
 
 extern sinsp_evttables g_infotables;
 
@@ -2780,4 +2781,107 @@ bool sinsp_evt::evtcpy(sinsp_evt& dest, const sinsp_evt& src)
 	dest.m_fdinfo_name_changed = src.m_fdinfo_name_changed;
 
 	return true;
+}
+
+void sinsp_evt::falco_cache_init()
+{
+	m_falco_cache.reset(
+	    new std::unordered_map<const filtercheck_field_info*, std::vector<uint8_t>>);
+}
+
+inline const filtercheck_field_info* falco_cache_key(const filtercheck_field_info* f_info,
+                                                     bool sanitized)
+{
+	if (sanitized)
+	{
+		auto ret = (uint8_t*)f_info;
+		return (filtercheck_field_info*)(++ret);
+	}
+	return f_info;
+}
+
+void sinsp_evt::falco_cache_save_value(const filtercheck_field_info* f_info,
+                                       bool sanitized,
+                                       uint8_t* val,
+                                       size_t len)
+{
+	if (m_falco_cache == nullptr)
+	{
+		return;
+	}
+	std::vector<uint8_t> v(len);
+	memcpy(&v[0], val, len);
+	(*m_falco_cache)[falco_cache_key(f_info, sanitized)] = std::move(v);
+}
+
+size_t sinsp_evt::falco_cache_get_value(const filtercheck_field_info* f_info,
+                                        bool sanitized,
+                                        uint8_t*& ret)
+{
+	if (m_falco_cache == nullptr)
+	{
+		return 0;
+	}
+
+	static uint64_t hits = 0;
+	static uint64_t missed = 0;
+	static uint64_t last_ts = sinsp_utils::get_current_time_ns();
+	static std::unordered_map<const filtercheck_field_info*, uint64_t> frequencies;
+
+
+	auto fr_it = frequencies.find(f_info);
+	if(fr_it == frequencies.end())
+	{
+		frequencies.emplace(f_info, 1);
+	}
+	else
+	{
+		fr_it->second++;
+	}
+
+	size_t len = 0;
+	const auto it = m_falco_cache->find(falco_cache_key(f_info, sanitized));
+	if (it != m_falco_cache->end())
+	{
+		hits++;
+		ret = &(it->second[0]);
+		len = it->second.size();
+	}
+	else
+	{
+		missed++;
+	}
+
+	if ((sinsp_utils::get_current_time_ns() - last_ts) / ONE_SECOND_IN_NS >= 1)
+	{
+		last_ts = sinsp_utils::get_current_time_ns();
+		std::multimap<uint64_t, const filtercheck_field_info*, greater<uint64_t>> freq_ordered_map;
+		for (auto e : frequencies)
+		{
+			freq_ordered_map.emplace(e.second, e.first);
+		}
+
+		std::string most_used_fields;
+		int i = 0;
+		for (auto e : freq_ordered_map)
+		{
+			if (++i >= 10)
+			{
+				break;
+			}
+			most_used_fields
+			    .append( i == 1 ? "[" : ", ")
+			    .append(e.second->m_name)
+			    .append("=")
+			    .append(to_string(e.first));
+		}
+
+		g_logger.format(sinsp_logger::SEV_INFO,
+		                "falco_cache stats: calls: %llu, hit rate: %llu, fields: %s",
+		                hits + missed,
+		                hits * 100 / (hits + missed),
+		                most_used_fields.c_str());
+	}
+
+	return len;
 }

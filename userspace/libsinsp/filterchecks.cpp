@@ -415,7 +415,7 @@ uint8_t* sinsp_filter_check_fd::extract_from_null_fd(sinsp_evt *evt, OUT uint32_
 	}
 }
 
-uint8_t* sinsp_filter_check_fd::extract(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
+uint8_t* sinsp_filter_check_fd::extract_v(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
 {
 	*len = 0;
 	ASSERT(evt);
@@ -2063,7 +2063,7 @@ uint8_t* sinsp_filter_check_thread::extract_thread_cpu(sinsp_evt *evt, OUT uint3
 	return NULL;
 }
 
-uint8_t* sinsp_filter_check_thread::extract(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
+uint8_t* sinsp_filter_check_thread::extract_v(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
 {
 	*len = 0;
 	sinsp_threadinfo* tinfo = evt->get_thread_info();
@@ -2817,7 +2817,7 @@ Json::Value sinsp_filter_check_gen_event::extract_as_js(sinsp_evt *evt, OUT uint
 	return Json::nullValue;
 }
 
-uint8_t* sinsp_filter_check_gen_event::extract(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
+uint8_t* sinsp_filter_check_gen_event::extract_v(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
 {
 	*len = 0;
 	switch(m_field_id)
@@ -3477,7 +3477,7 @@ uint8_t* sinsp_filter_check_event::extract_error_count(sinsp_evt *evt, OUT uint3
 	return NULL;
 }
 
-uint8_t* sinsp_filter_check_event::extract(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
+uint8_t* sinsp_filter_check_event::extract_v(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
 {
 	*len = 0;
 	switch(m_field_id)
@@ -4708,7 +4708,7 @@ sinsp_filter_check* sinsp_filter_check_user::allocate_new()
 	return (sinsp_filter_check*) new sinsp_filter_check_user();
 }
 
-uint8_t* sinsp_filter_check_user::extract(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
+uint8_t* sinsp_filter_check_user::extract_v(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
 {
 	*len = 0;
 	sinsp_threadinfo* tinfo = evt->get_thread_info();
@@ -4796,7 +4796,7 @@ sinsp_filter_check* sinsp_filter_check_group::allocate_new()
 	return (sinsp_filter_check*) new sinsp_filter_check_group();
 }
 
-uint8_t* sinsp_filter_check_group::extract(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
+uint8_t* sinsp_filter_check_group::extract_v(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
 {
 	*len = 0;
 	sinsp_threadinfo* tinfo = evt->get_thread_info();
@@ -5155,7 +5155,7 @@ uint8_t* sinsp_filter_check_tracer::extract_arg(sinsp_partial_tracer* pae, OUT u
 	return (uint8_t*)res;
 }
 
-uint8_t* sinsp_filter_check_tracer::extract(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
+uint8_t* sinsp_filter_check_tracer::extract_v(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
 {
 	*len = 0;
 	sinsp_tracerparser* eparser;
@@ -5849,7 +5849,7 @@ inline uint8_t* sinsp_filter_check_evtin::extract_tracer(sinsp_evt *evt, sinsp_p
 	return NULL;
 }
 
-uint8_t* sinsp_filter_check_evtin::extract(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
+uint8_t* sinsp_filter_check_evtin::extract_v(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
 {
 	*len = 0;
 	list<sinsp_partial_tracer*>* partial_tracers_list = &m_inspector->m_partial_tracers_list;
@@ -6013,7 +6013,7 @@ int32_t rawstring_check::parse_field_name(const char* str, bool alloc_state, boo
 	return -1;
 }
 
-uint8_t* rawstring_check::extract(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
+uint8_t* rawstring_check::extract_v(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
 {
 	*len = m_text_len;
 	return (uint8_t*)m_text.c_str();
@@ -6056,7 +6056,7 @@ int32_t sinsp_filter_check_syslog::parse_field_name(const char* str, bool alloc_
 	return res;
 }
 
-uint8_t* sinsp_filter_check_syslog::extract(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
+uint8_t* sinsp_filter_check_syslog::extract_v(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
 {
 	*len = 0;
 	const char *str;
@@ -6216,7 +6216,7 @@ int32_t sinsp_filter_check_container::parse_field_name(const char* str, bool all
 }
 
 
-uint8_t* sinsp_filter_check_container::extract(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
+uint8_t* sinsp_filter_check_container::extract_v(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
 {
 	*len = 0;
 	sinsp_threadinfo* tinfo = evt->get_thread_info();
@@ -6619,7 +6619,7 @@ int32_t sinsp_filter_check_reference::parse_field_name(const char* str, bool all
 	return -1;
 }
 
-uint8_t* sinsp_filter_check_reference::extract(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
+uint8_t* sinsp_filter_check_reference::extract_v(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
 {
 	*len = m_len;
 	return m_val;
@@ -7006,7 +7006,7 @@ sinsp_filter_check* sinsp_filter_check_utils::allocate_new()
 	return (sinsp_filter_check*) new sinsp_filter_check_utils();
 }
 
-uint8_t* sinsp_filter_check_utils::extract(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
+uint8_t* sinsp_filter_check_utils::extract_v(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
 {
 	*len = 0;
 	switch(m_field_id)
@@ -7049,7 +7049,7 @@ sinsp_filter_check* sinsp_filter_check_fdlist::allocate_new()
 	return (sinsp_filter_check*) new sinsp_filter_check_fdlist();
 }
 
-uint8_t* sinsp_filter_check_fdlist::extract(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
+uint8_t* sinsp_filter_check_fdlist::extract_v(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
 {
 	*len = 0;
 	ASSERT(evt);
@@ -7537,7 +7537,7 @@ bool sinsp_filter_check_k8s::find_label(const k8s_pair_list& labels, const strin
 	return false;
 }
 
-uint8_t* sinsp_filter_check_k8s::extract(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
+uint8_t* sinsp_filter_check_k8s::extract_v(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
 {
 	*len = 0;
 
@@ -8071,7 +8071,7 @@ bool sinsp_filter_check_mesos::find_label(const mesos_pair_list& labels, const s
 	return false;
 }
 
-uint8_t* sinsp_filter_check_mesos::extract(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
+uint8_t* sinsp_filter_check_mesos::extract_v(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
 {
 	*len = 0;
 	if(!m_inspector || !m_inspector->m_mesos_client)
