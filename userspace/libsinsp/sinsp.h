@@ -1026,6 +1026,7 @@ public:
 
 VISIBILITY_PROTECTED
 	bool add_thread(const sinsp_threadinfo *ptinfo);
+	void reinit_thread_from_proc(sinsp_threadinfo* tinfo);
 	void set_mode(scap_mode_t value)
 	{
 		m_mode = value;
