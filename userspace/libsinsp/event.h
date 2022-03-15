@@ -488,6 +488,16 @@ private:
 
 	static bool evtcpy(sinsp_evt& dest, const sinsp_evt& src);
 
+	bool should_use_filterchecks_cache()
+	{
+		return m_use_filterchecks_cache;
+	}
+
+	void use_filterchecks_cache()
+	{
+		m_use_filterchecks_cache = true;
+	}
+
 VISIBILITY_PRIVATE
 	enum flags
 	{
@@ -526,6 +536,7 @@ VISIBILITY_PRIVATE
 #ifdef HAS_FILTERING
 	bool m_filtered_out;
 #endif
+	bool m_use_filterchecks_cache = false;
 	const struct ppm_event_info* m_event_info_table;
 
 	std::shared_ptr<sinsp_fdinfo_t> m_fdinfo_ref;

@@ -1261,23 +1261,26 @@ uint8_t* sinsp_filter_check::extract(gen_event *evt, OUT uint32_t* len, bool san
 	return extract((sinsp_evt *) evt, len, sanitize_strings);
 }
 
-uint8_t* sinsp_filter_check::extract_cached(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
+const uint8_t* sinsp_filter_check::extract_cached(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
 {
-	if(m_extraction_cache_entry != NULL)
+	if (!evt->should_use_filterchecks_cache())
 	{
-		uint64_t en = ((sinsp_evt *)evt)->get_num();
+		return extract(evt, len, sanitize_strings);
+	}
 
-		if(en != m_extraction_cache_entry->m_evtnum)
-		{
-			m_extraction_cache_entry->m_evtnum = en;
-			m_extraction_cache_entry->m_res = extract(evt, len, sanitize_strings);
-		}
-
+	auto en = evt->get_num();
+	if (m_extraction_cache_entry != nullptr && m_extraction_cache_entry->m_evtnum == en &&
+	    m_extraction_cache_entry->m_is_sanitized == sanitize_strings)
+	{
+		*len = m_extraction_cache_entry->m_len;
 		return m_extraction_cache_entry->m_res;
 	}
 	else
 	{
-		return extract(evt, len, sanitize_strings);
+		auto ret = extract(evt, len, sanitize_strings);
+		m_extraction_cache_entry.reset(
+		    new check_extraction_cache_entry(en, ret, *len, sanitize_strings));
+		return ret;
 	}
 }
 
@@ -1317,16 +1320,16 @@ bool sinsp_filter_check::compare(sinsp_evt *evt)
 {
 	uint32_t evt_val_len=0;
 	bool sanitize_strings = false;
-	uint8_t* extracted_val = extract_cached(evt, &evt_val_len, sanitize_strings);
+	auto extracted_val = extract_cached(evt, &evt_val_len, sanitize_strings);
 
-	if(extracted_val == NULL)
+	if(extracted_val == nullptr)
 	{
 		return false;
 	}
 
 	return flt_compare(m_cmpop,
 			   m_info.m_fields[m_field_id].m_type,
-			   extracted_val,
+			   const_cast<uint8_t*> (extracted_val),
 			   evt_val_len,
 			   m_val_storage_len);
 }

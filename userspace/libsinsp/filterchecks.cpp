@@ -1748,9 +1748,9 @@ bool sinsp_filter_check_fd::compare(sinsp_evt *evt)
 	//
 	uint32_t len = 0;
 	bool sanitize_strings = false;
-	uint8_t* extracted_val = extract(evt, &len, sanitize_strings);
+	auto extracted_val = extract_cached(evt, &len, sanitize_strings);
 
-	if(extracted_val == NULL)
+	if(extracted_val == nullptr)
 	{
 		// optimization for *_NAME fields
 		// the first time we will call compare_domain, the next ones
@@ -1768,7 +1768,7 @@ bool sinsp_filter_check_fd::compare(sinsp_evt *evt)
 
 	return flt_compare(m_cmpop,
 			   m_info.m_fields[m_field_id].m_type,
-			   extracted_val,
+			   const_cast<uint8_t*>(extracted_val),
 			   len);
 }
 
@@ -4640,7 +4640,7 @@ bool sinsp_filter_check_event::compare(sinsp_evt *evt)
 	{
 		uint32_t len;
 		bool sanitize_strings = false;
-		uint8_t* extracted_val = extract(evt, &len, sanitize_strings);
+		auto extracted_val = extract_cached (evt, &len, sanitize_strings);
 
 		if(extracted_val == NULL)
 		{
@@ -4651,7 +4651,7 @@ bool sinsp_filter_check_event::compare(sinsp_evt *evt)
 
 		res = flt_compare(m_cmpop,
 			m_arginfo->type,
-			extracted_val);
+			const_cast<uint8_t*>(extracted_val));
 	}
 	else if(m_field_id == TYPE_AROUND)
 	{

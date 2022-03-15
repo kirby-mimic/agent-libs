@@ -50,8 +50,20 @@ public:
 class check_extraction_cache_entry
 {
 public:
-	uint64_t m_evtnum = UINT64_MAX;
-	uint8_t* m_res;
+	const uint64_t m_evtnum;
+	const uint8_t* m_res;
+	const uint32_t m_len;
+	const bool     m_is_sanitized;
+	check_extraction_cache_entry(const uint64_t evtnum,
+	                             const uint8_t* res,
+	                             const uint32_t len,
+	                             const bool is_sanitized)
+	    : m_evtnum(evtnum),
+	      m_res(res),
+	      m_len(len),
+	      m_is_sanitized(is_sanitized)
+	{
+	}
 };
 
 class check_eval_cache_entry
@@ -125,7 +137,7 @@ public:
 	// Wrapper for extract() that implements caching to speed up multiple extractions of the same value,
 	// which are common in Falco.
 	//
-	uint8_t* extract_cached(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings = true);
+	const uint8_t* extract_cached(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings = true);
 
 	//
 	// Extract the field as json from the event (by default, fall
@@ -160,8 +172,8 @@ public:
 	bool m_needs_state_tracking = false;
 	sinsp_field_aggregation m_aggregation;
 	sinsp_field_aggregation m_merge_aggregation;
-	check_eval_cache_entry* m_eval_cache_entry = NULL;
-	check_extraction_cache_entry* m_extraction_cache_entry = NULL;
+	std::unique_ptr<check_eval_cache_entry> m_eval_cache_entry{};
+	std::unique_ptr<check_extraction_cache_entry> m_extraction_cache_entry{};
 
 protected:
 	bool flt_compare(cmpop op, ppm_param_type type, void* operand1, uint32_t op1_len = 0, uint32_t op2_len = 0);
