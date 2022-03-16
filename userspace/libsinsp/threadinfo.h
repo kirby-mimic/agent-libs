@@ -50,12 +50,8 @@ typedef struct erase_fd_params
 	uint64_t m_ts;
 }erase_fd_params;
 
-
-#if LIBSINSP_CPUARCH_FEATURES != 0
-#define LIBSINSP_CPUARCH_FLAG_INIT_CLONE_EXIT_PENDING (1 << 0)
-#define LIBSINSP_CPUARCH_FLAG_EXECVE_EXIT_PENDING     (1 << 1)
-#endif
-
+#define LIBSINSP_CPUARCH_THREAD_EVENT_BUG_FLAG_INIT_CLONE_EXIT_PENDING (1 << 0)
+#define LIBSINSP_CPUARCH_THREAD_EVENT_BUG_FLAG_EXECVE_EXIT_PENDING     (1 << 1)
 
 /** @defgroup state State management
  *  @{
@@ -314,9 +310,9 @@ public:
 	uint64_t m_lastaccess_ts; ///< The last time this thread was looked up. Used when cleaning up the table.
 	uint64_t m_clone_ts; ///< When the clone that started this process happened.
 
-#if LIBSINSP_CPUARCH_FEATURES != 0
-	// State for CPU architecture-specific processing
-	uint32_t m_cpuarch_flags;
+#if LIBSINSP_CPUARCH_THREAD_EVENT_BUGS != 0
+	// State for processing of CPU architecture-specific thread event bugs
+	uint32_t m_cpuarch_thread_event_bug_flags;
 #endif
 
 	//
