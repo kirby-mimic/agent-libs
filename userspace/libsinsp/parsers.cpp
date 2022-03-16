@@ -239,14 +239,14 @@ void sinsp_parser::process_event(sinsp_evt *evt)
 	evt->m_filtered_out = false;
 #endif
 
-#if LIBSINSP_CPUARCH_FEATURES != 0
-	// Perform CPU architecture-specific processing;
-	// applies only to events wtih an associated thread.
+#if LIBSINSP_CPUARCH_THREAD_EVENT_BUGS != 0
+	// Perform CPU architecture-specific processing related to thread
+	// event bugs.  Applies only to events wtih an associated thread.
 	if (evt->m_tinfo != nullptr)
 	{
-		cpuarch_do_event_processing(evt);
+		cpuarch_thread_event_bug_process_event(evt);
 	}
-#endif /* LIBSINSP_CPUARCH_FEATURES != 0 */
+#endif /* LIBSINSP_CPUARCH_THREAD_EVENT_BUGS != 0 */
 
 	//
 	// Route the event to the proper function
@@ -926,8 +926,8 @@ void sinsp_parser::register_event_callback(sinsp_pd_callback_type etype, sinsp_p
 // CPU ARCHITECTURE-SPECIFIC EVENT PROCESSING HELPERS
 ///////////////////////////////////////////////////////////////////////////////
 
-#if LIBSINSP_CPUARCH_FEATURES != 0
-void sinsp_parser::cpuarch_do_event_processing(sinsp_evt* evt)
+#if LIBSINSP_CPUARCH_THREAD_EVENT_BUGS != 0
+void sinsp_parser::cpuarch_thread_event_bug_process_event(sinsp_evt* evt)
 {
 	uint16_t etype = evt->get_type();
 
@@ -979,13 +979,14 @@ void sinsp_parser::cpuarch_do_event_processing(sinsp_evt* evt)
 		break;
 	}
 
-#if LIBSINSP_CPUARCH_FEATURES & LIBSINSP_CPUARCH_FEATURE_UNRELIABLE_CLONE_EXIT_EVENT_TO_CHILD
+#if LIBSINSP_CPUARCH_THREAD_EVENT_BUGS & LIBSINSP_CPUARCH_THREAD_EVENT_BUG_UNRELIABLE_CLONE_EXIT_EVENT_TO_CHILD
 	// Perform UNRELIABLE_CLONE_EXIT_EVENT_TO_CHILD processing:
 	// If the thread has performed CLONE_ENTER, but still has CLONE_EXIT pending:
 	// - If this is the hoped-for CLONE_EXIT event, clear the pending flag
 	// - Otherwise, count other system calls, and simulate the work of clone_exit
 	//   when the limit is reached
-	if (evt->m_tinfo->m_cpuarch_flags & LIBSINSP_CPUARCH_FLAG_INIT_CLONE_EXIT_PENDING)
+	if (evt->m_tinfo->m_cpuarch_thread_event_bug_flags &
+	    LIBSINSP_CPUARCH_THREAD_EVENT_BUG_FLAG_INIT_CLONE_EXIT_PENDING)
 	{
 		switch(etype)
 		{
@@ -1001,20 +1002,20 @@ void sinsp_parser::cpuarch_do_event_processing(sinsp_evt* evt)
 		case PPME_SYSCALL_VFORK_20_X:
 			// Received the actual CLONE_EXIT event.
 			// Clear pending flag.
-			evt->m_tinfo->m_cpuarch_flags &=
-				~LIBSINSP_CPUARCH_FLAG_INIT_CLONE_EXIT_PENDING;
+			evt->m_tinfo->m_cpuarch_thread_event_bug_flags &=
+			    ~LIBSINSP_CPUARCH_THREAD_EVENT_BUG_FLAG_INIT_CLONE_EXIT_PENDING;
 			break;
 
 		default:
 			// Other system call.
 			// Simulate completion of the pending CLONE_EXIT.
-			cpuarch_simulate_init_clone_exit(evt);
+			cpuarch_thread_event_bug_simulate_init_clone_exit(evt);
 			break;
 		}
 	}
 #endif /* UNRELIABLE_CLONE_EXIT_EVENT_TO_CHILD */
 
-#if LIBSINSP_CPUARCH_FEATURES & LIBSINSP_CPUARCH_FEATURE_UNRELIABLE_EXECVE_EXIT_EVENT_ON_SUCCESS
+#if LIBSINSP_CPUARCH_THREAD_EVENT_BUGS & LIBSINSP_CPUARCH_THREAD_EVENT_BUG_UNRELIABLE_EXECVE_EXIT_EVENT_ON_SUCCESS
 	// Perform UNRELIABLE_EXECVE_EXIT_EVENT_ON_SUCCESS processing:
 	// - On EXECVE_ENTER events, mark thread as EXECVE_EXIT_PENDING
 	// - On EXECVE_EXIT events, update state to reflect this
@@ -1032,7 +1033,8 @@ void sinsp_parser::cpuarch_do_event_processing(sinsp_evt* evt)
 	case PPME_SYSCALL_EXECVE_18_E:
 	case PPME_SYSCALL_EXECVE_19_E:
 		// Received EXECVE_ENTER event, set the pending flag.
-		evt->m_tinfo->m_cpuarch_flags |= LIBSINSP_CPUARCH_FLAG_EXECVE_EXIT_PENDING;
+		evt->m_tinfo->m_cpuarch_thread_event_bug_flags |=
+			LIBSINSP_CPUARCH_THREAD_EVENT_BUG_FLAG_EXECVE_EXIT_PENDING;
 		break;
 
 	case PPME_SYSCALL_EXECVE_8_X:
@@ -1045,26 +1047,28 @@ void sinsp_parser::cpuarch_do_event_processing(sinsp_evt* evt)
 	case PPME_SYSCALL_EXECVE_19_X:
 		// Received the actual EXECVE_EXIT event.
 		// Clear pending flag.
-		if (evt->m_tinfo->m_cpuarch_flags & LIBSINSP_CPUARCH_FLAG_EXECVE_EXIT_PENDING)
+		if (evt->m_tinfo->m_cpuarch_thread_event_bug_flags &
+		    LIBSINSP_CPUARCH_THREAD_EVENT_BUG_FLAG_EXECVE_EXIT_PENDING)
 		{
-			evt->m_tinfo->m_cpuarch_flags &=
-			        ~LIBSINSP_CPUARCH_FLAG_EXECVE_EXIT_PENDING;
+			evt->m_tinfo->m_cpuarch_thread_event_bug_flags &=
+				~LIBSINSP_CPUARCH_THREAD_EVENT_BUG_FLAG_EXECVE_EXIT_PENDING;
 		}
 		break;
 
 	default:
-		if (evt->m_tinfo->m_cpuarch_flags & LIBSINSP_CPUARCH_FLAG_EXECVE_EXIT_PENDING)
+		if (evt->m_tinfo->m_cpuarch_thread_event_bug_flags &
+		    LIBSINSP_CPUARCH_THREAD_EVENT_BUG_FLAG_EXECVE_EXIT_PENDING)
 		{
-			cpuarch_simulate_execve_exit(evt);
+			cpuarch_thread_event_bug_simulate_execve_exit(evt);
 		}
 		break;
 	}
 #endif /* UNRELIABLE_EXECVE_EXIT_EVENT_ON_SUCCESS */
 }
 
-void sinsp_parser::cpuarch_simulate_init_clone_exit(sinsp_evt* evt)
+void sinsp_parser::cpuarch_thread_event_bug_simulate_init_clone_exit(sinsp_evt* evt)
 {
-#if LIBSINSP_CPUARCH_FEATURES & LIBSINSP_CPUARCH_FEATURE_UNRELIABLE_CLONE_EXIT_EVENT_TO_CHILD
+#if LIBSINSP_CPUARCH_THREAD_EVENT_BUGS & LIBSINSP_CPUARCH_THREAD_EVENT_BUG_UNRELIABLE_CLONE_EXIT_EVENT_TO_CHILD
 	sinsp_threadinfo* tinfo = evt->m_tinfo;
 
 	// The thread may have already been fully-initialized, (e.g. by parent
@@ -1072,15 +1076,16 @@ void sinsp_parser::cpuarch_simulate_init_clone_exit(sinsp_evt* evt)
 	// reinitialize thread state from /proc.
 	if(tinfo->m_comm == "<NA>" && tinfo->m_uid == 0xffffffff)
 	{
-		// Save CPU arch flags from old thread object, for restoring
+		// Save thread_event_bug_flags from old thread object, for restoring
 		// after the thread object is reinitialized
-		uint32_t restore_cpuarch_flags = tinfo->m_cpuarch_flags;
+		uint32_t restore_thread_event_bug_flags =
+				tinfo->m_cpuarch_thread_event_bug_flags;
 
 		// Reinitialize thread object from contents of /proc
-		m_inspector->reinit_thread_from_proc(tinfo);
+		m_inspector->m_thread_manager->reinit_thread_from_proc(tinfo);
 
-		// Restore cpuarch_flags
-		tinfo->m_cpuarch_flags = restore_cpuarch_flags;
+		// Restore thread_event_bug_flags
+		tinfo->m_cpuarch_thread_event_bug_flags = restore_thread_event_bug_flags;
 
 		// If the proc lookup was successful, declare this an inverted clone --
 		// child completed clone_exit before parent.
@@ -1094,30 +1099,32 @@ void sinsp_parser::cpuarch_simulate_init_clone_exit(sinsp_evt* evt)
 	}
 
 	// This completes the simulation, clear the pending flag.
-	tinfo->m_cpuarch_flags &= ~LIBSINSP_CPUARCH_FLAG_INIT_CLONE_EXIT_PENDING;
+	tinfo->m_cpuarch_thread_event_bug_flags &=
+		~LIBSINSP_CPUARCH_THREAD_EVENT_BUG_FLAG_INIT_CLONE_EXIT_PENDING;
 #endif /* UNRELIABLE_CLONE_EXIT_EVENT_TO_CHILD */
 }
 
-void sinsp_parser::cpuarch_simulate_execve_exit(sinsp_evt* evt)
+void sinsp_parser::cpuarch_thread_event_bug_simulate_execve_exit(sinsp_evt* evt)
 {
-#if LIBSINSP_CPUARCH_FEATURES & LIBSINSP_CPUARCH_FEATURE_UNRELIABLE_EXECVE_EXIT_EVENT_ON_SUCCESS
+#if LIBSINSP_CPUARCH_THREAD_EVENT_BUGS & LIBSINSP_CPUARCH_THREAD_EVENT_BUG_UNRELIABLE_EXECVE_EXIT_EVENT_ON_SUCCESS
 	sinsp_threadinfo* tinfo = evt->m_tinfo;
 
-	// Save CPU arch flags from old thread object, for restoring
+	// Save thread_event_bug_flags from old thread object, for restoring
 	// after the thread object is reinitialized
-	uint32_t restore_cpuarch_flags = tinfo->m_cpuarch_flags;
+	uint32_t restore_thread_event_bug_flags = tinfo->m_cpuarch_thread_event_bug_flags;
 
 	// Reinitialize thread state from /proc, to pick up new command line
-	m_inspector->reinit_thread_from_proc(tinfo);
+	m_inspector->m_thread_manager->reinit_thread_from_proc(tinfo);
 
-	// Restore cpuarch_flags
-	tinfo->m_cpuarch_flags = restore_cpuarch_flags;
+	// Restore thread_event_bug_flags
+	tinfo->m_cpuarch_thread_event_bug_flags = restore_thread_event_bug_flags;
 
 	// This completes the simulation, clear the pending flag.
-	tinfo->m_cpuarch_flags &= ~LIBSINSP_CPUARCH_FLAG_EXECVE_EXIT_PENDING;
+	tinfo->m_cpuarch_thread_event_bug_flags &=
+		~LIBSINSP_CPUARCH_THREAD_EVENT_BUG_FLAG_EXECVE_EXIT_PENDING;
 #endif /* UNRELIABLE_EXECVE_EXIT_EVENT_ON_SUCCESS */
 }
-#endif /* LIBSINSP_CPUARCH_FEATURES != 0 */
+#endif /* LIBSINSP_CPUARCH_THREAD_EVENT_BUGS != 0 */
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1135,8 +1142,8 @@ void sinsp_parser::parse_clone_exit(sinsp_evt *evt)
 	int64_t vtid = tid;
 	int64_t vpid = -1;
 	uint16_t etype = evt->get_type();
-#if LIBSINSP_CPUARCH_FEATURES != 0
-	uint32_t restore_cpuarch_flags = 0;
+#if LIBSINSP_CPUARCH_THREAD_EVENT_BUGS != 0
+	uint32_t restore_thread_event_bug_flags = 0;
 	bool tid_collision_valid_child = false;
 #endif
 
@@ -1353,10 +1360,11 @@ void sinsp_parser::parse_clone_exit(sinsp_evt *evt)
 		}
 		else
 		{
-#if LIBSINSP_CPUARCH_FEATURES != 0
-			// Save CPU arch flags from old thread object, for restoring
-			// when new thread object is created below.
-			restore_cpuarch_flags = child->m_cpuarch_flags;
+#if LIBSINSP_CPUARCH_THREAD_EVENT_BUGS != 0
+			// Save thread_event_bug_flags from old thread object, for
+			// restoring when new thread object is created below.
+			restore_thread_event_bug_flags =
+				child->m_cpuarch_thread_event_bug_flags;
 
 			// Examine state of child, determine if the deleted child
 			// is fully-populated, for collision reporting below.
@@ -1751,10 +1759,10 @@ void sinsp_parser::parse_clone_exit(sinsp_evt *evt)
 	//
 	tinfo->m_clone_ts = evt->get_ts();
 
-#if LIBSINSP_CPUARCH_FEATURES != 0
-	// Restore cpuarch_flags from any previous incarnation of this thread.
+#if LIBSINSP_CPUARCH_THREAD_EVENT_BUGS != 0
+	// Restore thread_event_bug_flags from any previous incarnation of this thread.
 	// Sets to 0 if no previous incarnation, or no need to restore.
-	tinfo->m_cpuarch_flags = restore_cpuarch_flags;
+	tinfo->m_cpuarch_thread_event_bug_flags = restore_thread_event_bug_flags;
 #endif
 
 	//
@@ -1779,13 +1787,14 @@ void sinsp_parser::parse_clone_exit(sinsp_evt *evt)
 	{
 		reset(evt);
 
-#if LIBSINSP_CPUARCH_FEATURES & LIBSINSP_CPUARCH_FEATURE_UNRELIABLE_CLONE_EXIT_EVENT_TO_CHILD
+#if LIBSINSP_CPUARCH_THREAD_EVENT_BUGS & LIBSINSP_CPUARCH_THREAD_EVENT_BUG_UNRELIABLE_CLONE_EXIT_EVENT_TO_CHILD
 		// Report TID collisions, except for the following cases:
 		// - Child thread INIT_CLONE_EXIT simulation has not yet happened
 		// - Child thread INIT_CLONE_EXIT did happen, but was unable to
 		//   read /proc, and thus intentionally left the partially-populated
 		//   threadinfo for later repair by the parent CLONE_EXIT
-		if ((restore_cpuarch_flags & LIBSINSP_CPUARCH_FLAG_INIT_CLONE_EXIT_PENDING) ||
+		if ((restore_thread_event_bug_flags &
+		     LIBSINSP_CPUARCH_THREAD_EVENT_BUG_FLAG_INIT_CLONE_EXIT_PENDING) ||
 		    (!tid_collision_valid_child))
 		{
 			DBG_SINSP_DEBUG("Expected tid collision for %" PRIu64 "(%s)",

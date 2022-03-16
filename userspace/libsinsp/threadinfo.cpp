@@ -67,16 +67,17 @@ void sinsp_threadinfo::init()
 	m_clone_ts = 0;
 	m_lastevent_category.m_category = EC_UNKNOWN;
 	m_flags = PPM_CL_NAME_CHANGED;
-#if LIBSINSP_CPUARCH_FEATURES != 0
-	m_cpuarch_flags = 0;
-#if LIBSINSP_CPUARCH_FEATURES & LIBSINSP_CPUARCH_FEATURE_UNRELIABLE_CLONE_EXIT_EVENT_TO_CHILD
+#if LIBSINSP_CPUARCH_THREAD_EVENT_BUGS != 0
+	m_cpuarch_thread_event_bug_flags = 0;
+#if LIBSINSP_CPUARCH_THREAD_EVENT_BUGS & LIBSINSP_CPUARCH_THREAD_EVENT_BUG_UNRELIABLE_CLONE_EXIT_EVENT_TO_CHILD
 	// Mark threadinfo for initial CLONE_EXIT event processing, to handle
 	// the case of a new threadinfo created after clone.
 	// process_event() will take no action if the threadinfo is already
 	// populated from /proc.
-	m_cpuarch_flags |= LIBSINSP_CPUARCH_FLAG_INIT_CLONE_EXIT_PENDING;
+	m_cpuarch_thread_event_bug_flags |=
+		LIBSINSP_CPUARCH_THREAD_EVENT_BUG_FLAG_INIT_CLONE_EXIT_PENDING;
 #endif /* UNRELIABLE_CLONE_EXIT_EVENT_TO_CHILD */
-#endif /* LIBSINSP_CPUARCH_FEATURES != 0 */
+#endif /* LIBSINSP_CPUARCH_THREAD_EVENT_BUGS != 0 */
 	m_nchilds = 0;
 	m_fdlimit = -1;
 	m_vmsize_kb = 0;
