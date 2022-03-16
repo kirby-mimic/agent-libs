@@ -1512,11 +1512,6 @@ bool sinsp::add_thread(const sinsp_threadinfo *ptinfo)
 	return m_thread_manager->add_thread((sinsp_threadinfo*)ptinfo, false);
 }
 
-void sinsp::reinit_thread_from_proc(sinsp_threadinfo* tinfo)
-{
-	return m_thread_manager->reinit_thread_from_proc(tinfo);
-}
-
 void sinsp::remove_thread(int64_t tid, bool force)
 {
 	m_thread_manager->remove_thread(tid, force);
