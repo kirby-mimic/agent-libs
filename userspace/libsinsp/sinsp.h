@@ -1370,6 +1370,18 @@ public:
 	friend class test_helper;
 
 	template<class TKey,class THash,class TCompare> friend class sinsp_connection_manager;
+
+#ifdef SYSDIG_TEST
+protected:
+	void inject_machine_info(const scap_machine_info *value)
+	{
+		m_machine_info = value;
+	}
+	void inject_network_interfaces(sinsp_network_interfaces *value)
+	{
+		m_network_interfaces = value;
+	}
+#endif // SYSDIG_TEST
 };
 
 /*@}*/
