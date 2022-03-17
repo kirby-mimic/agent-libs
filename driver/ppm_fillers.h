@@ -33,7 +33,6 @@ or GPL2.txt for full copies of the license.
 	FN(sys_empty)				\
 	FN(sys_single)				\
 	FN(sys_single_x)			\
-	FN(sys_open_e)				\
 	FN(sys_open_x)				\
 	FN(sys_read_x)				\
 	FN(sys_write_x)				\
@@ -57,7 +56,6 @@ or GPL2.txt for full copies of the license.
 	FN(sys_recvmsg_x)			\
 	FN(sys_recvmsg_x_2)			\
 	FN(sys_shutdown_e)			\
-	FN(sys_creat_e)				\
 	FN(sys_creat_x)				\
 	FN(sys_pipe_x)				\
 	FN(sys_eventfd_e)			\
@@ -115,9 +113,7 @@ or GPL2.txt for full copies of the license.
 	FN(sys_chmod_x)				\
 	FN(sys_fchmod_x)			\
 	FN(sys_mkdirat_x)			\
-	FN(sys_openat_e)			\
 	FN(sys_openat_x)			\
-	FN(sys_openat2_e)			\
 	FN(sys_openat2_x)			\
 	FN(sys_linkat_x)			\
 	FN(sys_mprotect_e)			\
