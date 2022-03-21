@@ -972,8 +972,8 @@ void sinsp_parser::cpuarch_thread_event_bug_process_event(sinsp_evt* evt)
 	case PPME_SCHEDSWITCH_6_X:
 	case PPME_PROCEXIT_1_E:
 	case PPME_PROCEXIT_1_X:
-	case PPME_SYSDIGEVENT_E:
-	case PPME_SYSDIGEVENT_X:
+	case PPME_SCAPEVENT_E:
+	case PPME_SCAPEVENT_X:
 	case PPME_CONTAINER_E:
 	case PPME_CONTAINER_X:
 	case PPME_SIGNALDELIVER_E:
