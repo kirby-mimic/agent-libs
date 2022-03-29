@@ -98,6 +98,7 @@ set(SINSP_SOURCES
 	user_event.cpp
 	value_parser.cpp
 	viewinfo.cpp
+	procfs_utils.cpp
 )
 
 if(WITH_CHISEL)
@@ -157,7 +158,6 @@ if(NOT MINIMAL_BUILD)
 		container_engine/mesos.cpp
 		container_engine/rkt.cpp
 		container_engine/bpm.cpp
-		procfs_utils.cpp
 		runc.cpp)
 	endif()
 
