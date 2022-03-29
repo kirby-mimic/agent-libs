@@ -9,6 +9,9 @@ or GPL2.txt for full copies of the license.
 #ifndef __DEBUG_LOG_HELPERS_H
 #define __DEBUG_LOG_HELPERS_H
 
+#include "scap.h"
+#include <stdarg.h>
+
 /**
  * If debug_log_fn has been established in the handle, call that function
  * to log a debug message.
