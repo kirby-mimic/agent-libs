@@ -1398,7 +1398,7 @@ void sinsp_parser::parse_clone_exit(sinsp_evt *evt)
 
 			// Examine state of child, determine if the deleted child
 			// is fully-populated, for collision reporting below.
-			if(child->m_comm != "<NA>" && ptinfo->m_uid != 0xffffffff)
+			if(child->m_comm != "<NA>" && child->m_uid != 0xffffffff)
 			{
 				tid_collision_valid_child = true;
 			}
