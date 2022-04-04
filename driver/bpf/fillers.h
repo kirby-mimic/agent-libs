@@ -2600,6 +2600,8 @@ FILLER(execve_family_flags, true)
 	uint32_t flags = 0;
 	int res = 0;
 	bool exe_writable = false;
+	struct cred *cred;
+	kuid_t euid;
 
 	task = (struct task_struct *)bpf_get_current_task();
 
@@ -2618,6 +2620,18 @@ FILLER(execve_family_flags, true)
 	 * flags
 	 */
 	res = bpf_val_to_ring_type(data, flags, PT_UINT32);
+	if (res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	cred = (struct cred *)_READ(task->cred);
+	euid = _READ(cred->euid);
+
+	/*
+	 * uid
+	 */
+	res = bpf_val_to_ring_type(data, euid.val, PT_UINT32);
 	if (res != PPM_SUCCESS)
 	{
 		return res;
