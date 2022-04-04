@@ -1164,6 +1164,7 @@ cgroups_error:
 		bool exe_writable = false;
 		struct file *exe_file = NULL;
 		uint32_t flags = 0; // execve additional flags
+		uint64_t euid;
 
 		if (likely(retval >= 0)) {
 			/*
@@ -1289,12 +1290,12 @@ cgroups_error:
 		if (unlikely(res != PPM_SUCCESS))
 			return res;
 
-		/*
-		 * capabilities
-		 */
 		if(args->event_type == PPME_SYSCALL_EXECVE_19_X ||
 		   args->event_type == PPME_SYSCALL_EXECVEAT_X)
 		{
+			/*
+			 * capabilities
+			 */
 			cred = get_current_cred();
 
 			val = ((uint64_t)cred->cap_inheritable.cap[1] << 32) | cred->cap_inheritable.cap[0];
@@ -1313,6 +1314,20 @@ cgroups_error:
 				goto out;
 			
 			put_cred(cred);
+
+			/*
+			 * uid
+			 */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
+			euid = from_kuid_munged(current_user_ns(), current_euid());
+#elif LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 20)
+			euid = current_euid();
+#else
+			euid = current->euid;
+#endif
+			res = val_to_ring(args, euid, 0, false, 0);
+			if (unlikely(res != PPM_SUCCESS))
+				return res;
 		}
 	}
 
@@ -6465,6 +6480,7 @@ int f_sched_prog_exec(struct event_filler_arguments *args)
 	int tty_nr = 0;
 	uint32_t flags = 0;
 	bool exe_writable = false;
+	uint64_t euid = 0;
 	struct file *exe_file = NULL;
 	const struct cred *cred = NULL;
 
@@ -6750,6 +6766,20 @@ cgroups_error:
 	val = ((uint64_t)cred->cap_effective.cap[1] << 32) | cred->cap_effective.cap[0];
 	res = val_to_ring(args, capabilities_to_scap(val), 0, false, 0);
 	if(unlikely(res != PPM_SUCCESS))
+	{
+		goto out;
+	}
+
+	/* Parameter 24: uid */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
+	euid = from_kuid_munged(current_user_ns(), current_euid());
+#elif LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 20)
+	euid = current_euid();
+#else
+	euid = current->euid;
+#endif
+	res = val_to_ring(args, euid, 0, false, 0);
+	if (unlikely(res != PPM_SUCCESS))
 	{
 		goto out;
 	}
