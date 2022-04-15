@@ -69,6 +69,7 @@ sinsp::sinsp(bool static_container, const std::string static_id, const std::stri
 	m_evt(this),
 	m_lastevent_ts(0),
 	m_container_manager(this, static_container, static_id, static_name, static_image),
+	m_usergroup_manager(this),
 	m_ppm_sc_of_interest(),
 	m_suppressed_comms(),
 	m_inited(false)
@@ -88,6 +89,7 @@ sinsp::sinsp(bool static_container, const std::string static_id, const std::stri
 	m_thread_manager = new sinsp_thread_manager(this);
 	m_max_fdtable_size = MAX_FD_TABLE_SIZE;
 	m_inactive_container_scan_time_ns = DEFAULT_INACTIVE_CONTAINER_SCAN_TIME_S * ONE_SECOND_IN_NS;
+	m_deleted_users_groups_scan_time_ns = DEFAULT_DELETED_USERS_GROUPS_SCAN_TIME_S * ONE_SECOND_IN_NS;
 	m_cycle_writer = NULL;
 	m_write_cycling = false;
 	m_filter = NULL;
@@ -109,7 +111,6 @@ sinsp::sinsp(bool static_container, const std::string static_id, const std::stri
 	m_max_evt_output_len = 0;
 	m_filesize = -1;
 	m_track_tracers_state = false;
-	m_import_users = true;
 	m_next_flush_time_ns = 0;
 	m_last_procrequest_tod = 0;
 	m_get_procs_cpu_from_driver = false;
@@ -261,6 +262,59 @@ void sinsp::enable_page_faults()
 #endif
 }
 
+bool sinsp::is_initialstate_event(scap_evt* pevent)
+{
+	return  pevent->type == PPME_CONTAINER_E ||
+			pevent->type == PPME_CONTAINER_JSON_E ||
+			pevent->type == PPME_CONTAINER_JSON_2_E ||
+			pevent->type == PPME_USER_ADDED_E ||
+			pevent->type == PPME_USER_DELETED_E ||
+			pevent->type != PPME_GROUP_ADDED_E ||
+			pevent->type != PPME_GROUP_DELETED_E;
+}
+
+void sinsp::consume_initialstate_events()
+{
+	scap_evt* pevent;
+	uint16_t pcpuid;
+	sinsp_evt* tevt;
+
+	if (m_external_event_processor)
+	{
+		m_external_event_processor->on_capture_start();
+	}
+
+	//
+	// Consume every state event we have
+	//
+	while(true)
+	{
+		int32_t res = scap_next(m_h, &pevent, &pcpuid);
+
+		if(res == SCAP_SUCCESS)
+		{
+			// Setting these to non-null will make sinsp::next use them as a scap event
+			// to avoid a call to scap_next. In this way, we can avoid the state parsing phase
+			// once we reach a container-unrelated event.
+			m_replay_scap_evt = pevent;
+			m_replay_scap_cpuid = pcpuid;
+			if(!is_initialstate_event(pevent))
+			{
+				break;
+			}
+			else
+			{
+				next(&tevt);
+				continue;
+			}
+		}
+		else
+		{
+			break;
+		}
+	}
+}
+
 void sinsp::init()
 {
 	//
@@ -330,44 +384,7 @@ void sinsp::init()
 	//
 	if(is_capture())
 	{
-		scap_evt* pevent;
-		uint16_t pcpuid;
-		sinsp_evt* tevt;
-
-		if (m_external_event_processor)
-		{
-			m_external_event_processor->on_capture_start();
-		}
-
-		//
-		// Consume every container event we have
-		//
-		while(true)
-		{
-			int32_t res = scap_next(m_h, &pevent, &pcpuid);
-
-			if(res == SCAP_SUCCESS)
-			{
-				// Setting these to non-null will make sinsp::next use them as a scap event
-				// to avoid a call to scap_next. In this way, we can avoid the state parsing phase
-				// once we reach a container-unrelated event.
-				m_replay_scap_evt = pevent;
-				m_replay_scap_cpuid = pcpuid;
-				if((pevent->type != PPME_CONTAINER_E) && (pevent->type != PPME_CONTAINER_JSON_E) && (pevent->type != PPME_CONTAINER_JSON_2_E))
-				{
-					break;
-				}
-				else
-				{
-					next(&tevt);
-					continue;
-				}
-			}
-			else
-			{
-				break;
-			}
-		}
+		consume_initialstate_events();
 	}
 
 	if(is_capture() || m_filter_proc_table_when_saving == true)
@@ -376,8 +393,6 @@ void sinsp::init()
 	}
 
 	import_ifaddr_list();
-
-	import_user_list();
 
 	//
 	// Scan the list to create the proper parent/child dependencies
@@ -389,10 +404,14 @@ void sinsp::init()
 	//
 	m_thread_manager->fix_sockets_coming_from_proc();
 
-	if (m_external_event_processor)
+	m_usergroup_manager.init();
+
+	// If we are in capture, this is already called by consume_initialstate_events
+	if (!is_capture() && m_external_event_processor)
 	{
 		m_external_event_processor->on_capture_start();
 	}
+
 	//
 	// If m_snaplen was modified, we set snaplen now
 	//
@@ -434,7 +453,7 @@ void sinsp::init()
 
 void sinsp::set_import_users(bool import_users)
 {
-	m_import_users = import_users;
+	m_usergroup_manager.m_import_users = import_users;
 }
 
 void sinsp::fill_syscalls_of_interest(scap_open_args *oargs)
@@ -503,7 +522,7 @@ void sinsp::open_live_common(uint32_t timeout_ms, scap_mode_t mode)
 		oargs.proc_callback = ::on_new_entry_from_proc;
 		oargs.proc_callback_context = this;
 	}
-	oargs.import_users = m_import_users;
+	oargs.import_users = m_usergroup_manager.m_import_users;
 
 	add_suppressed_comms(oargs);
 
@@ -580,7 +599,7 @@ void sinsp::open_nodriver()
 		oargs.proc_callback = ::on_new_entry_from_proc;
 		oargs.proc_callback_context = this;
 	}
-	oargs.import_users = m_import_users;
+	oargs.import_users = m_usergroup_manager.m_import_users;
 	oargs.debug_log_fn = &sinsp_scap_debug_log_fn;
 	oargs.proc_scan_timeout_ms = m_proc_scan_timeout_ms;
 	oargs.proc_scan_log_interval_ms = m_proc_scan_log_interval_ms;
@@ -720,7 +739,7 @@ void sinsp::open_int()
 	}
 	oargs.proc_callback = NULL;
 	oargs.proc_callback_context = NULL;
-	oargs.import_users = m_import_users;
+	oargs.import_users = m_usergroup_manager.m_import_users;
 	oargs.start_offset = 0;
 	fill_syscalls_of_interest(&oargs);
 
@@ -847,6 +866,8 @@ void sinsp::autodump_start(const string& dump_filename, bool compress)
 	}
 
 	m_container_manager.dump_containers(m_dumper);
+
+	m_usergroup_manager.dump_users_groups(m_dumper);
 }
 
 void sinsp::autodump_next_file()
@@ -985,25 +1006,6 @@ void sinsp::import_ifaddr_list()
 sinsp_network_interfaces* sinsp::get_ifaddr_list()
 {
 	return m_network_interfaces;
-}
-
-void sinsp::import_user_list()
-{
-	uint32_t j;
-	scap_userlist* ul = scap_get_user_list(m_h);
-
-	if(ul)
-	{
-		for(j = 0; j < ul->nusers; j++)
-		{
-			m_userlist[ul->users[j].uid] = &(ul->users[j]);
-		}
-
-		for(j = 0; j < ul->ngroups; j++)
-		{
-			m_grouplist[ul->groups[j].gid] = &(ul->groups[j]);
-		}
-	}
 }
 
 void sinsp::import_ipv4_interface(const sinsp_ipv4_ifinfo& ifinfo)
@@ -1180,10 +1182,10 @@ int32_t sinsp::next(OUT sinsp_evt **puevt)
 		}
 	}
 #ifndef _WIN32
-	else if (m_pending_container_evts.try_pop(m_container_evt))
+	else if (m_pending_state_evts.try_pop(m_state_evt))
 	{
 		res = SCAP_SUCCESS;
-		evt = m_container_evt.get();
+		evt = m_state_evt.get();
 	}
 #endif
 	else
@@ -1261,7 +1263,9 @@ int32_t sinsp::next(OUT sinsp_evt **puevt)
 
 	uint64_t ts = evt->get_ts();
 
-	if(m_firstevent_ts == 0 && evt->m_pevt->type != PPME_CONTAINER_JSON_E && evt->m_pevt->type != PPME_CONTAINER_JSON_2_E)
+	if(m_firstevent_ts == 0 &&
+	   evt->m_pevt->type != PPME_CONTAINER_JSON_E && evt->m_pevt->type != PPME_CONTAINER_JSON_2_E &&
+	   evt->m_pevt->type != PPME_USER_ADDED_E && evt->m_pevt->type != PPME_GROUP_ADDED_E)
 	{
 		m_firstevent_ts = ts;
 	}
@@ -1330,7 +1334,7 @@ int32_t sinsp::next(OUT sinsp_evt **puevt)
 	}
 
 	//
-	// Run the periodic connection and thread table cleanup
+	// Run the periodic connection, thread and users/groups table cleanup
 	//
 	if(!is_capture())
 	{
@@ -1343,6 +1347,8 @@ int32_t sinsp::next(OUT sinsp_evt **puevt)
 		{
 			update_mesos_state();
 		}
+
+		m_usergroup_manager.clear_host_users_groups();
 #endif // !defined(CYGWING_AGENT) && !defined(MINIMAL_BUILD)
 	}
 #endif // HAS_ANALYZER
@@ -1851,48 +1857,6 @@ bool sinsp::run_filters_on_evt(sinsp_evt *evt)
 const scap_machine_info* sinsp::get_machine_info()
 {
 	return m_machine_info;
-}
-
-const unordered_map<uint32_t, scap_userinfo*>* sinsp::get_userlist()
-{
-	return &m_userlist;
-}
-
-scap_userinfo* sinsp::get_user(uint32_t uid)
-{
-	if(uid == 0xffffffff)
-	{
-		return NULL;
-	}
-
-	auto it = m_userlist.find(uid);
-	if(it == m_userlist.end())
-	{
-		return NULL;
-	}
-
-	return it->second;
-}
-
-const unordered_map<uint32_t, scap_groupinfo*>* sinsp::get_grouplist()
-{
-	return &m_grouplist;
-}
-
-scap_groupinfo* sinsp::get_group(uint32_t gid)
-{
-	if(gid == 0xffffffff)
-	{
-		return NULL;
-	}
-
-	auto it = m_grouplist.find(gid);
-	if(it == m_grouplist.end())
-	{
-		return NULL;
-	}
-
-	return it->second;
 }
 
 void sinsp::get_filtercheck_fields_info(OUT vector<const filter_check_info*>& list)

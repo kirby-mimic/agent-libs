@@ -99,6 +99,7 @@ set(SINSP_SOURCES
 	value_parser.cpp
 	viewinfo.cpp
 	procfs_utils.cpp
+	user.cpp
 )
 
 if(WITH_CHISEL)

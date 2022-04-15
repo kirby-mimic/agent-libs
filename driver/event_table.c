@@ -366,6 +366,14 @@ const struct ppm_event_info g_event_info[PPM_EVENT_MAX] = {
 	/* PPME_SYSCALL_MUNLOCKALL_X */ {"munlockall", EC_MEMORY, EF_DROP_SIMPLE_CONS, 1, {{"res", PT_ERRNO, PF_DEC}}},
 	/* PPME_SYSCALL_CAPSET_E */{"capset", EC_PROCESS, EF_MODIFIES_STATE, 0},
 	/* PPME_SYSCALL_CAPSET_X */{"capset", EC_PROCESS, EF_MODIFIES_STATE, 4, {{"res", PT_ERRNO, PF_DEC}, {"cap_inheritable", PT_UINT64, PF_HEX}, {"cap_permitted", PT_UINT64, PF_HEX}, {"cap_effective", PT_UINT64, PF_HEX} } },
+	/* PPME_USER_ADDED_E */{"useradded", EC_PROCESS, EF_MODIFIES_STATE, 6, {{"uid", PT_UINT32, PF_DEC}, {"gid", PT_UINT32, PF_DEC}, {"name", PT_CHARBUF, PF_NA}, {"home", PT_CHARBUF, PF_NA}, {"shell", PT_CHARBUF, PF_NA}, {"container_id", PT_CHARBUF, PF_NA} } },
+	/* PPME_USER_ADDED_X */{"useradded", EC_PROCESS, EF_UNUSED, 0},
+	/* PPME_USER_DELETED_E */{"userdeleted", EC_PROCESS, EF_MODIFIES_STATE, 6, {{"uid", PT_UINT32, PF_DEC}, {"gid", PT_UINT32, PF_DEC}, {"name", PT_CHARBUF, PF_NA}, {"home", PT_CHARBUF, PF_NA}, {"shell", PT_CHARBUF, PF_NA}, {"container_id", PT_CHARBUF, PF_NA} } },
+	/* PPME_USER_DELETED_X */{"userdeleted", EC_PROCESS, EF_UNUSED, 0},
+	/* PPME_GROUP_ADDED_E */{"groupadded", EC_PROCESS, EF_MODIFIES_STATE, 3, {{"gid", PT_UINT32, PF_DEC}, {"name", PT_CHARBUF, PF_NA}, {"container_id", PT_CHARBUF, PF_NA} } },
+	/* PPME_GROUP_ADDED_X */{"groupadded", EC_PROCESS, EF_UNUSED, 0},
+	/* PPME_GROUP_DELETED_E */{"groupdeleted", EC_PROCESS, EF_MODIFIES_STATE, 3, {{"gid", PT_UINT32, PF_DEC}, {"name", PT_CHARBUF, PF_NA}, {"container_id", PT_CHARBUF, PF_NA} } },
+	/* PPME_GROUP_DELETED_X */{"groupdeleted", EC_PROCESS, EF_UNUSED, 0},
 	/* NB: Starting from scap version 1.2, event types will no longer be changed when an event is modified, and the only kind of change permitted for pre-existent events is adding parameters.
 	 *     New event types are allowed only for new syscalls or new internal events.
 	 *     The number of parameters can be used to differentiate between event versions.

@@ -57,7 +57,6 @@ limitations under the License.
 #define __STDC_FORMAT_MACROS
 
 #include <string>
-#include <unordered_map>
 #include <map>
 #include <queue>
 #include <vector>
@@ -76,6 +75,7 @@ using namespace std;
 #include "stats.h"
 #include "ifinfo.h"
 #include "container.h"
+#include "user.h"
 #include "viewinfo.h"
 #include "utils.h"
 
@@ -498,54 +498,6 @@ public:
 	threadinfo_map_t::ptr_t get_thread_ref(int64_t tid, bool query_os_if_not_found = false, bool lookup_only = true, bool main_thread = false);
 
 	/*!
-	  \brief Return the table with all the machine users.
-
-	  \return a hash table with the user ID (UID) as the key and the user
-	   information as the data.
-
-	  \note this call works with file captures as well, because the user
-	   table is stored in the trace files. In that case, the returned
-	   user list is the one of the machine where the capture happened.
-	*/
-	const unordered_map<uint32_t, scap_userinfo*>* get_userlist();
-
-	/*!
-	  \brief Lookup for user in the user table.
-
- 	  \return the \ref scap_userinfo object containing full user information,
- 	   if user not found, returns NULL.
-
- 	  \note this call works with file captures as well, because the user
-	   table is stored in the trace files. In that case, the returned
-	   user list is the one of the machine where the capture happened.
-	*/
-	scap_userinfo* get_user(uint32_t uid);
-
-	/*!
-	  \brief Return the table with all the machine user groups.
-
-	  \return a hash table with the group ID (GID) as the key and the group
-	   information as the data.
-
-	  \note this call works with file captures as well, because the group
-	   table is stored in the trace files. In that case, the returned
-	   user table is the one of the machine where the capture happened.
-	*/
-	const unordered_map<uint32_t, scap_groupinfo*>* get_grouplist();
-
-	/*!
-	  \brief Lookup for group in the group table.
-
-	  \return the \ref scap_groupinfo object containing full group information,
-	   if group not found, returns NULL.
-
- 	  \note this call works with file captures as well, because the group
-	   table is stored in the trace files. In that case, the returned
-	   group list is the one of the machine where the capture happened.
-	*/
-	scap_groupinfo* get_group(uint32_t gid);
-
-	/*!
 	  \brief Fill the given structure with statistics about the currently
 	   open capture.
 
@@ -949,6 +901,7 @@ public:
 	void refresh_proc_list() {
 		scap_refresh_proc_table(m_h);
 	}
+
 	void set_simpledriver_mode();
 	std::vector<long> get_n_tracepoint_hit();
 	void set_bpf_probe(const std::string& bpf_probe);
@@ -1046,9 +999,10 @@ private:
 	void open_live_common(uint32_t timeout_ms, scap_mode_t mode);
 	void init();
 	void deinit_state();
+	void consume_initialstate_events();
+	bool is_initialstate_event(scap_evt* pevent);
 	void import_thread_table();
 	void import_ifaddr_list();
-	void import_user_list();
 	void add_protodecoders();
 	void fill_syscalls_of_interest(scap_open_args *oargs);
 	void remove_thread(int64_t tid, bool force);
@@ -1148,6 +1102,8 @@ public:
 
 	sinsp_container_manager m_container_manager;
 
+	sinsp_usergroup_manager m_usergroup_manager;
+
 	metadata_download_params m_metadata_download_params;
 
 	//
@@ -1237,16 +1193,14 @@ public:
 	uint64_t m_inactive_container_scan_time_ns;
 
 	//
+	// Users/groups limits
+	//
+	uint64_t m_deleted_users_groups_scan_time_ns;
+
+	//
 	// How to render the data buffers
 	//
 	sinsp_evt::param_fmt m_buffer_format;
-
-	//
-	// User and group tables
-	//
-	bool m_import_users;
-	unordered_map<uint32_t, scap_userinfo*> m_userlist;
-	unordered_map<uint32_t, scap_groupinfo*> m_grouplist;
 
 	//
 	// The cycle-writer for files
@@ -1280,15 +1234,18 @@ public:
 	meta_event_callback m_meta_event_callback;
 	void* m_meta_event_callback_data;
 
-	// A queue of pending container events. Written from async
-	// callbacks that occur after looking up container
-	// information, read from sinsp::next().
+	// A queue of pending internal state events:
+	// * 	container events. Written from async
+	// 	callbacks that occur after looking up container
+	// 	information, read from sinsp::next().
+	// *	user added/removed events
+	// * 	group added/removed events
 #ifndef _WIN32
-	tbb::concurrent_queue<shared_ptr<sinsp_evt>> m_pending_container_evts;
+	tbb::concurrent_queue<shared_ptr<sinsp_evt>> m_pending_state_evts;
 #endif
 
 	// Holds an event dequeued from the above queue
-	std::shared_ptr<sinsp_evt> m_container_evt;
+	std::shared_ptr<sinsp_evt> m_state_evt;
 
 	//
 	// End of second housekeeping
@@ -1368,6 +1325,7 @@ public:
 	friend class sinsp_memory_dumper;
 	friend class sinsp_network_interfaces;
 	friend class test_helper;
+	friend class sinsp_usergroup_manager;
 
 	template<class TKey,class THash,class TCompare> friend class sinsp_connection_manager;
 

@@ -498,6 +498,14 @@ void sinsp_parser::process_event(sinsp_evt *evt)
 	case PPME_SYSCALL_CAPSET_X:
 		parse_capset_exit(evt);
 		break;
+	case PPME_USER_ADDED_E:
+	case PPME_USER_DELETED_E:
+		parse_user_evt(evt);
+		break;
+	case PPME_GROUP_ADDED_E:
+	case PPME_GROUP_DELETED_E:
+		parse_group_evt(evt);
+		break;
 	default:
 		break;
 	}
@@ -1367,7 +1375,7 @@ void sinsp_parser::parse_clone_exit(sinsp_evt *evt)
 		return;
 	}
 
-	if(ptinfo->m_comm == "<NA>" && ptinfo->m_uid == 0xffffffff)
+	if(ptinfo->m_comm == "<NA>" && ptinfo->m_user.uid == 0xffffffff)
 	{
 		valid_parent = false;
 	}
@@ -1449,7 +1457,7 @@ void sinsp_parser::parse_clone_exit(sinsp_evt *evt)
 
 		tinfo->m_tty = ptinfo->m_tty;
 
-		tinfo->m_loginuid = ptinfo->m_loginuid;
+		tinfo->m_loginuser = ptinfo->m_loginuser;
 
 		// Copy the full sets of capabilities from the parent
 		tinfo->m_cap_permitted = ptinfo->m_cap_permitted;
@@ -1490,7 +1498,7 @@ void sinsp_parser::parse_clone_exit(sinsp_evt *evt)
 			return;
 		}
 
-		if(ptinfo->m_comm != "<NA>" && ptinfo->m_uid != 0xffffffff)
+		if(ptinfo->m_comm != "<NA>" && ptinfo->m_user.uid != 0xffffffff)
 		{
 			//
 			// Parent found in proc, use its data
@@ -1503,7 +1511,7 @@ void sinsp_parser::parse_clone_exit(sinsp_evt *evt)
 			tinfo->m_sid = ptinfo->m_sid;
 			tinfo->m_vpgid = ptinfo->m_vpgid;
 			tinfo->m_tty = ptinfo->m_tty;
-			tinfo->m_loginuid = ptinfo->m_loginuid;
+			tinfo->m_loginuser = ptinfo->m_loginuser;
 			if(!(flags & PPM_CL_CLONE_THREAD))
 			{
 				tinfo->m_env = ptinfo->m_env;
@@ -1735,7 +1743,7 @@ void sinsp_parser::parse_clone_exit(sinsp_evt *evt)
 		ASSERT(false);
 	}
 	ASSERT(parinfo->m_len == sizeof(int32_t));
-	tinfo->m_uid = *(int32_t *)parinfo->m_val;
+	tinfo->set_user(*(int32_t *)parinfo->m_val);
 
 	// Copy the gid
 	switch(etype)
@@ -1763,7 +1771,8 @@ void sinsp_parser::parse_clone_exit(sinsp_evt *evt)
 		ASSERT(false);
 	}
 	ASSERT(parinfo->m_len == sizeof(int32_t));
-	tinfo->m_gid = *(int32_t *)parinfo->m_val;
+	tinfo->set_group(*(int32_t *)parinfo->m_val);
+	tinfo->m_user.gid = tinfo->m_group.gid;
 
 	//
 	// If we're in a container, vtid and vpid are
@@ -2185,7 +2194,7 @@ void sinsp_parser::parse_execve_exit(sinsp_evt *evt)
 	{
 		parinfo = evt->get_param(18);
 		ASSERT(parinfo->m_len == sizeof(uint32_t));
-		evt->m_tinfo->m_loginuid = *(uint32_t *) parinfo->m_val;
+		evt->m_tinfo->set_loginuser(*(uint32_t *) parinfo->m_val);
 	}
 
 	// Get execve flags
@@ -5062,7 +5071,7 @@ void sinsp_parser::parse_setresuid_exit(sinsp_evt *evt)
 		if(new_euid < std::numeric_limits<uint32_t>::max())
 		{
 			if (evt->get_thread_info()) {
-				evt->get_thread_info()->m_uid = new_euid;
+				evt->get_thread_info()->set_user(new_euid);
 			}
 		}
 	}
@@ -5090,7 +5099,7 @@ void sinsp_parser::parse_setresgid_exit(sinsp_evt *evt)
 		if(new_egid < std::numeric_limits<uint32_t>::max())
 		{
 			if (evt->get_thread_info()) {
-				evt->get_thread_info()->m_gid = new_egid;
+				evt->get_thread_info()->set_group(new_egid);
 			}
 		}
 	}
@@ -5115,7 +5124,7 @@ void sinsp_parser::parse_setuid_exit(sinsp_evt *evt)
 		ASSERT(parinfo->m_len == sizeof(uint32_t));
 		uint32_t new_euid = *(uint32_t *)parinfo->m_val;
 		if (evt->get_thread_info()) {
-			evt->get_thread_info()->m_uid = new_euid;
+			evt->get_thread_info()->set_user(new_euid);
 		}
 	}
 }
@@ -5139,7 +5148,7 @@ void sinsp_parser::parse_setgid_exit(sinsp_evt *evt)
 		ASSERT(parinfo->m_len == sizeof(uint32_t));
 		uint32_t new_egid = *(uint32_t *)parinfo->m_val;
 		if (evt->get_thread_info()) {
-			evt->get_thread_info()->m_gid = new_egid;
+			evt->get_thread_info()->set_group(new_egid);
 		}
 	}
 }
@@ -5468,6 +5477,65 @@ void sinsp_parser::parse_container_evt(sinsp_evt *evt)
 	container->m_image = parinfo->m_val;
 
 	m_inspector->m_container_manager.add_container(container, evt->get_thread_info(true));
+}
+
+void sinsp_parser::parse_user_evt(sinsp_evt *evt)
+{
+	sinsp_evt_param *parinfo;
+	uint32_t uid, gid;
+	const char *name, *home, *shell, *container_id;
+
+	parinfo = evt->get_param(0);
+	ASSERT(parinfo->m_len == sizeof(uint32_t));
+	uid = *(uint32_t *)parinfo->m_val;
+
+	parinfo = evt->get_param(1);
+	ASSERT(parinfo->m_len == sizeof(uint32_t));
+	gid = *(uint32_t *)parinfo->m_val;
+
+	parinfo = evt->get_param(2);
+	name = parinfo->m_val;
+
+	parinfo = evt->get_param(3);
+	home = parinfo->m_val;
+
+	parinfo = evt->get_param(4);
+	shell = parinfo->m_val;
+
+	parinfo = evt->get_param(5);
+	container_id = parinfo->m_val;
+
+	if (evt->m_pevt->type == PPME_USER_ADDED_E)
+	{
+		m_inspector->m_usergroup_manager.add_user(container_id, uid, gid, name, home, shell);
+	} else
+	{
+		m_inspector->m_usergroup_manager.rm_user(container_id, uid);
+	}
+}
+
+void sinsp_parser::parse_group_evt(sinsp_evt *evt)
+{
+	sinsp_evt_param *parinfo;
+	uint32_t gid;
+	const char *name, *container_id;
+
+	parinfo = evt->get_param(0);
+	ASSERT(parinfo->m_len == sizeof(uint32_t));
+	gid = *(uint32_t *)parinfo->m_val;
+
+	parinfo = evt->get_param(1);
+	name = parinfo->m_val;
+	parinfo = evt->get_param(2);
+	container_id = parinfo->m_val;
+
+	if ( evt->m_pevt->type == PPME_GROUP_ADDED_E)
+	{
+		m_inspector->m_usergroup_manager.add_group(container_id, gid, name);
+	} else
+	{
+		m_inspector->m_usergroup_manager.rm_group(container_id, gid);
+	}
 }
 
 void sinsp_parser::parse_cpu_hotplug_enter(sinsp_evt *evt)
