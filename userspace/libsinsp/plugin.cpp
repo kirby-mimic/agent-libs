@@ -44,8 +44,6 @@ using namespace std;
 // plugin simplified field extraction implementations
 ///////////////////////////////////////////////////////////////////////////////
 
-static std::set<uint16_t> s_all_plugin_event_types = {PPME_PLUGINEVENT_E};
-
 class sinsp_filter_check_plugin : public sinsp_filter_check
 {
 public:
@@ -78,17 +76,15 @@ public:
 	{
 	}
 
-	const std::set<uint16_t> &evttypes()
-	{
-		return s_all_plugin_event_types;
-	}
-
 	int32_t parse_field_name(const char* str, bool alloc_state, bool needed_for_filtering)
 	{
 		int32_t res = sinsp_filter_check::parse_field_name(str, alloc_state, needed_for_filtering);
 
 		if(res != -1)
 		{
+			m_arg_present = false;
+			m_arg_key = NULL;
+			m_arg_index = 0;
 			// Read from str to the end-of-string, or first space
 			string val(str);
 			size_t val_end = val.find_first_of(' ', 0);
@@ -105,10 +101,36 @@ public:
 				{
 					m_argstr = val.substr(argstart);
 					size_t pos2 = m_argstr.find_first_of(']', 0);
-					m_argstr = m_argstr.substr(0, pos2);
-					m_arg = (char*)m_argstr.c_str();
-					return pos1 + pos2 + 2;
+					if(pos2 != string::npos)
+					{
+						m_argstr = m_argstr.substr(0, pos2);
+						if (!(m_info.m_fields[m_field_id].m_flags & filtercheck_field_flags::EPF_ARG_ALLOWED
+								|| m_info.m_fields[m_field_id].m_flags & filtercheck_field_flags::EPF_ARG_REQUIRED))
+						{
+							throw sinsp_exception(string("filter ") + string(str) + string(" ")
+								+ m_field->m_name + string(" does not allow nor require an argument but one is provided: " + m_argstr));
+						}
+
+						m_arg_present = true;
+
+						if(m_info.m_fields[m_field_id].m_flags & filtercheck_field_flags::EPF_ARG_INDEX)
+						{
+							extract_arg_index(str);
+						}
+
+						if(m_info.m_fields[m_field_id].m_flags & filtercheck_field_flags::EPF_ARG_KEY)
+						{
+							extract_arg_key();
+						}
+
+						return pos1 + pos2 + 2;
+					}
 				}
+				throw sinsp_exception(string("filter ") + string(str) + string(" ") + m_field->m_name + string(" has a badly-formatted argument"));
+			}
+			if (m_info.m_fields[m_field_id].m_flags & filtercheck_field_flags::EPF_ARG_REQUIRED)
+			{
+				throw sinsp_exception(string("filter ") + string(str) + string(" ") + m_field->m_name + string(" requires an argument but none provided"));
 			}
 		}
 
@@ -193,7 +215,9 @@ public:
 		ss_plugin_extract_field efield;
 		efield.field_id = m_field_id;
 		efield.field = m_info.m_fields[m_field_id].m_name;
-		efield.arg = m_arg != NULL ? m_arg : "";
+		efield.arg_key = m_arg_key;
+		efield.arg_index = m_arg_index;
+		efield.arg_present = m_arg_present;
 		efield.ftype = type;
 		efield.flist = m_info.m_fields[m_field_id].m_flags & EPF_IS_LIST;
 		if (!m_plugin->extract_fields(pevt, num_fields, &efield) || efield.res_len == 0)
@@ -256,12 +280,71 @@ public:
 	// XXX/mstemm m_cnt unused so far.
 	uint64_t m_cnt;
 	string m_argstr;
-	char* m_arg = NULL;
+	char* m_arg_key;
+	uint64_t m_arg_index;
+	bool m_arg_present;
 
 	vector<std::string> m_res_str_storage;
 	vector<uint64_t> m_res_u64_storage;
 
 	std::shared_ptr<sinsp_plugin> m_plugin;
+
+private:
+	
+	// extract_arg_index() extracts a valid index from the argument if 
+	// format is valid, otherwise it throws an exception.
+	// `full_field_name` has the format "field[argument]" and it is necessary
+	// to throw an exception.
+	void extract_arg_index(const char* full_field_name)
+	{
+		int length = m_argstr.length();
+		bool is_valid = true;
+		std::string message = "";
+		
+		// Please note that numbers starting with `0` (`01`, `02`, `0003`, ...) are not indexes. 
+		if(length == 0 || (length > 1 && m_argstr[0] == '0'))
+		{
+			is_valid = false;
+			message = " has an invalid index argument starting with 0: ";
+		}
+		
+		// The index must be composed only by digits (0-9).
+		for(int j = 0; j < length; j++)
+		{
+			if(!isdigit(m_argstr[j]))
+			{
+				is_valid = false;
+				message = " has an invalid index argument not composed only by digits: ";
+				break;
+			}
+		}
+
+		// If the argument is valid we can convert it with `stoul`.
+		// Please note that `stoul` alone is not enough, since it also consider as valid 
+		// strings like "0123 i'm a number", converting them into '0123'. This is why in the 
+		// previous step we check that every character is a digit.
+		if(is_valid)
+		{
+			try
+			{
+				m_arg_index = std::stoul(m_argstr);
+				return;
+			} 
+			catch(...)
+			{
+				message = " has an invalid index argument not representable on 64 bit: ";
+			}
+		}
+		throw sinsp_exception(string("filter ") + string(full_field_name) + string(" ")
+										+ m_field->m_name + message + m_argstr);
+	}
+
+	// extract_arg_key() extracts a valid string from the argument. If we pass
+	// a numeric argument, it will be converted to string. 
+	void extract_arg_key()
+	{
+		m_arg_key = (char*)m_argstr.c_str();
+	}
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -649,6 +732,70 @@ std::string sinsp_plugin::str_from_alloc_charbuf(const char* charbuf)
 	return str;
 }
 
+void sinsp_plugin::resolve_dylib_field_arg(Json::Value root, filtercheck_field_info &tf)
+{
+	if (root.isNull())
+	{
+		return;
+	}
+
+	const Json::Value &isRequired = root.get("isRequired", Json::Value::null);
+	if (!isRequired.isNull())
+	{
+		if (!isRequired.isBool())
+		{
+			throw sinsp_exception(string("error in plugin ") + m_name + ": field " + tf.m_name + " isRequired property is not boolean");
+		}
+
+		if (isRequired.asBool() == true)
+		{
+			// All the extra casting is because this is the one flags value
+			// that is strongly typed and not just an int.
+			tf.m_flags = (filtercheck_field_flags) ((int) tf.m_flags | (int) filtercheck_field_flags::EPF_ARG_REQUIRED);
+		}
+	}
+
+	const Json::Value &isIndex = root.get("isIndex", Json::Value::null);
+	if (!isIndex.isNull())
+	{
+		if (!isIndex.isBool())
+		{
+			throw sinsp_exception(string("error in plugin ") + m_name + ": field " + tf.m_name + " isIndex property is not boolean");
+		}
+
+		if (isIndex.asBool() == true)
+		{
+			// We set `EPF_ARG_ALLOWED` implicitly.
+			tf.m_flags = (filtercheck_field_flags) ((int) tf.m_flags | (int) filtercheck_field_flags::EPF_ARG_INDEX);
+			tf.m_flags = (filtercheck_field_flags) ((int) tf.m_flags | (int) filtercheck_field_flags::EPF_ARG_ALLOWED);
+		}
+	}
+
+	const Json::Value &isKey = root.get("isKey", Json::Value::null);
+	if (!isKey.isNull())
+	{
+		if (!isKey.isBool())
+		{
+			throw sinsp_exception(string("error in plugin ") + m_name + ": field " + tf.m_name + " isKey property is not boolean");
+		}
+
+		if (isKey.asBool() == true)
+		{
+			// We set `EPF_ARG_ALLOWED` implicitly.
+			tf.m_flags = (filtercheck_field_flags) ((int) tf.m_flags | (int) filtercheck_field_flags::EPF_ARG_KEY);
+			tf.m_flags = (filtercheck_field_flags) ((int) tf.m_flags | (int) filtercheck_field_flags::EPF_ARG_ALLOWED);
+		}
+	}
+
+	if((tf.m_flags & filtercheck_field_flags::EPF_ARG_REQUIRED) 
+		&& !(tf.m_flags & filtercheck_field_flags::EPF_ARG_INDEX 
+			|| tf.m_flags & filtercheck_field_flags::EPF_ARG_KEY))
+	{
+		throw sinsp_exception(string("error in plugin ") + m_name + ": field " + tf.m_name + " arg has isRequired true, but none of isKey nor isIndex is true");
+	}
+	return;
+}
+
 bool sinsp_plugin::resolve_dylib_symbols(std::string &errstr)
 {
 	// Some functions are required and return false if not found.
@@ -772,21 +919,7 @@ bool sinsp_plugin::resolve_dylib_symbols(std::string &errstr)
 				}
 			}
 
-			const Json::Value &jvargRequired = root[j].get("argRequired", Json::Value::null);
-			if (!jvargRequired.isNull())
-			{
-				if (!jvargRequired.isBool())
-				{
-					throw sinsp_exception(string("error in plugin ") + m_name + ": field " + fname + " argRequired property is not boolean ");
-				}
-
-				if (jvargRequired.asBool() == true)
-				{
-					// All the extra casting is because this is the one flags value
-					// that is strongly typed and not just an int.
-					tf.m_flags = (filtercheck_field_flags) ((int) tf.m_flags | (int) filtercheck_field_flags::EPF_REQUIRES_ARGUMENT);
-				}
-			}
+			resolve_dylib_field_arg(root[j].get("arg", Json::Value::null), tf);
 
 			const Json::Value &jvProperties = root[j].get("properties", Json::Value::null);
 			if (!jvProperties.isNull())

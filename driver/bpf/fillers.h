@@ -9,15 +9,6 @@ or GPL2.txt for full copies of the license.
 #ifndef __FILLERS_H
 #define __FILLERS_H
 
-/*
- * https://chromium.googlesource.com/chromiumos/third_party/kernel/+/096925a44076ba5c52faa84d255a847130ff341e%5E%21/#F2
- * This commit diverged the ChromiumOS kernel from stock in the area of audit
- * information, which this probe accesses.
- *
- * If running on a patched version of COS, enable this #define to get the
- * probe to build.
- */
-//#define COS_73_WORKAROUND
 #include "../systype_compat.h"
 #include "../ppm_flag_helpers.h"
 #include "../ppm_version.h"
@@ -2597,13 +2588,16 @@ FILLER(proc_startupdate_3, true)
 FILLER(execve_family_flags, true)
 {
 	struct task_struct *task = NULL;
+	struct cred *cred;
+	kernel_cap_t cap;
 	uint32_t flags = 0;
 	int res = 0;
+	unsigned long val;
 	bool exe_writable = false;
-	struct cred *cred;
 	kuid_t euid;
 
 	task = (struct task_struct *)bpf_get_current_task();
+	cred = (struct cred *)_READ(task->cred);
 
 	/*
 	 * exe_writable
@@ -2625,7 +2619,6 @@ FILLER(execve_family_flags, true)
 		return res;
 	}
 
-	cred = (struct cred *)_READ(task->cred);
 	euid = _READ(cred->euid);
 
 	/*
@@ -2636,6 +2629,26 @@ FILLER(execve_family_flags, true)
 	{
 		return res;
 	}
+	/*
+	 * capabilities
+	 */
+	cap = _READ(cred->cap_inheritable);
+	val = ((unsigned long)cap.cap[1] << 32) | cap.cap[0];
+	res = bpf_val_to_ring(data, capabilities_to_scap(val));
+	if(unlikely(res != PPM_SUCCESS))
+		return res;
+
+	cap = _READ(cred->cap_permitted);
+	val = ((unsigned long)cap.cap[1] << 32) | cap.cap[0];
+	res = bpf_val_to_ring(data, capabilities_to_scap(val));
+	if(unlikely(res != PPM_SUCCESS))
+		return res;
+
+	cap = _READ(cred->cap_effective);
+	val = ((unsigned long)cap.cap[1] << 32) | cap.cap[0];
+	res = bpf_val_to_ring(data, capabilities_to_scap(val));
+	if(unlikely(res != PPM_SUCCESS))
+		return res;
 
 	return res;
 }
@@ -3097,6 +3110,274 @@ FILLER(sys_open_by_handle_at_x, true)
 	} 
 
 	res = bpf_val_to_ring(data, (unsigned long)"<NA>");
+	return res;
+}
+
+FILLER(sys_io_uring_setup_x, true)
+{
+	long retval;
+	int res;
+	unsigned long val;
+	unsigned long sq_entries;
+	unsigned long cq_entries;
+	unsigned long flags;
+	unsigned long sq_thread_cpu;
+	unsigned long sq_thread_idle;
+	unsigned long features;
+
+#ifdef __NR_io_uring_setup
+	struct io_uring_params params;
+#endif
+	retval = bpf_syscall_get_retval(data->ctx);
+	res = bpf_val_to_ring(data, retval);
+	if (res != PPM_SUCCESS)
+		return res;
+	/*
+	 * entries
+	 */
+	val = bpf_syscall_get_argument(data, 0);
+	res = bpf_val_to_ring(data, val);
+	if (res != PPM_SUCCESS)
+		return res;
+
+#ifdef __NR_io_uring_setup
+	/*
+	 * io_uring_params: we get the data structure, and put its fields in the buffer one by one
+	 */
+	val = bpf_syscall_get_argument(data, 1);
+	if (bpf_probe_read(&params, sizeof(struct io_uring_params), (void *)val)) {
+		return PPM_FAILURE_INVALID_USER_MEMORY;
+	}
+
+	sq_entries = params.sq_entries;
+	cq_entries = params.cq_entries;
+	flags = io_uring_setup_flags_to_scap(params.flags);
+	sq_thread_cpu = params.sq_thread_cpu;
+	sq_thread_idle = params.sq_thread_idle;
+	features = io_uring_setup_feats_to_scap(params.features);
+#else
+	sq_entries = 0;
+	cq_entries = 0;
+	flags = 0;
+	sq_thread_cpu = 0;
+	sq_thread_idle = 0;
+	features = 0;
+#endif
+
+	/*
+	 * sq_entries (extracted from io_uring_params structure)
+	 */
+	res = bpf_val_to_ring(data, sq_entries);
+	if (res != PPM_SUCCESS)
+		return res;
+	/*
+	 * cq_entries (extracted from io_uring_params structure)
+	 */
+	res = bpf_val_to_ring(data, cq_entries);
+	if (res != PPM_SUCCESS)
+		return res;
+	/*
+	 * flags (extracted from io_uring_params structure)
+	 * Already converted in ppm portable representation
+	 */
+	res = bpf_val_to_ring(data, flags);
+	if (res != PPM_SUCCESS)
+		return res;
+	/*
+	 * sq_thread_cpu (extracted from io_uring_params structure)
+	 */
+	res = bpf_val_to_ring(data, sq_thread_cpu);
+	if (res != PPM_SUCCESS)
+		return res;
+	/*
+	 * sq_thread_idle (extracted from io_uring_params structure)
+	 */
+	res = bpf_val_to_ring(data, sq_thread_idle);
+	if (res != PPM_SUCCESS)
+		return res;
+	/*
+	 * features (extracted from io_uring_params structure)
+	 * Already converted in ppm portable representation
+	 */
+	res = bpf_val_to_ring(data, features);
+	return res;
+}
+
+FILLER(sys_io_uring_enter_x, true)
+{
+	long retval;
+	int res;
+	unsigned long val;
+
+	retval = bpf_syscall_get_retval(data->ctx);
+	res = bpf_val_to_ring(data, retval);
+	if (res != PPM_SUCCESS)
+		return res;
+
+	/*
+	 * fd
+	 */
+	val = bpf_syscall_get_argument(data, 0);
+	res = bpf_val_to_ring(data, val);
+	if (res != PPM_SUCCESS)
+		return res;
+
+	/*
+	 * to_submit
+	 */
+	val = bpf_syscall_get_argument(data, 1);
+	res = bpf_val_to_ring(data, val);
+	if (res != PPM_SUCCESS)
+		return res;
+
+	/*
+	 * min_complete
+	 */
+	val = bpf_syscall_get_argument(data, 2);
+	res = bpf_val_to_ring(data, val);
+	if (res != PPM_SUCCESS)
+		return res;
+
+	/*
+	 * flags
+	 */
+	val = bpf_syscall_get_argument(data, 3);
+	res = bpf_val_to_ring(data, io_uring_enter_flags_to_scap(val));
+	if (res != PPM_SUCCESS)
+		return res;
+
+	/*
+	 * min_complete
+	 */
+	val = bpf_syscall_get_argument(data, 4);
+	res = bpf_val_to_ring(data, val);
+
+	return res;
+}
+
+FILLER(sys_io_uring_register_x, true)
+{
+	long retval;
+	int res;
+	unsigned long val;
+
+	retval = bpf_syscall_get_retval(data->ctx);
+	res = bpf_val_to_ring(data, retval);
+	if (res != PPM_SUCCESS)
+		return res;
+
+	/*
+	 * fd
+	 */
+	val = bpf_syscall_get_argument(data, 0);
+	res = bpf_val_to_ring(data, val);
+	if (res != PPM_SUCCESS)
+		return res;
+
+	/*
+	 * opcode
+	 */
+	val = bpf_syscall_get_argument(data, 1);
+	res = bpf_val_to_ring(data, io_uring_register_opcodes_to_scap(val));
+	if (res != PPM_SUCCESS)
+		return res;
+
+	/*
+	 * args
+	 */
+	val = bpf_syscall_get_argument(data, 2);
+	res = bpf_val_to_ring(data, val);
+	if (res != PPM_SUCCESS)
+		return res;
+
+	/*
+	 * nr_args
+	 */
+	val = bpf_syscall_get_argument(data, 3);
+	res = bpf_val_to_ring(data, val);
+
+	return res;
+}
+
+FILLER(sys_mlock_x, true)
+{
+	unsigned long val;
+	unsigned long retval;
+	unsigned long res;
+
+	retval = bpf_syscall_get_retval(data->ctx);
+	res = bpf_val_to_ring(data, retval);
+	if (res != PPM_SUCCESS)
+		return res;
+	/*
+	 * addr
+	 */
+	val = bpf_syscall_get_argument(data, 0);
+	res = bpf_val_to_ring(data, val);
+	if (res != PPM_SUCCESS)
+		return res;
+	/*
+	 * len
+	 */
+	val = bpf_syscall_get_argument(data, 1);
+	res = bpf_val_to_ring(data, val);
+
+	return res;
+}
+
+FILLER(sys_munlock_x, true)
+{
+	unsigned long val;
+	unsigned long retval;
+	unsigned long res;
+
+	retval = bpf_syscall_get_retval(data->ctx);
+	res = bpf_val_to_ring(data, retval);
+	if (res != PPM_SUCCESS)
+		return res;
+	/*
+	 * addr
+	 */
+	val = bpf_syscall_get_argument(data, 0);
+	res = bpf_val_to_ring(data, val);
+	if (res != PPM_SUCCESS)
+		return res;
+	/*
+	 * len
+	 */
+	val = bpf_syscall_get_argument(data, 1);
+	res = bpf_val_to_ring(data, val);
+
+	return res;
+}
+
+FILLER(sys_mlockall_x, true)
+{
+	unsigned long val;
+	unsigned long retval;
+	unsigned long res;
+
+	retval = bpf_syscall_get_retval(data->ctx);
+	res = bpf_val_to_ring(data, retval);
+	if (res != PPM_SUCCESS)
+		return res;
+	/*
+	 * flags
+	 */
+	val = bpf_syscall_get_argument(data, 0);
+	res = bpf_val_to_ring(data, mlockall_flags_to_scap(val));
+
+	return res;
+}
+
+FILLER(sys_munlockall_x, true)
+{
+	unsigned long retval;
+	unsigned long res;
+
+	retval = bpf_syscall_get_retval(data->ctx);
+	res = bpf_val_to_ring(data, retval);
+
 	return res;
 }
 
@@ -5289,6 +5570,42 @@ FILLER(sys_copy_file_range_x, true)
 	if (unlikely(res != PPM_SUCCESS))
 		return res;
 	
+	return res;
+}
+
+FILLER(sys_capset_x, true)
+{
+	unsigned long val;
+	int res;
+	long retval;
+	kernel_cap_t cap;
+	
+	retval = bpf_syscall_get_retval(data->ctx);
+	res = bpf_val_to_ring(data, retval);
+	if (res != PPM_SUCCESS)
+		return res;
+
+	struct task_struct *task = (struct task_struct *) bpf_get_current_task();
+	struct cred *cred = (struct cred*) _READ(task->cred);
+
+	cap = _READ(cred->cap_inheritable);
+	val = ((unsigned long)cap.cap[1] << 32) | cap.cap[0];
+	res = bpf_val_to_ring(data, capabilities_to_scap(val));
+	if(unlikely(res != PPM_SUCCESS))
+		return res;
+
+	cap = _READ(cred->cap_permitted);
+	val = ((unsigned long)cap.cap[1] << 32) | cap.cap[0];
+	res = bpf_val_to_ring(data, capabilities_to_scap(val));
+	if(unlikely(res != PPM_SUCCESS))
+		return res;
+
+	cap = _READ(cred->cap_effective);
+	val = ((unsigned long)cap.cap[1] << 32) | cap.cap[0];
+	res = bpf_val_to_ring(data, capabilities_to_scap(val));
+	if(unlikely(res != PPM_SUCCESS))
+		return res;
+
 	return res;
 }
 

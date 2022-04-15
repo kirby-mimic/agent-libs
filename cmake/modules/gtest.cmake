@@ -36,6 +36,7 @@ else()
 
 	set(GTEST_INCLUDE_DIR "${gtest_SOURCE_DIR}/include/gtest")
 	set(GTEST_MAIN_LIB "gtest_main")
+	install(DIRECTORY "${GTEST_INCLUDE_DIR}" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${LIBS_PACKAGE_NAME}/")
 endif()
 
 include_directories("${GTEST_INCLUDE_DIR}")

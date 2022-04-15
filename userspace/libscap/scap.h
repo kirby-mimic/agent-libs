@@ -267,6 +267,9 @@ typedef struct scap_threadinfo
 	uint32_t flags; ///< the process flags.
 	uint32_t uid; ///< user id
 	uint32_t gid; ///< group id
+	uint64_t cap_permitted; ///< permitted capabilities
+	uint64_t cap_effective; ///< effective capabilities
+	uint64_t cap_inheritable; ///< inheritable capabilities
 	uint32_t vmsize_kb; ///< total virtual memory (as kb)
 	uint32_t vmrss_kb; ///< resident non-swapped memory (as kb)
 	uint32_t vmswap_kb; ///< swapped memory (as kb)
@@ -573,6 +576,14 @@ struct ppm_syscall_desc {
 	enum ppm_event_category category; /**< System call category. */
 	enum ppm_event_flags flags;
 	char *name; /**< System call name, e.g. 'open'. */
+};
+
+/*!
+  \brief Structure used to pass a buffer and its size.
+*/
+struct scap_sized_buffer {
+	void* buf;
+	size_t size;
 };
 
 /*@}*/
@@ -1067,6 +1078,14 @@ int32_t scap_suppress_events_comm(scap_t* handle, const char *comm);
 */
 
 bool scap_check_suppressed_tid(scap_t *handle, int64_t tid);
+
+/*!
+  \brief Get (at most) n parameters for this event.
+ 
+  \param e The scap event.
+  \param params An array large enough to contain n entries.
+ */
+uint32_t scap_event_decode_params(const scap_evt *e, struct scap_sized_buffer *params);
 
 /*@}*/
 

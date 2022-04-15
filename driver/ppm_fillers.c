@@ -65,6 +65,9 @@ or GPL2.txt for full copies of the license.
 #include <sys/file.h>
 #include <sys/quota.h>
 #include <sys/ptrace.h>
+#ifdef __NR_openat2
+#include <linux/openat2.h>
+#endif
 #else /* WDIG */
 #include "stdint.h"
 #include <winsock2.h>
@@ -799,6 +802,7 @@ int f_proc_startupdate(struct event_filler_arguments *args)
 	long total_rss = 0;
 	long swap = 0;
 	int available = STR_STORAGE_SIZE;
+	const struct cred *cred;
 
 #ifdef __NR_clone3
 	struct clone_args cl_args;
@@ -1282,9 +1286,39 @@ cgroups_error:
 		res = val_to_ring(args, euid, 0, false, 0);
 		if (unlikely(res != PPM_SUCCESS))
 			return res;
+		/*
+		 * capabilities
+		 */
+		if(args->event_type == PPME_SYSCALL_EXECVE_19_X ||
+		   args->event_type == PPME_SYSCALL_EXECVEAT_X)
+		{
+			cred = get_current_cred();
+
+			val = ((uint64_t)cred->cap_inheritable.cap[1] << 32) | cred->cap_inheritable.cap[0];
+			res = val_to_ring(args, capabilities_to_scap(val), 0, false, 0);
+			if (unlikely(res != PPM_SUCCESS))
+				goto out;
+			
+			val = ((uint64_t)cred->cap_permitted.cap[1] << 32) | cred->cap_permitted.cap[0];
+			res = val_to_ring(args, capabilities_to_scap(val), 0, false, 0);
+			if (unlikely(res != PPM_SUCCESS))
+				goto out;
+			
+			val = ((uint64_t)cred->cap_effective.cap[1] << 32) | cred->cap_effective.cap[0];
+			res = val_to_ring(args, capabilities_to_scap(val), 0, false, 0);
+			if (unlikely(res != PPM_SUCCESS))
+				goto out;
+			
+			put_cred(cred);
+		}
 	}
 
 	return add_sentinel(args);
+
+out:
+	put_cred(cred);
+	return res;
+
 #endif /* UDIG */
 }
 
@@ -4823,7 +4857,6 @@ int f_sys_copy_file_range_x(struct event_filler_arguments *args)
 	res = val_to_ring(args, retval, 0, false, 0);
 	if (unlikely(res != PPM_SUCCESS))
 		return res;
-
 	/*
 	* fdout
 	*/
@@ -4831,7 +4864,6 @@ int f_sys_copy_file_range_x(struct event_filler_arguments *args)
 	res = val_to_ring(args, fdout, 0, false, 0);
 	if (unlikely(res != PPM_SUCCESS))
 		return res;
-
 	/*
 	* offout
 	*/
@@ -4907,14 +4939,18 @@ int f_sys_open_by_handle_at_x(struct event_filler_arguments *args)
 		pathname = d_path(&file->f_path, buf, PAGE_SIZE);
 		if (unlikely(!pathname))
 		{
+			fput(file);
 			goto empty_pathname;
 		}
 
 		res = val_to_ring(args, (unsigned long)pathname, 0, false, 0);
 		if (likely(res == PPM_SUCCESS))
 		{
+			fput(file);
 			return add_sentinel(args);
-		}		
+		}
+
+		fput(file);		
 	}
 
 
@@ -4928,6 +4964,257 @@ empty_pathname:
 	return add_sentinel(args);
 }
 
+int f_sys_io_uring_setup_x (struct event_filler_arguments *args)
+{
+	int res;
+	unsigned long val;
+	unsigned long sq_entries;
+	unsigned long cq_entries;
+	unsigned long flags;
+	unsigned long sq_thread_cpu;
+	unsigned long sq_thread_idle;
+	unsigned long features;
+
+#ifdef __NR_io_uring_setup
+	struct io_uring_params params;
+#endif
+
+	int64_t retval = (int64_t)syscall_get_return_value(current, args->regs);
+	res = val_to_ring(args, retval, 0, false, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+
+	/* entries */
+	syscall_get_arguments_deprecated(current, args->regs, 0, 1, &val);
+	res = val_to_ring(args, val, 0, true, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+
+#ifdef __NR_io_uring_setup
+	/*
+	 * io_uring_params: we get the data structure, and put its fields in the buffer one by one
+	 */
+	syscall_get_arguments_deprecated(current, args->regs, 1, 1, &val);
+	res = ppm_copy_from_user(&params, (void *)val, sizeof(struct io_uring_params));
+	if (unlikely(res != 0))
+		return PPM_FAILURE_INVALID_USER_MEMORY;
+
+	sq_entries = params.sq_entries;
+	cq_entries = params.cq_entries;
+	flags = io_uring_setup_flags_to_scap(params.flags);
+	sq_thread_cpu = params.sq_thread_cpu;
+	sq_thread_idle = params.sq_thread_idle;
+	features = io_uring_setup_feats_to_scap(params.features);
+#else
+	sq_entries = 0;
+	cq_entries = 0;
+	flags = 0;
+	sq_thread_cpu = 0;
+	sq_thread_idle = 0;
+	features = 0;
+#endif
+	/*
+	 * sq_entries (extracted from io_uring_params structure)
+	 */
+	res = val_to_ring(args, sq_entries, 0, true, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+	/*
+	 * cq_entries (extracted from io_uring_params structure)
+	 */
+	res = val_to_ring(args, cq_entries, 0, true, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+	/*
+	 * flags (extracted from io_uring_params structure)
+	 * Already converted in ppm portable representation
+	 */
+	res = val_to_ring(args, flags, 0, true, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+	/*
+	 * sq_thread_cpu (extracted from io_uring_params structure)
+	 */
+	res = val_to_ring(args, sq_thread_cpu, 0, true, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+	/*
+	 * sq_thread_idle (extracted from io_uring_params structure)
+	 */
+	res = val_to_ring(args, sq_thread_idle, 0, true, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+	/*
+	 * features (extracted from io_uring_params structure)
+	 * Already converted in ppm portable representation
+	 */
+	res = val_to_ring(args, features, 0, true, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+
+	return add_sentinel(args);
+}
+
+int f_sys_io_uring_enter_x (struct event_filler_arguments *args)
+{
+	int res;
+	unsigned long val;
+
+	int64_t retval = (int64_t)syscall_get_return_value(current, args->regs);
+	res = val_to_ring(args, retval, 0, false, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+
+	/* fd */
+	syscall_get_arguments_deprecated(current, args->regs, 0, 1, &val);
+	res = val_to_ring(args, val, 0, true, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+
+	/* to_submit */
+	syscall_get_arguments_deprecated(current, args->regs, 1, 1, &val);
+	res = val_to_ring(args, val, 0, true, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+
+	/* min_complete */
+	syscall_get_arguments_deprecated(current, args->regs, 2, 1, &val);
+	res = val_to_ring(args, val, 0, true, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+
+	/* flags */
+	syscall_get_arguments_deprecated(current, args->regs, 3, 1, &val);
+	res = val_to_ring(args, io_uring_enter_flags_to_scap(val), 0, true, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+
+	/* sig */
+	syscall_get_arguments_deprecated(current, args->regs, 4, 1, &val);
+	res = val_to_ring(args, val, 0, true, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+
+	return add_sentinel(args);
+}
+
+int f_sys_io_uring_register_x (struct event_filler_arguments *args)
+{
+	int res;
+	unsigned long val;
+
+	int64_t retval = (int64_t)syscall_get_return_value(current, args->regs);
+	res = val_to_ring(args, retval, 0, false, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+
+	/* fd */
+	syscall_get_arguments_deprecated(current, args->regs, 0, 1, &val);
+	res = val_to_ring(args, val, 0, true, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+
+	/* opcode */
+	syscall_get_arguments_deprecated(current, args->regs, 1, 1, &val);
+	res = val_to_ring(args, io_uring_register_opcodes_to_scap(val) , 0 , true, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+
+	/* arg */
+	syscall_get_arguments_deprecated(current, args->regs, 2, 1, &val);
+	res = val_to_ring(args, val, 0, true, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+
+	/* nr_args */
+	syscall_get_arguments_deprecated(current, args->regs, 3, 1, &val);
+	res = val_to_ring(args, val, 0, true, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+
+	return add_sentinel(args);
+}
+
+int f_sys_mlock_x(struct event_filler_arguments *args)
+{
+	unsigned long val;
+
+	int64_t retval = (int64_t)syscall_get_return_value(current, args->regs);
+	int res = val_to_ring(args, retval, 0, false, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+	/*
+	 * addr
+	 */
+	syscall_get_arguments_deprecated(current, args->regs, 0, 1, &val);
+	res = val_to_ring(args, val, 0, true, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+	/*
+	 * len
+	 */
+	syscall_get_arguments_deprecated(current, args->regs, 1, 1, &val);
+	res = val_to_ring(args, val, 0, true, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+
+	return add_sentinel(args);
+}
+
+int f_sys_munlock_x(struct event_filler_arguments *args)
+{
+	unsigned long val;
+
+	int64_t retval = (int64_t)syscall_get_return_value(current, args->regs);
+	int res = val_to_ring(args, retval, 0, false, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+	/*
+	 * addr
+	 */
+	syscall_get_arguments_deprecated(current, args->regs, 0, 1, &val);
+	res = val_to_ring(args, val, 0, true, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+	/*
+	 * len
+	 */
+	syscall_get_arguments_deprecated(current, args->regs, 1, 1, &val);
+	res = val_to_ring(args, val, 0, true, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+
+	return add_sentinel(args);
+}
+
+int f_sys_mlockall_x(struct event_filler_arguments *args)
+{
+	unsigned long val;
+
+	int64_t retval = (int64_t)syscall_get_return_value(current, args->regs);
+	int res = val_to_ring(args, retval, 0, false, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+	/*
+	 * flags
+	 */
+	syscall_get_arguments_deprecated(current, args->regs, 0, 1, &val);
+	res = val_to_ring(args, mlockall_flags_to_scap(val), 0, true, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+
+	return add_sentinel(args);
+}
+
+int f_sys_munlockall_x(struct event_filler_arguments *args)
+{
+	int64_t retval = (int64_t)syscall_get_return_value(current, args->regs);
+	int res = val_to_ring(args, retval, 0, false, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+
+	return add_sentinel(args);
+}
 #endif /* WDIG */
 
 int f_sys_procexit_e(struct event_filler_arguments *args)
@@ -5874,6 +6161,44 @@ int f_sys_fchmod_x(struct event_filler_arguments *args)
 		return res;
 
 	return add_sentinel(args);
+}
+
+int f_sys_capset_x(struct event_filler_arguments *args)
+{
+	unsigned long val;
+	int res;
+	int64_t retval;
+	const struct cred *cred;
+
+	retval = (int64_t)syscall_get_return_value(current, args->regs);
+	res = val_to_ring(args, retval, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+		return res;
+
+	cred = get_current_cred();
+
+	val = ((uint64_t)cred->cap_inheritable.cap[1] << 32) | cred->cap_inheritable.cap[0];
+	res = val_to_ring(args, capabilities_to_scap(val), 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+		goto out;
+
+	val = ((uint64_t)cred->cap_permitted.cap[1] << 32) | cred->cap_permitted.cap[0];
+	res = val_to_ring(args, capabilities_to_scap(val), 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+		goto out;
+
+	val = ((uint64_t)cred->cap_effective.cap[1] << 32) | cred->cap_effective.cap[0];
+	res = val_to_ring(args, capabilities_to_scap(val), 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+		goto out;
+
+	put_cred(cred);
+
+	return add_sentinel(args);
+
+out: 
+	put_cred(cred);
+	return res;
 }
 
 #endif /* WDIG */

@@ -13,12 +13,15 @@ or GPL2.txt for full copies of the license.
 #include <linux/mman.h>
 #include <linux/futex.h>
 #include <linux/ptrace.h>
+#include <linux/capability.h>
 #include "ppm.h"
 #endif
 #ifdef WDIG
 #include <fcntl.h>
 #endif
-
+#ifdef __NR_io_uring_register
+#include <uapi/linux/io_uring.h>
+#endif
 #define PPM_MS_MGC_MSK 0xffff0000
 #define PPM_MS_MGC_VAL 0xC0ED0000
 
@@ -197,6 +200,178 @@ static __always_inline u32 openat2_resolve_to_scap(unsigned long flags)
 #endif
 	return res;
 #endif // WDIG
+}
+
+static __always_inline u32 io_uring_setup_flags_to_scap(unsigned long flags){
+	u32 res = 0;
+
+#ifdef IORING_SETUP_IOPOLL
+	if (flags & IORING_SETUP_IOPOLL)
+		res |= PPM_IORING_SETUP_IOPOLL;
+#endif
+
+#ifdef IORING_SETUP_SQPOLL
+	if (flags & IORING_SETUP_SQPOLL)
+		res |= PPM_IORING_SETUP_SQPOLL;
+#endif
+
+#ifdef IORING_SQ_NEED_WAKEUP
+	if (flags & IORING_SQ_NEED_WAKEUP)
+		res |= PPM_IORING_SQ_NEED_WAKEUP;
+#endif
+
+#ifdef IORING_SETUP_SQ_AFF
+	if (flags & IORING_SETUP_SQ_AFF)
+		res |= PPM_IORING_SETUP_SQ_AFF;
+#endif
+
+#ifdef IORING_SETUP_CQSIZE
+	if (flags & IORING_SETUP_CQSIZE)
+		res |= PPM_IORING_SETUP_CQSIZE;
+#endif
+
+#ifdef IORING_SETUP_CLAMP
+	if (flags & IORING_SETUP_CLAMP)
+		res |= PPM_IORING_SETUP_CLAMP;
+#endif
+
+#ifdef IORING_SETUP_ATTACH_WQ
+	if (flags & IORING_SETUP_ATTACH_WQ)
+		res |= PPM_IORING_SETUP_ATTACH_WQ;
+#endif
+
+#ifdef IORING_SETUP_R_DISABLED
+	if (flags & IORING_SETUP_R_DISABLED)
+		res |= PPM_IORING_SETUP_R_DISABLED;
+#endif
+	return res;
+}
+
+static __always_inline u32 io_uring_setup_feats_to_scap(unsigned long flags){
+	u32 res = 0;
+
+#ifdef IORING_FEAT_SINGLE_MMAP
+	if (flags & IORING_FEAT_SINGLE_MMAP)
+		res |= PPM_IORING_FEAT_SINGLE_MMAP;
+#endif
+
+#ifdef IORING_FEAT_NODROP
+	if (flags & IORING_FEAT_NODROP)
+		res |= PPM_IORING_FEAT_NODROP;
+#endif
+
+#ifdef IORING_FEAT_SUBMIT_STABLE
+	if (flags & IORING_FEAT_SUBMIT_STABLE)
+		res |= PPM_IORING_FEAT_SUBMIT_STABLE;
+#endif
+
+#ifdef IORING_FEAT_RW_CUR_POS
+	if (flags & IORING_FEAT_RW_CUR_POS)
+		res |= PPM_IORING_FEAT_RW_CUR_POS;
+#endif
+
+#ifdef IORING_FEAT_CUR_PERSONALITY
+	if (flags & IORING_FEAT_CUR_PERSONALITY)
+		res |= PPM_IORING_FEAT_CUR_PERSONALITY;
+#endif
+
+
+#ifdef IORING_FEAT_FAST_POLL
+	if (flags & IORING_FEAT_FAST_POLL)
+		res |= PPM_IORING_FEAT_FAST_POLL;
+#endif
+
+#ifdef IORING_FEAT_POLL_32BITS
+	if (flags & IORING_FEAT_POLL_32BITS)
+		res |= PPM_IORING_FEAT_POLL_32BITS;
+#endif
+
+#ifdef IORING_FEAT_SQPOLL_NONFIXED
+	if (flags & IORING_FEAT_SQPOLL_NONFIXED)
+		res |= PPM_IORING_FEAT_SQPOLL_NONFIXED;
+#endif
+
+#ifdef IORING_FEAT_ENTER_EXT_ARG
+	if (flags & IORING_FEAT_ENTER_EXT_ARG)
+		res |= PPM_IORING_FEAT_ENTER_EXT_ARG;
+#endif
+
+#ifdef IORING_FEAT_NATIVE_WORKERS
+	if (flags & IORING_FEAT_NATIVE_WORKERS)
+		res |= PPM_IORING_FEAT_NATIVE_WORKERS;
+#endif
+
+#ifdef IORING_FEAT_RSRC_TAGS
+	if (flags & IORING_FEAT_RSRC_TAGS)
+		res |= PPM_IORING_FEAT_RSRC_TAGS;
+#endif
+	return res;
+}
+
+static __always_inline u32 io_uring_enter_flags_to_scap(unsigned long flags)
+{
+	u32 res = 0;
+
+#ifdef IORING_ENTER_GETEVENTS
+	if (flags & IORING_ENTER_GETEVENTS)
+		res |= PPM_IORING_ENTER_GETEVENTS;
+#endif
+
+#ifdef IORING_ENTER_SQ_WAKEUP
+	if (flags & IORING_ENTER_SQ_WAKEUP)
+		res |= PPM_IORING_ENTER_SQ_WAKEUP;
+#endif
+
+#ifdef IORING_ENTER_SQ_WAIT
+	if (flags & IORING_ENTER_SQ_WAIT)
+		res |= PPM_IORING_ENTER_SQ_WAIT;
+#endif
+
+#ifdef IORING_ENTER_EXT_ARG
+	if (flags & IORING_ENTER_EXT_ARG)
+		res |= PPM_IORING_ENTER_EXT_ARG;
+#endif
+	return res;
+}
+
+static __always_inline u32 io_uring_register_opcodes_to_scap(unsigned long flags)
+{
+	/*
+	 * io_uring_register opcodes are defined via enum
+	 */
+	switch(flags)
+	{
+#ifdef __NR_io_uring_register
+	case IORING_REGISTER_BUFFERS:
+		return PPM_IORING_REGISTER_BUFFERS;
+	case IORING_UNREGISTER_BUFFERS:
+		return PPM_IORING_UNREGISTER_BUFFERS;
+	case IORING_REGISTER_FILES:
+		return PPM_IORING_REGISTER_FILES;
+	case IORING_UNREGISTER_FILES:
+		return PPM_IORING_UNREGISTER_FILES;
+	case IORING_REGISTER_EVENTFD:
+		return PPM_IORING_REGISTER_EVENTFD;
+	case IORING_UNREGISTER_EVENTFD:
+		return PPM_IORING_UNREGISTER_EVENTFD;
+	case IORING_REGISTER_FILES_UPDATE:
+		return PPM_IORING_REGISTER_FILES_UPDATE;
+	case IORING_REGISTER_EVENTFD_ASYNC:
+		return PPM_IORING_REGISTER_EVENTFD_ASYNC;
+	case IORING_REGISTER_PROBE:
+		return PPM_IORING_REGISTER_PROBE;
+	case IORING_REGISTER_PERSONALITY:
+		return PPM_IORING_REGISTER_PERSONALITY;
+	case IORING_UNREGISTER_PERSONALITY:
+		return PPM_IORING_UNREGISTER_PERSONALITY;
+	case IORING_REGISTER_RESTRICTIONS:
+		return PPM_IORING_REGISTER_RESTRICTIONS;
+	case IORING_REGISTER_ENABLE_RINGS:
+		return PPM_IORING_REGISTER_ENABLE_RINGS;
+#endif
+	default:
+		return PPM_IORING_REGISTER_UNKNOWN;
+	}
 }
 
 static __always_inline u32 clone_flags_to_scap(unsigned long flags)
@@ -1417,6 +1592,24 @@ static __always_inline u32 execveat_flags_to_scap(unsigned long flags)
 	return res;
 }
 
+static __always_inline u32 mlockall_flags_to_scap(unsigned long flags)
+{
+	u32 res = 0;
+#ifdef MCL_CURRENT
+	if (flags & MCL_CURRENT)
+		res |= PPM_MLOCKALL_MCL_CURRENT;
+#endif
+#ifdef MCL_FUTURE
+	if (flags & MCL_FUTURE)
+		res |= PPM_MLOCKALL_MCL_FUTURE;
+#endif
+#ifdef MCL_ONFAULT
+	if (flags & MCL_ONFAULT)
+		res |= PPM_MLOCKALL_MCL_ONFAULT;
+#endif
+	return res;
+}
+
 static __always_inline u32 unlinkat_flags_to_scap(unsigned long flags)
 {
 	u32 res = 0;
@@ -1492,6 +1685,178 @@ static __always_inline u32 chmod_mode_to_scap(unsigned long modes)
 
 	if (modes & S_ISVTX)
 		res |= PPM_S_ISVTX;
+
+	return res;
+}
+
+static __always_inline u64 capabilities_to_scap(unsigned long caps)
+{
+	u64 res = 0;
+	
+#ifdef CAP_CHOWN
+	if(caps & (1UL << CAP_CHOWN))
+		res |= PPM_CAP_CHOWN;
+#endif
+#ifdef CAP_DAC_OVERRIDE
+	if(caps & (1UL << CAP_DAC_OVERRIDE))
+		res |= PPM_CAP_DAC_OVERRIDE;
+#endif
+#ifdef CAP_DAC_READ_SEARCH
+	if(caps & (1UL << CAP_DAC_READ_SEARCH))
+		res |= PPM_CAP_DAC_READ_SEARCH;
+#endif
+#ifdef CAP_FOWNER
+	if(caps & (1UL << CAP_FOWNER))
+		res |= PPM_CAP_FOWNER;
+#endif
+#ifdef CAP_FSETID
+	if(caps & (1UL << CAP_FSETID))
+		res |= PPM_CAP_FSETID;
+#endif
+#ifdef CAP_KILL
+	if(caps & (1UL << CAP_KILL))
+		res |= PPM_CAP_KILL;
+#endif
+#ifdef CAP_SETGID
+	if(caps & (1UL << CAP_SETGID))
+		res |= PPM_CAP_SETGID;
+#endif
+#ifdef CAP_SETUID
+	if(caps & (1UL << CAP_SETUID))
+		res |= PPM_CAP_SETUID;
+#endif
+#ifdef CAP_SETPCAP
+	if(caps & (1UL << CAP_SETPCAP))
+		res |= PPM_CAP_SETPCAP;
+#endif
+#ifdef CAP_LINUX_IMMUTABLE
+	if(caps & (1UL << CAP_LINUX_IMMUTABLE))
+		res |= PPM_CAP_LINUX_IMMUTABLE;
+#endif
+#ifdef CAP_NET_BIND_SERVICE
+	if(caps & (1UL << CAP_NET_BIND_SERVICE))
+		res |= PPM_CAP_NET_BIND_SERVICE;
+#endif
+#ifdef CAP_NET_BROADCAST
+	if(caps & (1UL << CAP_NET_BROADCAST))
+		res |= PPM_CAP_NET_BROADCAST;
+#endif
+#ifdef CAP_NET_ADMIN
+	if(caps & (1UL << CAP_NET_ADMIN))
+		res |= PPM_CAP_NET_ADMIN;
+#endif
+#ifdef CAP_NET_RAW
+	if(caps & (1UL << CAP_NET_RAW))
+		res |= PPM_CAP_NET_RAW;
+#endif
+#ifdef CAP_IPC_LOCK
+	if(caps & (1UL << CAP_IPC_LOCK))
+		res |= PPM_CAP_IPC_LOCK;
+#endif
+#ifdef CAP_IPC_OWNER
+	if(caps & (1UL << CAP_IPC_OWNER))
+		res |= PPM_CAP_IPC_OWNER;
+#endif
+#ifdef CAP_SYS_MODULE
+	if(caps & (1UL << CAP_SYS_MODULE))
+		res |= PPM_CAP_SYS_MODULE;
+#endif
+#ifdef CAP_SYS_RAWIO
+	if(caps & (1UL << CAP_SYS_RAWIO))
+		res |= PPM_CAP_SYS_RAWIO;
+#endif
+#ifdef CAP_SYS_CHROOT
+	if(caps & (1UL << CAP_SYS_CHROOT))
+		res |= PPM_CAP_SYS_CHROOT;
+#endif
+#ifdef CAP_SYS_PTRACE
+	if(caps & (1UL << CAP_SYS_PTRACE))
+		res |= PPM_CAP_SYS_PTRACE;
+#endif
+#ifdef CAP_SYS_PACCT
+	if(caps & (1UL << CAP_SYS_PACCT))
+		res |= PPM_CAP_SYS_PACCT;
+#endif
+#ifdef CAP_SYS_ADMIN
+	if(caps & (1UL << CAP_SYS_ADMIN))
+		res |= PPM_CAP_SYS_ADMIN;
+#endif
+#ifdef CAP_SYS_BOOT
+	if(caps & (1UL << CAP_SYS_BOOT))
+		res |= PPM_CAP_SYS_BOOT;
+#endif
+#ifdef CAP_SYS_NICE
+	if(caps & (1UL << CAP_SYS_NICE))
+		res |= PPM_CAP_SYS_NICE;
+#endif
+#ifdef CAP_SYS_RESOURCE
+	if(caps & (1UL << CAP_SYS_RESOURCE))
+		res |= PPM_CAP_SYS_RESOURCE;
+#endif
+#ifdef CAP_SYS_TIME
+	if(caps & (1UL << CAP_SYS_TIME))
+		res |= PPM_CAP_SYS_TIME;
+#endif
+#ifdef CAP_SYS_TTY_CONFIG
+	if(caps & (1UL << CAP_SYS_TTY_CONFIG))
+		res |= PPM_CAP_SYS_TTY_CONFIG;
+#endif
+#ifdef CAP_MKNOD
+	if(caps & (1UL << CAP_MKNOD))
+		res |= PPM_CAP_MKNOD;
+#endif
+#ifdef CAP_LEASE
+	if(caps & (1UL << CAP_LEASE))
+		res |= PPM_CAP_LEASE;
+#endif
+#ifdef CAP_AUDIT_WRITE
+	if(caps & (1UL << CAP_AUDIT_WRITE))
+		res |= PPM_CAP_AUDIT_WRITE;
+#endif
+#ifdef CAP_AUDIT_CONTROL
+	if(caps & (1UL << CAP_AUDIT_CONTROL))
+		res |= PPM_CAP_AUDIT_CONTROL;
+#endif
+#ifdef CAP_SETFCAP
+	if(caps & (1UL << CAP_SETFCAP))
+		res |= PPM_CAP_SETFCAP;
+#endif
+#ifdef CAP_MAC_OVERRIDE
+	if(caps & (1UL << CAP_MAC_OVERRIDE))
+		res |= PPM_CAP_MAC_OVERRIDE;
+#endif
+#ifdef CAP_MAC_ADMIN
+	if(caps & (1UL << CAP_MAC_ADMIN))
+		res |= PPM_CAP_MAC_ADMIN;
+#endif
+#ifdef CAP_SYSLOG
+	if(caps & (1UL << CAP_SYSLOG))
+		res |= PPM_CAP_SYSLOG;
+#endif
+#ifdef CAP_WAKE_ALARM
+	if(caps & (1UL << CAP_WAKE_ALARM))
+		res |= PPM_CAP_WAKE_ALARM;
+#endif
+#ifdef CAP_BLOCK_SUSPEND
+	if(caps & (1UL << CAP_BLOCK_SUSPEND))
+		res |= PPM_CAP_BLOCK_SUSPEND;
+#endif
+#ifdef CAP_AUDIT_READ
+	if(caps & (1UL << CAP_AUDIT_READ))
+		res |= PPM_CAP_AUDIT_READ;
+#endif
+#ifdef CAP_PERFMON
+	if(caps & (1UL << CAP_PERFMON))
+		res |= PPM_CAP_PERFMON;
+#endif
+#ifdef CAP_BPF
+	if(caps & (1UL << CAP_BPF))
+		res |= PPM_CAP_BPF;
+#endif
+#ifdef CAP_CHECKPOINT_RESTORE
+	if(caps & (1UL << CAP_CHECKPOINT_RESTORE))
+		res |= PPM_CAP_CHECKPOINT_RESTORE;
+#endif
 
 	return res;
 }

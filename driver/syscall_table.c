@@ -102,6 +102,9 @@ const struct syscall_evt_pair g_syscall_table[SYSCALL_TABLE_SIZE] = {
 	[__NR_lseek - SYSCALL_TABLE_ID0] =                      {UF_USED | UF_ALWAYS_DROP, PPME_SYSCALL_LSEEK_E, PPME_SYSCALL_LSEEK_X},
 	[__NR_ioctl - SYSCALL_TABLE_ID0] =                      {UF_USED | UF_ALWAYS_DROP, PPME_SYSCALL_IOCTL_3_E, PPME_SYSCALL_IOCTL_3_X},
 	[__NR_getcwd - SYSCALL_TABLE_ID0] =                     {UF_USED | UF_ALWAYS_DROP, PPME_SYSCALL_GETCWD_E, PPME_SYSCALL_GETCWD_X},
+#ifdef __NR_capset
+	[__NR_capset - SYSCALL_TABLE_ID0] =                     {UF_USED, PPME_SYSCALL_CAPSET_E, PPME_SYSCALL_CAPSET_X},
+#endif
 	[__NR_chdir - SYSCALL_TABLE_ID0] =                      {UF_USED | UF_NEVER_DROP | UF_SIMPLEDRIVER_KEEP, PPME_SYSCALL_CHDIR_E, PPME_SYSCALL_CHDIR_X},
 	[__NR_fchdir - SYSCALL_TABLE_ID0] =                     {UF_USED | UF_NEVER_DROP | UF_SIMPLEDRIVER_KEEP, PPME_SYSCALL_FCHDIR_E, PPME_SYSCALL_FCHDIR_X},
 #ifdef __NR_mkdir
@@ -365,16 +368,37 @@ const struct syscall_evt_pair g_syscall_table[SYSCALL_TABLE_SIZE] = {
 	[__NR_clone3 - SYSCALL_TABLE_ID0] =                     {UF_USED | UF_NEVER_DROP | UF_SIMPLEDRIVER_KEEP, PPME_SYSCALL_CLONE3_E, PPME_SYSCALL_CLONE3_X},
 #endif
 #ifdef __NR_mprotect
-	[__NR_mprotect - SYSCALL_TABLE_ID0] =                   {UF_USED, PPME_SYSCALL_MPROTECT_E, PPME_SYSCALL_MPROTECT_X},	
-#endif					
+	[__NR_mprotect - SYSCALL_TABLE_ID0] =                   {UF_USED, PPME_SYSCALL_MPROTECT_E, PPME_SYSCALL_MPROTECT_X},
+#endif
 #ifdef __NR_execveat
 	[__NR_execveat - SYSCALL_TABLE_ID0] =                    {UF_USED | UF_NEVER_DROP | UF_SIMPLEDRIVER_KEEP, PPME_SYSCALL_EXECVEAT_E, PPME_SYSCALL_EXECVEAT_X},
+#endif
+#ifdef __NR_io_uring_setup
+	[__NR_io_uring_setup - SYSCALL_TABLE_ID0] =		{UF_USED, PPME_SYSCALL_IO_URING_SETUP_E, PPME_SYSCALL_IO_URING_SETUP_X},
+#endif
+#ifdef __NR_io_uring_enter
+	[__NR_io_uring_enter - SYSCALL_TABLE_ID0] =		{UF_USED, PPME_SYSCALL_IO_URING_ENTER_E, PPME_SYSCALL_IO_URING_ENTER_X},
+#endif
+#ifdef __NR_io_uring_register
+	[__NR_io_uring_register - SYSCALL_TABLE_ID0] =		{UF_USED, PPME_SYSCALL_IO_URING_REGISTER_E, PPME_SYSCALL_IO_URING_REGISTER_X},
 #endif
 #ifdef __NR_copy_file_range
 	[__NR_copy_file_range - SYSCALL_TABLE_ID0] =            {UF_USED, PPME_SYSCALL_COPY_FILE_RANGE_E, PPME_SYSCALL_COPY_FILE_RANGE_X},
 #endif
 #ifdef __NR_open_by_handle_at
 	[__NR_open_by_handle_at - SYSCALL_TABLE_ID0] =                    {UF_USED, PPME_SYSCALL_OPEN_BY_HANDLE_AT_E, PPME_SYSCALL_OPEN_BY_HANDLE_AT_X},
+#endif
+#ifdef __NR_mlock
+	[__NR_mlock - SYSCALL_TABLE_ID0] =			{UF_USED, PPME_SYSCALL_MLOCK_E, PPME_SYSCALL_MLOCK_X},
+#endif
+#ifdef __NR_munlock
+	[__NR_munlock - SYSCALL_TABLE_ID0] =			{UF_USED, PPME_SYSCALL_MUNLOCK_E, PPME_SYSCALL_MUNLOCK_X},
+#endif
+#ifdef __NR_mlockall
+	[__NR_mlockall - SYSCALL_TABLE_ID0] =			{UF_USED, PPME_SYSCALL_MLOCKALL_E, PPME_SYSCALL_MLOCKALL_X},
+#endif
+#ifdef __NR_munlockall
+	[__NR_munlockall - SYSCALL_TABLE_ID0] =			{UF_USED, PPME_SYSCALL_MUNLOCKALL_E, PPME_SYSCALL_MUNLOCKALL_X},
 #endif
 };
 
@@ -1003,6 +1027,15 @@ const enum ppm_syscall_code g_syscall_code_routing_table[SYSCALL_TABLE_SIZE] = {
 #ifdef __NR_execveat
 	[__NR_execveat - SYSCALL_TABLE_ID0] = PPM_SC_EXECVEAT,
 #endif
+#ifdef __NR_io_uring_setup
+	[__NR_io_uring_setup - SYSCALL_TABLE_ID0] = PPM_SC_IO_URING_SETUP,
+#endif
+#ifdef __NR_io_uring_enter
+	[__NR_io_uring_enter - SYSCALL_TABLE_ID0] = PPM_SC_IO_URING_ENTER,
+#endif
+#ifdef __NR_io_uring_register
+	[__NR_io_uring_register - SYSCALL_TABLE_ID0] = PPM_SC_IO_URING_REGISTER,
+#endif
 #ifdef __NR_copy_file_range
 	[__NR_copy_file_range - SYSCALL_TABLE_ID0] = PPM_SC_COPY_FILE_RANGE,
 #endif
@@ -1043,6 +1076,9 @@ const struct syscall_evt_pair g_syscall_ia32_table[SYSCALL_TABLE_SIZE] = {
 	[__NR_ia32_lseek - SYSCALL_TABLE_ID0] =                      {UF_USED | UF_ALWAYS_DROP, PPME_SYSCALL_LSEEK_E, PPME_SYSCALL_LSEEK_X},
 	[__NR_ia32_ioctl - SYSCALL_TABLE_ID0] =                      {UF_USED | UF_ALWAYS_DROP, PPME_SYSCALL_IOCTL_3_E, PPME_SYSCALL_IOCTL_3_X},
 	[__NR_ia32_getcwd - SYSCALL_TABLE_ID0] =                     {UF_USED | UF_ALWAYS_DROP, PPME_SYSCALL_GETCWD_E, PPME_SYSCALL_GETCWD_X},
+#ifdef __NR_ia32_capset
+	[__NR_ia32_capset - SYSCALL_TABLE_ID0] =                     {UF_USED, PPME_SYSCALL_CAPSET_E, PPME_SYSCALL_CAPSET_X},
+#endif
 	[__NR_ia32_chdir - SYSCALL_TABLE_ID0] =                      {UF_USED | UF_NEVER_DROP | UF_SIMPLEDRIVER_KEEP, PPME_SYSCALL_CHDIR_E, PPME_SYSCALL_CHDIR_X},
 	[__NR_ia32_fchdir - SYSCALL_TABLE_ID0] =                     {UF_USED | UF_NEVER_DROP | UF_SIMPLEDRIVER_KEEP, PPME_SYSCALL_FCHDIR_E, PPME_SYSCALL_FCHDIR_X},
 	[__NR_ia32_mkdir - SYSCALL_TABLE_ID0] =                      {UF_USED, PPME_SYSCALL_MKDIR_2_E, PPME_SYSCALL_MKDIR_2_X},
@@ -1260,15 +1296,36 @@ const struct syscall_evt_pair g_syscall_ia32_table[SYSCALL_TABLE_SIZE] = {
 #endif
 #ifdef __NR_ia32_mprotect
 	[__NR_ia32_mprotect - SYSCALL_TABLE_ID0] =                   {UF_USED, PPME_SYSCALL_MPROTECT_E, PPME_SYSCALL_MPROTECT_X},
-#endif	
+#endif
 #ifdef __NR_ia32_execveat
 	[__NR_ia32_execveat - SYSCALL_TABLE_ID0] =                    {UF_USED | UF_NEVER_DROP | UF_SIMPLEDRIVER_KEEP, PPME_SYSCALL_EXECVEAT_E, PPME_SYSCALL_EXECVEAT_X},
+#endif
+#ifdef __NR_ia32_io_uring_setup
+	[__NR_ia32_io_uring_setup - SYSCALL_TABLE_ID0] =		{UF_USED, PPME_SYSCALL_IO_URING_SETUP_E, PPME_SYSCALL_IO_URING_SETUP_X},
+#endif
+#ifdef __NR_ia32_io_uring_enter
+	[__NR_ia32_io_uring_enter - SYSCALL_TABLE_ID0] = 		{UF_USED, PPME_SYSCALL_IO_URING_ENTER_E, PPME_SYSCALL_IO_URING_ENTER_X},
+#endif
+#ifdef __NR_ia32_io_uring_register
+	[__NR_ia32_io_uring_register - SYSCALL_TABLE_ID0] = 		{UF_USED, PPME_SYSCALL_IO_URING_REGISTER_E, PPME_SYSCALL_IO_URING_REGISTER_X},
 #endif
 #ifdef __NR_ia32_copy_file_range
 	[__NR_ia32_copy_file_range - SYSCALL_TABLE_ID0] =            {UF_USED, PPME_SYSCALL_COPY_FILE_RANGE_E, PPME_SYSCALL_COPY_FILE_RANGE_X},
 #endif
 #ifdef __NR_ia32_open_by_handle_at
 	[__NR_ia32_open_by_handle_at - SYSCALL_TABLE_ID0] =             {UF_USED, PPME_SYSCALL_OPEN_BY_HANDLE_AT_E, PPME_SYSCALL_OPEN_BY_HANDLE_AT_X},
+#endif
+#ifdef __NR_ia32_mlock
+	[__NR_ia32_mlock - SYSCALL_TABLE_ID0] = 			{UF_USED, PPME_SYSCALL_MLOCK_E, PPME_SYSCALL_MLOCK_X},
+#endif
+#ifdef __NR_ia32_munlock
+	[__NR_ia32_munlock - SYSCALL_TABLE_ID0] = 			{UF_USED, PPME_SYSCALL_MUNLOCK_E, PPME_SYSCALL_MUNLOCK_X},
+#endif
+#ifdef __NR_ia32_mlockall
+	[__NR_ia32_mlockall - SYSCALL_TABLE_ID0] = 			{UF_USED, PPME_SYSCALL_MLOCKALL_E, PPME_SYSCALL_MLOCKALL_X},
+#endif
+#ifdef __NR_ia32_munlockall
+	[__NR_ia32_munlockall - SYSCALL_TABLE_ID0] = 			{UF_USED, PPME_SYSCALL_MUNLOCKALL_E, PPME_SYSCALL_MUNLOCKALL_X},
 #endif
 };
 
@@ -1831,6 +1888,15 @@ const enum ppm_syscall_code g_syscall_ia32_code_routing_table[SYSCALL_TABLE_SIZE
 #endif
 #ifdef __NR_ia32_execveat
 	[__NR_ia32_execveat - SYSCALL_TABLE_ID0] = PPM_SC_EXECVEAT,
+#endif
+#ifdef __NR_ia32_io_uring_setup
+	[__NR_ia32_io_uring_setup - SYSCALL_TABLE_ID0] = PPM_SC_IO_URING_SETUP,
+#endif
+#ifdef __NR_ia32_io_uring_enter
+	[__NR_ia32_io_uring_enter - SYSCALL_TABLE_ID0] = PPM_SC_IO_URING_ENTER,
+#endif
+#ifdef __NR_ia32_io_uring_register
+	[__NR_ia32_io_uring_register - SYSCALL_TABLE_ID0] = PPM_SC_IO_URING_REGISTER,
 #endif
 #ifdef __NR_ia32_copy_file_range
 	[__NR_ia32_copy_file_range - SYSCALL_TABLE_ID0] = PPM_SC_COPY_FILE_RANGE,
