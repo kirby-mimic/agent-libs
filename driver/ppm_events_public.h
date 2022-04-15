@@ -617,6 +617,65 @@ or GPL2.txt for full copies of the license.
 #define PPM_EXVAT_AT_SYMLINK_NOFOLLOW	(1 << 1)	/* If the file is a symbolic link, then the call fails */
 
 /*
+ * Io_uring_setup flags
+ */
+#define PPM_IORING_SETUP_IOPOLL		(1<<0)
+#define PPM_IORING_SETUP_SQPOLL		(1<<1)
+#define PPM_IORING_SQ_NEED_WAKEUP	(1<<2)
+#define PPM_IORING_SETUP_SQ_AFF		(1<<3)
+#define PPM_IORING_SETUP_CQSIZE		(1<<4)
+#define PPM_IORING_SETUP_CLAMP		(1<<5)
+#define PPM_IORING_SETUP_ATTACH_WQ	(1<<6)
+#define PPM_IORING_SETUP_R_DISABLED	(1<<7)
+
+/*
+ * Io_uring_setup feats
+ */
+#define PPM_IORING_FEAT_SINGLE_MMAP	(1<<0)
+#define PPM_IORING_FEAT_NODROP		(1<<1)
+#define PPM_IORING_FEAT_SUBMIT_STABLE	(1<<2)
+#define PPM_IORING_FEAT_RW_CUR_POS	(1<<3)
+#define PPM_IORING_FEAT_CUR_PERSONALITY	(1<<4)
+#define PPM_IORING_FEAT_FAST_POLL	(1<<5)
+#define PPM_IORING_FEAT_POLL_32BITS	(1<<6)
+#define PPM_IORING_FEAT_SQPOLL_NONFIXED	(1<<7)
+#define PPM_IORING_FEAT_ENTER_EXT_ARG	(1<<8)
+#define PPM_IORING_FEAT_NATIVE_WORKERS	(1<<9)
+#define PPM_IORING_FEAT_RSRC_TAGS	(1<<10)
+
+/*
+ * Io_uring_enter flags
+ */
+#define PPM_IORING_ENTER_GETEVENTS	(1<<0)
+#define PPM_IORING_ENTER_SQ_WAKEUP	(1<<1)
+#define PPM_IORING_ENTER_SQ_WAIT	(1<<2)
+#define PPM_IORING_ENTER_EXT_ARG	(1<<3)
+
+/*
+ *  Io_uring_register opcodes
+ */
+#define PPM_IORING_REGISTER_UNKNOWN		0
+#define PPM_IORING_REGISTER_BUFFERS		1
+#define PPM_IORING_UNREGISTER_BUFFERS		2
+#define PPM_IORING_REGISTER_FILES		3
+#define PPM_IORING_UNREGISTER_FILES		4
+#define PPM_IORING_REGISTER_EVENTFD		5
+#define PPM_IORING_UNREGISTER_EVENTFD		6
+#define PPM_IORING_REGISTER_FILES_UPDATE	7
+#define PPM_IORING_REGISTER_EVENTFD_ASYNC	8
+#define PPM_IORING_REGISTER_PROBE		9
+#define PPM_IORING_REGISTER_PERSONALITY		10
+#define PPM_IORING_UNREGISTER_PERSONALITY	11
+#define PPM_IORING_REGISTER_RESTRICTIONS	12
+#define PPM_IORING_REGISTER_ENABLE_RINGS	13
+/*
+ * MlocKall flags
+ */
+#define PPM_MLOCKALL_MCL_CURRENT		(1<<0)
+#define PPM_MLOCKALL_MCL_FUTURE			(1<<1)
+#define PPM_MLOCKALL_MCL_ONFAULT		(1<<2)
+
+/*
  * SuS says limits have to be unsigned.
  * Which makes a ton more sense anyway.
  *
@@ -625,6 +684,51 @@ or GPL2.txt for full copies of the license.
 #ifndef RLIM_INFINITY
 # define RLIM_INFINITY          (~0UL)
 #endif
+
+/*
+ * Capabilities
+ */
+#define PPM_CAP_CHOWN               1UL << 0
+#define PPM_CAP_DAC_OVERRIDE        1UL << 1
+#define PPM_CAP_DAC_READ_SEARCH     1UL << 2
+#define PPM_CAP_FOWNER              1UL << 3
+#define PPM_CAP_FSETID              1UL << 4
+#define PPM_CAP_KILL                1UL << 5
+#define PPM_CAP_SETGID              1UL << 6
+#define PPM_CAP_SETUID              1UL << 7
+#define PPM_CAP_SETPCAP             1UL << 8
+#define PPM_CAP_LINUX_IMMUTABLE     1UL << 9
+#define PPM_CAP_NET_BIND_SERVICE    1UL << 10
+#define PPM_CAP_NET_BROADCAST       1UL << 11
+#define PPM_CAP_NET_ADMIN           1UL << 12
+#define PPM_CAP_NET_RAW             1UL << 13
+#define PPM_CAP_IPC_LOCK            1UL << 14
+#define PPM_CAP_IPC_OWNER           1UL << 15
+#define PPM_CAP_SYS_MODULE          1UL << 16
+#define PPM_CAP_SYS_RAWIO           1UL << 17
+#define PPM_CAP_SYS_CHROOT          1UL << 18
+#define PPM_CAP_SYS_PTRACE          1UL << 19
+#define PPM_CAP_SYS_PACCT           1UL << 20
+#define PPM_CAP_SYS_ADMIN           1UL << 21
+#define PPM_CAP_SYS_BOOT            1UL << 22
+#define PPM_CAP_SYS_NICE            1UL << 23
+#define PPM_CAP_SYS_RESOURCE        1UL << 24
+#define PPM_CAP_SYS_TIME            1UL << 25
+#define PPM_CAP_SYS_TTY_CONFIG      1UL << 26
+#define PPM_CAP_MKNOD               1UL << 27
+#define PPM_CAP_LEASE               1UL << 28
+#define PPM_CAP_AUDIT_WRITE         1UL << 29
+#define PPM_CAP_AUDIT_CONTROL       1UL << 30
+#define PPM_CAP_SETFCAP             1UL << 31
+#define PPM_CAP_MAC_OVERRIDE        1UL << 32
+#define PPM_CAP_MAC_ADMIN           1UL << 33
+#define PPM_CAP_SYSLOG              1UL << 34
+#define PPM_CAP_WAKE_ALARM          1UL << 35
+#define PPM_CAP_BLOCK_SUSPEND       1UL << 36
+#define PPM_CAP_AUDIT_READ          1UL << 37
+#define PPM_CAP_PERFMON             1UL << 38
+#define PPM_CAP_BPF                 1UL << 39
+#define PPM_CAP_CHECKPOINT_RESTORE  1UL << 40
 
 /*
  * RLIMIT_STACK default maximum - some architectures override it:
@@ -998,7 +1102,23 @@ enum ppm_event_type {
 	PPME_SYSCALL_CLONE3_X = 335,
 	PPME_SYSCALL_OPEN_BY_HANDLE_AT_E = 336,
 	PPME_SYSCALL_OPEN_BY_HANDLE_AT_X = 337,
-	PPM_EVENT_MAX = 338
+	PPME_SYSCALL_IO_URING_SETUP_E = 338,
+	PPME_SYSCALL_IO_URING_SETUP_X = 339,
+	PPME_SYSCALL_IO_URING_ENTER_E = 340,
+	PPME_SYSCALL_IO_URING_ENTER_X = 341,
+	PPME_SYSCALL_IO_URING_REGISTER_E = 342,
+	PPME_SYSCALL_IO_URING_REGISTER_X = 343,
+	PPME_SYSCALL_MLOCK_E = 344,
+	PPME_SYSCALL_MLOCK_X = 345,
+	PPME_SYSCALL_MUNLOCK_E = 346,
+	PPME_SYSCALL_MUNLOCK_X = 347,
+	PPME_SYSCALL_MLOCKALL_E = 348,
+	PPME_SYSCALL_MLOCKALL_X = 349,
+	PPME_SYSCALL_MUNLOCKALL_E = 350,
+	PPME_SYSCALL_MUNLOCKALL_X = 351,
+	PPME_SYSCALL_CAPSET_E = 352,
+	PPME_SYSCALL_CAPSET_X = 353,
+	PPM_EVENT_MAX = 354
 };
 /*@}*/
 
@@ -1336,7 +1456,10 @@ enum ppm_syscall_code {
 	PPM_SC_CLONE = 327,
 	PPM_SC_CLONE3 = 328,
 	PPM_SC_OPEN_BY_HANDLE_AT = 329,
-	PPM_SC_MAX = 330,
+	PPM_SC_IO_URING_SETUP = 330,
+	PPM_SC_IO_URING_ENTER = 331,
+	PPM_SC_IO_URING_REGISTER = 332,
+	PPM_SC_MAX = 333,
 };
 
 /*
@@ -1569,7 +1692,11 @@ extern const struct ppm_name_value renameat2_flags[];
 extern const struct ppm_name_value openat2_flags[];
 extern const struct ppm_name_value execve_flags[];
 extern const struct ppm_name_value execveat_flags[];
-
+extern const struct ppm_name_value io_uring_setup_flags[];
+extern const struct ppm_name_value io_uring_setup_feats[];
+extern const struct ppm_name_value io_uring_enter_flags[];
+extern const struct ppm_name_value io_uring_register_opcodes[];
+extern const struct ppm_name_value mlockall_flags[];
 extern const struct ppm_param_info sockopt_dynamic_param[];
 extern const struct ppm_param_info ptrace_dynamic_param[];
 extern const struct ppm_param_info bpf_dynamic_param[];
