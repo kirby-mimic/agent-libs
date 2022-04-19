@@ -1892,18 +1892,12 @@ void sinsp_parser::parse_execve_exit(sinsp_evt *evt)
 		// Old trace files didn't have comm, so just set it to exe
 		evt->m_tinfo->m_comm = evt->m_tinfo->m_exe;
 		break;
-	case PPME_SYSCALL_EXECVE_19_X:
-	case PPME_SYSCALL_EXECVEAT_X:
-		if(evt->get_num_params() >= 21)
-		{
-			parinfo = evt->get_param(20);
-			evt->m_tinfo->m_uid = *(uint32_t*)parinfo->m_val;
-		}
-		// fallthrough
 	case PPME_SYSCALL_EXECVE_15_X:
 	case PPME_SYSCALL_EXECVE_16_X:
 	case PPME_SYSCALL_EXECVE_17_X:
 	case PPME_SYSCALL_EXECVE_18_X:
+	case PPME_SYSCALL_EXECVE_19_X:
+	case PPME_SYSCALL_EXECVEAT_X:
 		// Get the comm
 		parinfo = evt->get_param(13);
 		evt->m_tinfo->m_comm = parinfo->m_val;
