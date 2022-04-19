@@ -2079,6 +2079,16 @@ void sinsp_parser::parse_execve_exit(sinsp_evt *evt)
 		// Get exepath
 		if (retrieve_enter_event(enter_evt, evt))
 		{
+			if(evt->m_tinfo != enter_evt->m_tinfo)
+			{
+				fprintf(stderr, "DEBUG: exit event tinfo: %p, enter event tinfo: %p\n",
+					evt->m_tinfo, enter_evt->m_tinfo);
+				if(!enter_evt->m_tinfo)
+				{
+					fprintf(stderr, "DEBUG: resetting enter event tinfo\n");
+					enter_evt->m_tinfo = evt->m_tinfo;
+				}
+			}
 			/*
 			 * Get dirfd
 			 */
