@@ -1863,7 +1863,7 @@ void sinsp_parser::parse_execve_exit(sinsp_evt *evt)
 			uint32_t flags = *(int32_t *)parinfo->m_val;
 
 			string sdir;
-			parse_dirfd(enter_evt, pathname, dirfd, &sdir);
+			parse_dirfd(evt, pathname, dirfd, &sdir);
 
 			/*
 			 *  If pathname is an empty string and the AT_EMPTY_PATH flag is specified then the file descriptor dirfd specifies the file to be executed (i.e., dirfd refers to an executable file, rather than a directory).
