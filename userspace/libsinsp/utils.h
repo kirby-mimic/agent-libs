@@ -23,6 +23,7 @@ limitations under the License.
 #include <cctype>
 #include <algorithm>
 #include <locale>
+#include <set>
 #include <sstream>
 
 #include <tuples.h>
@@ -37,6 +38,7 @@ typedef union _sinsp_sockinfo sinsp_sockinfo;
 class filter_check_info;
 
 extern sinsp_evttables g_infotables;
+extern std::set<uint16_t> g_all_event_types;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Initializer class.

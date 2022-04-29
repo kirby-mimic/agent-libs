@@ -588,6 +588,8 @@ public:
 	*/
 	sinsp_evttables* get_event_info_tables();
 
+	const std::set<uint16_t>& get_all_event_types();
+
 	/*!
 	  \brief get last library error.
 	*/

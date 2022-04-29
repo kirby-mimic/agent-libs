@@ -69,6 +69,7 @@ sinsp_logger g_logger;
 sinsp_initializer g_initializer;
 sinsp_filter_check_list g_filterlist;
 sinsp_protodecoder_list g_decoderlist;
+std::set<uint16_t> g_all_event_types;
 
 //
 // loading time initializations
@@ -80,6 +81,21 @@ sinsp_initializer::sinsp_initializer()
 	//
 	g_infotables.m_event_info = scap_get_event_info_table();
 	g_infotables.m_syscall_info_table = scap_get_syscall_info_table();
+
+	//
+	// Fill in from 2 to PPM_EVENT_MAX-1. 0 and 1 are excluded as
+	// those are PPM_GENERIC_E/PPME_GENERIC_X.
+	for(uint16_t i = 2; i < PPM_EVENT_MAX; i++)
+	{
+		// Skip "old" event versions that have been replaced
+		// by newer event versions, or events that are unused.
+		if(g_infotables.m_event_info[i].flags & (EF_OLD_VERSION | EF_UNUSED))
+		{
+			continue;
+		}
+
+		g_all_event_types.insert(i);
+	}
 
 	//
 	// Init the logger

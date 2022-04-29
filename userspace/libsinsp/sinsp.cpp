@@ -1988,6 +1988,11 @@ sinsp_evttables* sinsp::get_event_info_tables()
 	return &g_infotables;
 }
 
+const std::set<uint16_t>& sinsp::get_all_event_types()
+{
+	return g_all_event_types;
+}
+
 void sinsp::set_buffer_format(sinsp_evt::param_fmt format)
 {
 	m_buffer_format = format;
