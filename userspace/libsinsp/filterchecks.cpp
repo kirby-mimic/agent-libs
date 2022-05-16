@@ -4541,7 +4541,7 @@ uint8_t* sinsp_filter_check_event::extract(sinsp_evt *evt, OUT uint32_t* len, bo
 				{
 					m_u32val = 1;
 				}
-				
+
 				/* `open_by_handle_at` exit event has no `mode` parameter. */
 				if(m_field_id == TYPE_ISOPEN_EXEC && (flags & (PPM_O_TMPFILE | PPM_O_CREAT) && etype != PPME_SYSCALL_OPEN_BY_HANDLE_AT_X))
 				{
@@ -4732,6 +4732,21 @@ uint8_t* sinsp_filter_check_user::extract(sinsp_evt *evt, OUT uint32_t* len, boo
 	if(tinfo == NULL)
 	{
 		return NULL;
+	}
+
+	// For container events, use the user from the container metadata instead.
+	if(m_field_id == TYPE_NAME &&
+	   (evt->get_type() == PPME_CONTAINER_JSON_E || evt->get_type() == PPME_CONTAINER_JSON_2_E))
+	{
+		const sinsp_container_info::ptr_t container_info =
+			m_inspector->m_container_manager.get_container(tinfo->m_container_id);
+
+		if(!container_info)
+		{
+			return NULL;
+		}
+
+		RETURN_EXTRACT_STRING(container_info->m_container_user);
 	}
 
 	switch(m_field_id)
