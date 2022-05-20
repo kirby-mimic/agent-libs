@@ -18,6 +18,7 @@ limitations under the License.
 #pragma once
 
 #include <stdbool.h>
+#define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
 //
