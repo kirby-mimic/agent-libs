@@ -25,7 +25,6 @@ include_directories(${LIBSCAP_INCLUDE_DIR} ${LIBSCAP_DIR}/driver)
 
 set(LIBSINSP_UNIT_TESTS_SOURCES
 	cgroup_list_counter.ut.cpp
-	procfs_utils.ut.cpp
 	sinsp.ut.cpp
 	token_bucket.ut.cpp
 	ppm_api_version.ut.cpp
