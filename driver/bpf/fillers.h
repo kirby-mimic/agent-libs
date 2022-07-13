@@ -4706,6 +4706,7 @@ FILLER(sched_switch_e, false)
 	return res;
 }
 
+#ifndef __aarch64__
 FILLER(sys_pagefault_e, false)
 {
 	struct page_fault_args *ctx;
@@ -4738,9 +4739,9 @@ FILLER(sys_pagefault_e, false)
 
 	flags = pf_flags_to_scap(error_code);
 	res = bpf_val_to_ring(data, flags);
-
 	return res;
 }
+#endif
 
 static __always_inline int siginfo_not_a_pointer(struct siginfo* info)
 {
@@ -5743,5 +5744,702 @@ FILLER(sys_dup3_x, true)
 
 	return res;
 }
+
+#ifdef __aarch64__
+/* We set `is_syscall` flag to `false` since this is not
+ * a real syscall, we only send the same event from another
+ * tracepoint.
+ * 
+ * These `sched_proc_exec` fillers will generate a 
+ * `PPME_SYSCALL_EXECVE_19_X` event.
+ * 
+ * Please note: `is_syscall` is used only if `BPF_RAW_TRACEPOINT`
+ * are not defined but in our ARM implementation they are always defined,
+ * so the value of this flag is not relevant at all.
+ */
+FILLER(sched_prog_exec, false)
+{
+	int res = 0;
+
+	/* Parameter 1: res (type: PT_ERRNO) */
+	/* Please note: if this filler is called the execve is correctly
+	 * performed, so the return value will be always 0.
+	 */
+	res = bpf_val_to_ring_type(data, 0, PT_ERRNO);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+	struct mm_struct *mm = _READ(task->mm);
+	if(!mm)
+	{
+		return PPM_FAILURE_BUG;
+	}
+
+	/*
+	 * The call always succeed so get `exe`, `args` from the current process.
+	 */
+	unsigned long arg_start = 0;
+	unsigned long arg_end = 0;
+
+	arg_start = _READ(mm->arg_start);
+	arg_end = _READ(mm->arg_end);
+
+	unsigned long args_len = arg_end - arg_start;
+
+	if(args_len > ARGS_ENV_SIZE_MAX)
+	{
+		args_len = ARGS_ENV_SIZE_MAX;
+	}
+
+	/* `bpf_probe_read()` returns 0 in case of success. */
+	int correctly_read = bpf_probe_read(&data->buf[data->state->tail_ctx.curoff & SCRATCH_SIZE_HALF],
+					    args_len & SCRATCH_SIZE_HALF,
+					    (void *)arg_start);
+
+	/* If there was something to read and we read it correctly, update all
+	 * the offsets, otherwise push empty params to userspace.
+	 */
+	if(args_len && correctly_read == 0)
+	{
+		data->buf[(data->state->tail_ctx.curoff + args_len - 1) & SCRATCH_SIZE_MAX] = 0;
+
+		/* We need the len of the second param `exe`. */
+		int exe_len = bpf_probe_read_str(&data->buf[data->state->tail_ctx.curoff & SCRATCH_SIZE_HALF],
+						 SCRATCH_SIZE_HALF,
+						 &data->buf[data->state->tail_ctx.curoff & SCRATCH_SIZE_HALF]);
+
+		if(exe_len == -EFAULT)
+		{
+			return PPM_FAILURE_INVALID_USER_MEMORY;
+		}
+
+		/* Parameter 2: exe (type: PT_CHARBUF) */
+		data->curarg_already_on_frame = true;
+		res = __bpf_val_to_ring(data, 0, exe_len, PT_CHARBUF, -1, false);
+		if(res != PPM_SUCCESS)
+		{
+			return res;
+		}
+
+		/* Parameter 3: args (type: PT_CHARBUFARRAY) */
+		data->curarg_already_on_frame = true;
+		res = __bpf_val_to_ring(data, 0, args_len - exe_len, PT_BYTEBUF, -1, false);
+		if(res != PPM_SUCCESS)
+		{
+			return res;
+		}
+	}
+	else
+	{
+		/* Parameter 2: exe (type: PT_CHARBUF) */
+		res = bpf_val_to_ring_type(data, 0, PT_CHARBUF);
+		if(res != PPM_SUCCESS)
+		{
+			return res;
+		}
+
+		/* Parameter 3: args (type: PT_CHARBUFARRAY) */
+		res = bpf_val_to_ring_type(data, 0, PT_BYTEBUF);
+		if(res != PPM_SUCCESS)
+		{
+			return res;
+		}
+	}
+
+	/* Parameter 4: tid (type: PT_PID) */
+	pid_t pid = _READ(task->pid);
+	res = bpf_val_to_ring_type(data, pid, PT_PID);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 5: pid (type: PT_PID) */
+	pid_t tgid = _READ(task->tgid);
+	res = bpf_val_to_ring_type(data, tgid, PT_PID);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 6: ptid (type: PT_PID) */
+	struct task_struct *real_parent = _READ(task->real_parent);
+	pid_t ptid = _READ(real_parent->pid);
+	res = bpf_val_to_ring_type(data, ptid, PT_PID);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 7: cwd (type: PT_CHARBUF)
+	 * cwd, pushed empty to avoid breaking compatibility
+	 * with the older event format
+	 */
+	res = bpf_val_to_ring_type(data, 0, PT_CHARBUF);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 8: fdlimit (type: PT_UINT64) */
+	struct signal_struct *signal = _READ(task->signal);
+	unsigned long fdlimit = _READ(signal->rlim[RLIMIT_NOFILE].rlim_cur);
+	res = bpf_val_to_ring_type(data, fdlimit, PT_UINT64);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 9: pgft_maj (type: PT_UINT64) */
+	unsigned long maj_flt = _READ(task->maj_flt);
+	res = bpf_val_to_ring_type(data, maj_flt, PT_UINT64);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 10: pgft_min (type: PT_UINT64) */
+	unsigned long min_flt = _READ(task->min_flt);
+	res = bpf_val_to_ring_type(data, min_flt, PT_UINT64);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	unsigned long total_vm = 0;
+	unsigned long total_rss = 0;
+	unsigned long swap = 0;
+
+	if(mm)
+	{
+		total_vm = _READ(mm->total_vm);
+		total_vm <<= (PAGE_SHIFT - 10);
+		total_rss = bpf_get_mm_rss(mm) << (PAGE_SHIFT - 10);
+		swap = bpf_get_mm_swap(mm) << (PAGE_SHIFT - 10);
+	}
+
+	/* Parameter 11: vm_size (type: PT_UINT32) */
+	res = bpf_val_to_ring_type(data, total_vm, PT_UINT32);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 12: vm_rss (type: PT_UINT32) */
+	res = bpf_val_to_ring_type(data, total_rss, PT_UINT32);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 13: vm_swap (type: PT_UINT32) */
+	res = bpf_val_to_ring_type(data, swap, PT_UINT32);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 14: comm (type: PT_CHARBUF) */
+	res = bpf_val_to_ring_type(data, (unsigned long)task->comm, PT_CHARBUF);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	bpf_tail_call(data->ctx, &tail_map, PPM_FILLER_sched_prog_exec_2);
+	bpf_printk("Can't tail call 'sched_prog_exec_2' filler\n");
+	return PPM_FAILURE_BUG;
+}
+
+FILLER(sched_prog_exec_2, false)
+{
+	int cgroups_len = 0;
+	int res = 0;
+	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+
+	res = bpf_append_cgroup(task, data->tmp_scratch, &cgroups_len);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 15: cgroups (type: PT_CHARBUFARRAY) */
+	res = __bpf_val_to_ring(data, (unsigned long)data->tmp_scratch, cgroups_len, PT_BYTEBUF, -1, false);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	bpf_tail_call(data->ctx, &tail_map, PPM_FILLER_sched_prog_exec_3);
+	bpf_printk("Can't tail call 'sched_prog_exec_3' filler\n");
+	return PPM_FAILURE_BUG;
+}
+
+FILLER(sched_prog_exec_3, false)
+{
+	int res = 0;
+
+	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+	struct mm_struct *mm = _READ(task->mm);
+	if(!mm)
+	{
+		return PPM_FAILURE_BUG;
+	}
+
+	unsigned long env_start = _READ(mm->env_start);
+	unsigned long env_end = _READ(mm->env_end);
+	long env_len = env_end - env_start;
+
+	if(env_len)
+	{
+		if(env_len > ARGS_ENV_SIZE_MAX)
+		{
+			env_len = ARGS_ENV_SIZE_MAX;
+		}
+
+		if(bpf_probe_read(&data->buf[data->state->tail_ctx.curoff & SCRATCH_SIZE_HALF],
+				  env_len & SCRATCH_SIZE_HALF,
+				  (void *)env_start))
+		{
+			env_len = 0;
+		}
+		else
+		{
+			data->buf[(data->state->tail_ctx.curoff + env_len - 1) & SCRATCH_SIZE_MAX] = 0;
+		}
+	}
+
+	/* Parameter 16: env (type: PT_CHARBUFARRAY) */
+	data->curarg_already_on_frame = true;
+	res = __bpf_val_to_ring(data, 0, env_len, PT_BYTEBUF, -1, false);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 17: tty (type: PT_INT32) */
+	int tty = bpf_ppm_get_tty(task);
+	res = bpf_val_to_ring_type(data, tty, PT_INT32);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 18: pgid (type: PT_PID) */
+	res = bpf_val_to_ring_type(data, bpf_task_pgrp_vnr(task), PT_PID);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* TODO: implement user namespace support */
+	kuid_t loginuid;
+#ifdef COS_73_WORKAROUND
+	{
+		struct audit_task_info *audit = _READ(task->audit);
+		if(audit)
+		{
+			loginuid = _READ(audit->loginuid);
+		}
+		else
+		{
+			loginuid = INVALID_UID;
+		}
+	}
+#else
+	loginuid = _READ(task->loginuid);
+#endif
+
+	/* Parameter 19: loginuid (type: PT_INT32) */
+	res = bpf_val_to_ring_type(data, loginuid.val, PT_INT32);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	bpf_tail_call(data->ctx, &tail_map, PPM_FILLER_sched_prog_exec_4);
+	bpf_printk("Can't tail call 'sched_prog_exec_4' filler\n");
+	return PPM_FAILURE_BUG;
+}
+
+FILLER(sched_prog_exec_4, false)
+{
+
+	int res = 0;
+	uint32_t flags = 0;
+	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+	struct cred *cred = (struct cred *)_READ(task->cred);
+
+
+	/* `exe_writable` flag logic */
+	bool exe_writable = false;
+	exe_writable = get_exe_writable(task);
+	if(exe_writable)
+	{
+		flags |= PPM_EXE_WRITABLE;
+	}
+
+	// write all additional flags for execve family here...
+
+	/* Parameter 20: flags (type: PT_FLAGS32) */
+	res = bpf_val_to_ring_type(data, flags, PT_UINT32);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	kernel_cap_t cap;
+	unsigned long val;
+
+	/* Parameter 21: cap_inheritable (type: PT_UINT64) */
+	cap = _READ(cred->cap_inheritable);
+	val = ((unsigned long)cap.cap[1] << 32) | cap.cap[0];
+	res = bpf_val_to_ring(data, capabilities_to_scap(val));
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 22: cap_permitted (type: PT_UINT64) */
+	cap = _READ(cred->cap_permitted);
+	val = ((unsigned long)cap.cap[1] << 32) | cap.cap[0];
+	res = bpf_val_to_ring(data, capabilities_to_scap(val));
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 23: cap_effective (type: PT_UINT64) */
+	cap = _READ(cred->cap_effective);
+	val = ((unsigned long)cap.cap[1] << 32) | cap.cap[0];
+	res = bpf_val_to_ring(data, capabilities_to_scap(val));
+
+	return res;
+}
+
+/* These `sched_proc_fork` fillers will generate a 
+ * `PPME_SYSCALL_CLONE_20_X` event.
+ */
+FILLER(sched_prog_fork, false)
+{
+	int res = 0;
+
+	/* First of all we need to update the event header with the child tid.
+	 * The clone child exit event must be generated by the child but while
+	 * we are sending this event, we are still the parent so we have to
+	 * modify the event header to simulate it.
+	 */
+	struct sched_process_fork_raw_args* original_ctx = (struct sched_process_fork_raw_args*)data->ctx;
+	struct task_struct *child = (struct task_struct *)original_ctx->child;
+	pid_t child_pid = _READ(child->pid);
+
+	struct ppm_evt_hdr *evt_hdr = (struct ppm_evt_hdr *)data->buf;
+	evt_hdr->tid = (uint64_t)child_pid;
+
+	/* Parameter 1: res (type: PT_ERRNO) */
+	/* Please note: here we are in the clone child exit
+	 * event, so the return value will be always 0.
+	 */
+	res = bpf_val_to_ring_type(data, 0, PT_ERRNO);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	struct mm_struct *mm = _READ(child->mm);
+	if(!mm)
+	{
+		return PPM_FAILURE_BUG;
+	}
+
+	/*
+	* The call always succeed so get `exe`, `args` from the current
+	* process; put one \0-separated exe-args string into
+	* str_storage
+	*/
+	unsigned long arg_start = 0;
+	unsigned long arg_end = 0;
+
+	arg_start = _READ(mm->arg_start);
+	arg_end = _READ(mm->arg_end);
+
+	unsigned long args_len = arg_end - arg_start;
+
+	if(args_len > ARGS_ENV_SIZE_MAX)
+	{
+		args_len = ARGS_ENV_SIZE_MAX;
+	}
+
+	/* `bpf_probe_read()` returns 0 in case of success. */
+	int correctly_read = bpf_probe_read(&data->buf[data->state->tail_ctx.curoff & SCRATCH_SIZE_HALF],
+					    args_len & SCRATCH_SIZE_HALF,
+					    (void *)arg_start);
+
+	/* If there was something to read and we read it correctly, update all
+	 * the offsets, otherwise push empty params to userspace.
+	 */
+	if(args_len && correctly_read == 0)
+	{
+		data->buf[(data->state->tail_ctx.curoff + args_len - 1) & SCRATCH_SIZE_MAX] = 0;
+
+		/* We need the len of the second param `exe`. */
+		int exe_len = bpf_probe_read_str(&data->buf[data->state->tail_ctx.curoff & SCRATCH_SIZE_HALF],
+						 SCRATCH_SIZE_HALF,
+						 &data->buf[data->state->tail_ctx.curoff & SCRATCH_SIZE_HALF]);
+
+		if(exe_len == -EFAULT)
+		{
+			return PPM_FAILURE_INVALID_USER_MEMORY;
+		}
+
+		/* Parameter 2: exe (type: PT_CHARBUF) */
+		data->curarg_already_on_frame = true;
+		res = __bpf_val_to_ring(data, 0, exe_len, PT_CHARBUF, -1, false);
+		if(res != PPM_SUCCESS)
+		{
+			return res;
+		}
+
+		/* Parameter 3: args (type: PT_CHARBUFARRAY) */
+		data->curarg_already_on_frame = true;
+		res = __bpf_val_to_ring(data, 0, args_len - exe_len, PT_BYTEBUF, -1, false);
+		if(res != PPM_SUCCESS)
+		{
+			return res;
+		}
+	}
+	else
+	{
+		/* Parameter 2: exe (type: PT_CHARBUF) */
+		res = bpf_val_to_ring_type(data, 0, PT_CHARBUF);
+		if(res != PPM_SUCCESS)
+		{
+			return res;
+		}
+
+		/* Parameter 3: args (type: PT_CHARBUFARRAY) */
+		res = bpf_val_to_ring_type(data, 0, PT_BYTEBUF);
+		if(res != PPM_SUCCESS)
+		{
+			return res;
+		}
+	}
+
+	/* Parameter 4: tid (type: PT_PID) */
+	pid_t pid = _READ(child->pid);
+	res = bpf_val_to_ring_type(data, pid, PT_PID);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 5: pid (type: PT_PID) */
+	pid_t tgid = _READ(child->tgid);
+	res = bpf_val_to_ring_type(data, tgid, PT_PID);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 6: ptid (type: PT_PID) */
+	struct task_struct *real_parent = _READ(child->real_parent);
+	pid_t ptid = _READ(real_parent->pid);
+	res = bpf_val_to_ring_type(data, ptid, PT_PID);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 7: cwd (type: PT_CHARBUF)
+	 * cwd, pushed empty to avoid breaking compatibility
+	 * with the older event format
+	 */
+	res = bpf_val_to_ring_type(data, 0, PT_CHARBUF);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 8: fdlimit (type: PT_UINT64) */
+	struct signal_struct *signal = _READ(child->signal);
+	unsigned long fdlimit = _READ(signal->rlim[RLIMIT_NOFILE].rlim_cur);
+	res = bpf_val_to_ring_type(data, fdlimit, PT_UINT64);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 9: pgft_maj (type: PT_UINT64) */
+	unsigned long maj_flt = _READ(child->maj_flt);
+	res = bpf_val_to_ring_type(data, maj_flt, PT_UINT64);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 10: pgft_min (type: PT_UINT64) */
+	unsigned long min_flt = _READ(child->min_flt);
+	res = bpf_val_to_ring_type(data, min_flt, PT_UINT64);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	unsigned long total_vm = 0;
+	unsigned long total_rss = 0;
+	unsigned long swap = 0;
+
+	if(mm)
+	{
+		total_vm = _READ(mm->total_vm);
+		total_vm <<= (PAGE_SHIFT - 10);
+		total_rss = bpf_get_mm_rss(mm) << (PAGE_SHIFT - 10);
+		swap = bpf_get_mm_swap(mm) << (PAGE_SHIFT - 10);
+	}
+
+	/* Parameter 11: vm_size (type: PT_UINT32) */
+	res = bpf_val_to_ring_type(data, total_vm, PT_UINT32);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 12: vm_rss (type: PT_UINT32) */
+	res = bpf_val_to_ring_type(data, total_rss, PT_UINT32);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 13: vm_swap (type: PT_UINT32) */
+	res = bpf_val_to_ring_type(data, swap, PT_UINT32);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 14: comm (type: PT_CHARBUF) */
+	res = bpf_val_to_ring_type(data, (unsigned long)child->comm, PT_CHARBUF);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	bpf_tail_call(data->ctx, &tail_map, PPM_FILLER_sched_prog_fork_2);
+	bpf_printk("Can't tail call 'sched_prog_fork_2' filler\n");
+	return PPM_FAILURE_BUG;
+}
+
+FILLER(sched_prog_fork_2, false)
+{
+	int res = 0;
+	int cgroups_len = 0;
+	struct sched_process_fork_raw_args* original_ctx = (struct sched_process_fork_raw_args*)data->ctx;
+	struct task_struct *child = (struct task_struct *)original_ctx->child;
+
+	res = bpf_append_cgroup(child, data->tmp_scratch, &cgroups_len);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 15: cgroups (type: PT_CHARBUFARRAY) */
+	res = __bpf_val_to_ring(data, (unsigned long)data->tmp_scratch, cgroups_len, PT_BYTEBUF, -1, false);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	bpf_tail_call(data->ctx, &tail_map, PPM_FILLER_sched_prog_fork_3);
+	bpf_printk("Can't tail call 'sched_prog_fork_3' filler\n");
+	return PPM_FAILURE_BUG;
+}
+
+FILLER(sched_prog_fork_3, false)
+{
+	int res = 0;
+	struct sched_process_fork_raw_args* original_ctx = (struct sched_process_fork_raw_args*)data->ctx;
+	struct task_struct *child = (struct task_struct *)original_ctx->child;
+	struct task_struct *parent = (struct task_struct *)original_ctx->parent;
+	uint32_t flags = 0;
+
+	/* Since Linux 2.5.35, the flags mask must also include
+	 * CLONE_SIGHAND if CLONE_THREAD is specified (and note that,
+	 * since Linux 2.6.0, CLONE_SIGHAND also requires CLONE_VM to
+	 * be included). 
+	 * Taken from https://man7.org/linux/man-pages/man2/clone.2.html
+	 */
+	pid_t tid = _READ(child->pid);
+	pid_t tgid = _READ(child->tgid);
+	if(tid != tgid)
+	{
+		flags |= PPM_CL_CLONE_THREAD | PPM_CL_CLONE_SIGHAND | PPM_CL_CLONE_VM;
+	}
+	
+	/* If CLONE_FILES is set, the calling process and the child
+	 * process share the same file descriptor table.
+	 * Taken from https://man7.org/linux/man-pages/man2/clone.2.html
+	 */
+	struct files_struct * file_struct = NULL;
+	struct files_struct * parent_file_struct = NULL;
+	file_struct = _READ(child->files);
+	parent_file_struct = _READ(parent->files);
+	if(parent_file_struct == file_struct)
+	{
+		flags |= PPM_CL_CLONE_FILES;
+	}
+
+	/* It's possible to have a process in a PID namespace that 
+	 * nevertheless has tid == vtid,  so we need to generate this
+	 * custom flag `PPM_CL_CHILD_IN_PIDNS`.
+	 */
+	struct pid_namespace *pidns = bpf_task_active_pid_ns(child);
+	int pidns_level = _READ(pidns->level);
+	if(pidns_level != 0)
+	{
+		flags |= PPM_CL_CHILD_IN_PIDNS;
+	}
+
+	/* Parameter 16: flags (type: PT_FLAGS32) */
+	res = bpf_val_to_ring_type(data, flags, PT_FLAGS32);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	struct cred *cred = (struct cred *)_READ(child->cred);
+
+	/* Parameter 17: uid (type: PT_UINT32) */
+	kuid_t euid = _READ(cred->euid);
+	res = bpf_val_to_ring_type(data, euid.val, PT_UINT32);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 18: gid (type: PT_UINT32) */
+	kgid_t egid = _READ(cred->egid);
+	res = bpf_val_to_ring_type(data, egid.val, PT_UINT32);
+	if(res != PPM_SUCCESS)
+	{
+		return res;
+	}
+
+	/* Parameter 19: vtid (type: PT_PID) */
+	pid_t vtid = bpf_task_pid_vnr(child);
+	res = bpf_val_to_ring_type(data, vtid, PT_PID);
+	if(res != PPM_SUCCESS)
+		return res;
+
+	/* Parameter 20: vpid (type: PT_PID) */
+	pid_t vpid = bpf_task_tgid_vnr(child);
+	res = bpf_val_to_ring_type(data, vpid, PT_PID);
+
+	return res;
+}
+#endif
 
 #endif

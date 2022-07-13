@@ -19,11 +19,11 @@ or GPL2.txt for full copies of the license.
  */
 #ifdef __KERNEL__
 #ifdef CONFIG_64BIT
-#define _64BIT_ARGS_SINGLE_REGISTER
+	#define _64BIT_ARGS_SINGLE_REGISTER
 #endif /* CONFIG_64BIT */
 #else
-#ifdef __x86_64__
-#define _64BIT_ARGS_SINGLE_REGISTER
+#if defined(__x86_64__) || defined(__aarch64__)
+	#define _64BIT_ARGS_SINGLE_REGISTER
 #endif /* __x86_64__ */
 #endif /* __KERNEL__ */
 
@@ -142,6 +142,13 @@ or GPL2.txt for full copies of the license.
 	FN(sys_dup3_x)				\
 	FN(sys_dup_e)				\
 	FN(sys_dup_x)				\
+	FN(sched_prog_exec)			\
+	FN(sched_prog_exec_2)		\
+	FN(sched_prog_exec_3)		\
+	FN(sched_prog_exec_4)		\
+	FN(sched_prog_fork)			\
+	FN(sched_prog_fork_2)		\
+	FN(sched_prog_fork_3)		\
 	FN(terminate_filler)
 
 #define FILLER_ENUM_FN(x) PPM_FILLER_##x,

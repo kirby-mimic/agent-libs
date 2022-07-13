@@ -1314,7 +1314,6 @@ cgroups_error:
 			res = val_to_ring(args, euid, 0, false, 0);
 			if (unlikely(res != PPM_SUCCESS))
 				return res;
-
 		}
 	}
 
@@ -3551,19 +3550,15 @@ int f_sys_pread64_e(struct event_filler_arguments *args)
 
 	return add_sentinel(args);
 }
-#endif /* _64BIT_ARGS_SINGLE_REGISTER */
 
-#ifndef _64BIT_ARGS_SINGLE_REGISTER
 int f_sys_pwrite64_e(struct event_filler_arguments *args)
 {
 	unsigned long val;
 	unsigned long size;
 	int res;
-#ifndef _64BIT_ARGS_SINGLE_REGISTER
 	unsigned long pos0;
 	unsigned long pos1;
 	uint64_t pos64;
-#endif
 
 	/*
 	 * fd
@@ -3586,32 +3581,63 @@ int f_sys_pwrite64_e(struct event_filler_arguments *args)
 	 * NOTE: this is a 64bit value, which means that on 32bit systems it uses two
 	 * separate registers that we need to merge.
 	 */
-#ifdef _64BIT_ARGS_SINGLE_REGISTER
-	syscall_get_arguments_deprecated(current, args->regs, 3, 1, &val);
-	res = val_to_ring(args, val, 0, false, 0);
-	if (unlikely(res != PPM_SUCCESS))
-		return res;
-#else
- #if defined CONFIG_X86
+#if defined CONFIG_X86
 	syscall_get_arguments_deprecated(current, args->regs, 3, 1, &pos0);
 	syscall_get_arguments_deprecated(current, args->regs, 4, 1, &pos1);
- #elif defined CONFIG_ARM && CONFIG_AEABI
+#elif defined CONFIG_ARM && CONFIG_AEABI
 	syscall_get_arguments_deprecated(current, args->regs, 4, 1, &pos0);
 	syscall_get_arguments_deprecated(current, args->regs, 5, 1, &pos1);
- #else
+#else
   #error This architecture/abi not yet supported
- #endif
+#endif
 
 	pos64 = merge_64(pos1, pos0);
 
 	res = val_to_ring(args, pos64, 0, false, 0);
 	if (unlikely(res != PPM_SUCCESS))
 		return res;
-#endif
 
 	return add_sentinel(args);
 }
-#endif
+
+int f_sys_preadv64_e(struct event_filler_arguments *args)
+{
+	unsigned long val;
+	int res;
+	unsigned long pos0;
+	unsigned long pos1;
+	uint64_t pos64;
+
+	/*
+	 * fd
+	 */
+	syscall_get_arguments_deprecated(current, args->regs, 0, 1, &val);
+	res = val_to_ring(args, val, 0, false, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+
+	/*
+	 * pos
+	 */
+
+	/*
+	 * Note that in preadv and pwritev have NO 64-bit arguments in the
+	 * syscall (despite having one in the userspace API), so no alignment
+	 * requirements apply here. For an overly-detailed discussion about
+	 * this, see https://lwn.net/Articles/311630/
+	 */
+	syscall_get_arguments_deprecated(current, args->regs, 3, 1, &pos0);
+	syscall_get_arguments_deprecated(current, args->regs, 4, 1, &pos1);
+
+	pos64 = merge_64(pos1, pos0);
+
+	res = val_to_ring(args, pos64, 0, false, 0);
+	if (unlikely(res != PPM_SUCCESS))
+		return res;
+
+	return add_sentinel(args);
+}
+#endif /* _64BIT_ARGS_SINGLE_REGISTER */
 
 int f_sys_readv_preadv_x(struct event_filler_arguments *args)
 {
@@ -3746,46 +3772,6 @@ int f_sys_writev_pwritev_x(struct event_filler_arguments *args)
 	return add_sentinel(args);
 }
 
-#ifndef _64BIT_ARGS_SINGLE_REGISTER
-int f_sys_preadv64_e(struct event_filler_arguments *args)
-{
-	unsigned long val;
-	int res;
-	unsigned long pos0;
-	unsigned long pos1;
-	uint64_t pos64;
-
-	/*
-	 * fd
-	 */
-	syscall_get_arguments_deprecated(current, args->regs, 0, 1, &val);
-	res = val_to_ring(args, val, 0, false, 0);
-	if (unlikely(res != PPM_SUCCESS))
-		return res;
-
-	/*
-	 * pos
-	 */
-
-	/*
-	 * Note that in preadv and pwritev have NO 64-bit arguments in the
-	 * syscall (despite having one in the userspace API), so no alignment
-	 * requirements apply here. For an overly-detailed discussion about
-	 * this, see https://lwn.net/Articles/311630/
-	 */
-	syscall_get_arguments_deprecated(current, args->regs, 3, 1, &pos0);
-	syscall_get_arguments_deprecated(current, args->regs, 4, 1, &pos1);
-
-	pos64 = merge_64(pos1, pos0);
-
-	res = val_to_ring(args, pos64, 0, false, 0);
-	if (unlikely(res != PPM_SUCCESS))
-		return res;
-
-	return add_sentinel(args);
-}
-#endif /* _64BIT_ARGS_SINGLE_REGISTER */
-
 int f_sys_pwritev_e(struct event_filler_arguments *args)
 {
 	unsigned long val;
@@ -3859,7 +3845,7 @@ int f_sys_pwritev_e(struct event_filler_arguments *args)
 	res = val_to_ring(args, pos64, 0, false, 0);
 	if (unlikely(res != PPM_SUCCESS))
 		return res;
-#endif
+#endif /* _64BIT_ARGS_SINGLE_REGISTER */
 
 	return add_sentinel(args);
 }
@@ -6339,5 +6325,599 @@ out:
 	put_cred(cred);
 	return res;
 }
+
+#ifdef CONFIG_ARM64
+int f_sched_prog_exec(struct event_filler_arguments *args)
+{
+	int res = 0;
+	unsigned long val = 0;
+	struct mm_struct *mm = current->mm;
+	int args_len = 0;
+	int correctly_read = 0;
+	unsigned int exe_len = 0; /* the length of the executable string. */
+	int ptid = 0;
+	char *spwd = "";
+	long total_vm = 0;
+	long total_rss = 0;
+	long swap = 0;
+	int available = STR_STORAGE_SIZE;
+	long env_len = 0;
+	int tty_nr = 0;
+	uint32_t flags = 0;
+	bool exe_writable = false;
+	uint64_t euid = 0;
+	struct file *exe_file = NULL;
+	const struct cred *cred = NULL;
+
+
+	/* Parameter 1: res (type: PT_ERRNO) */
+	/* Please note: if this filler is called the execve is correctly
+	 * performed, so the return value will be always 0.
+	 */
+	res = val_to_ring(args, 0, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/*
+	* The call always succeed so get `exe`, `args` from the current
+	* process; put one \0-separated exe-args string into
+	* str_storage
+	*/
+	if(unlikely(!mm))
+	{
+		args->str_storage[0] = 0;
+		pr_info("'f_sched_prog_exec' drop, mm=NULL\n");
+		return PPM_FAILURE_BUG;
+	}
+
+	if(unlikely(!mm->arg_end))
+	{
+		args->str_storage[0] = 0;
+		pr_info("'f_sched_prog_exec' drop, mm->arg_end=NULL\n");
+		return PPM_FAILURE_BUG;
+	}
+
+	/* the combined length of the arguments string + executable string. */
+	args_len = mm->arg_end - mm->arg_start;
+
+	if(args_len > PAGE_SIZE)
+	{
+		args_len = PAGE_SIZE;
+	}
+
+	correctly_read = ppm_copy_from_user(args->str_storage, (const void __user *)mm->arg_start, args_len);
+
+	if(args_len && correctly_read == 0)
+	{
+		args->str_storage[args_len - 1] = 0;
+	}
+	else
+	{
+		args_len = 0;
+		*args->str_storage = 0;
+	}
+
+	exe_len = strnlen(args->str_storage, args_len);
+	if(exe_len < args_len)
+	{
+		++exe_len;
+	}
+
+	/* Parameter 2: exe (type: PT_CHARBUF) */
+	res = val_to_ring(args, (uint64_t)(long)args->str_storage, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 3: args (type: PT_CHARBUFARRAY) */
+	res = val_to_ring(args, (int64_t)(long)args->str_storage + exe_len, args_len - exe_len, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 4: tid (type: PT_PID) */
+	res = val_to_ring(args, (int64_t)current->pid, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 5: pid (type: PT_PID) */
+	res = val_to_ring(args, (int64_t)current->tgid, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 6: ptid (type: PT_PID) */
+	if(current->real_parent)
+	{
+		ptid = current->real_parent->pid;
+	}
+
+	res = val_to_ring(args, (int64_t)ptid, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 7: cwd (type: PT_CHARBUF)
+	 * cwd, pushed empty to avoid breaking compatibility
+	 * with the older event format
+	 */
+	res = val_to_ring(args, (uint64_t)(long)spwd, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 8: fdlimit (type: PT_UINT64) */
+	res = val_to_ring(args, (int64_t)rlimit(RLIMIT_NOFILE), 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 9: pgft_maj (type: PT_UINT64) */
+	res = val_to_ring(args, current->maj_flt, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 10: pgft_min (type: PT_UINT64) */
+	res = val_to_ring(args, current->min_flt, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	if(mm)
+	{
+		total_vm = mm->total_vm << (PAGE_SHIFT - 10);
+		total_rss = ppm_get_mm_rss(mm) << (PAGE_SHIFT - 10);
+		swap = ppm_get_mm_swap(mm) << (PAGE_SHIFT - 10);
+	}
+
+	/* Parameter 11: vm_size (type: PT_UINT32) */
+	res = val_to_ring(args, total_vm, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 12: vm_rss (type: PT_UINT32) */
+	res = val_to_ring(args, total_rss, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 13: vm_swap (type: PT_UINT32) */
+	res = val_to_ring(args, swap, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 14: comm (type: PT_CHARBUF) */
+	res = val_to_ring(args, (uint64_t)current->comm, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	args->str_storage[0] = 0;
+#ifdef CONFIG_CGROUPS
+	rcu_read_lock();
+#include <linux/cgroup_subsys.h>
+cgroups_error:
+	rcu_read_unlock();
+#endif
+
+	/* Parameter 15: cgroups (type: PT_CHARBUFARRAY) */
+	res = val_to_ring(args, (int64_t)(long)args->str_storage, STR_STORAGE_SIZE - available, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	env_len = mm->env_end - mm->env_start;
+	if(env_len > PAGE_SIZE)
+	{
+		env_len = PAGE_SIZE;
+	}
+
+	correctly_read = ppm_copy_from_user(args->str_storage, (const void __user *)mm->env_start, env_len);
+
+	if(env_len && correctly_read == 0)
+	{
+		args->str_storage[env_len - 1] = 0;
+	}
+	else
+	{
+		env_len = 0;
+		*args->str_storage = 0;
+	}
+
+	/* Parameter 16: env (type: PT_CHARBUFARRAY) */
+	res = val_to_ring(args, (int64_t)(long)args->str_storage, env_len, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 17: tty (type: PT_INT32) */
+	tty_nr = ppm_get_tty();
+	res = val_to_ring(args, tty_nr, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 18: pgid (type: PT_PID) */
+	res = val_to_ring(args, (int64_t)task_pgrp_nr_ns(current, task_active_pid_ns(current)), 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 19: loginuid (type: PT_INT32) */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
+	val = from_kuid(current_user_ns(), audit_get_loginuid(current));
+#else
+	val = audit_get_loginuid(current);
+#endif
+	res = val_to_ring(args, val, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* `exe_writable` flag logic */
+	exe_file = ppm_get_mm_exe_file(mm);
+	if(exe_file != NULL)
+	{
+		if(file_inode(exe_file) != NULL)
+		{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0)
+			exe_writable |= (inode_permission(current_user_ns(), file_inode(exe_file), MAY_WRITE) == 0);
+			exe_writable |= inode_owner_or_capable(current_user_ns(), file_inode(exe_file));
+#else
+			exe_writable |= (inode_permission(file_inode(exe_file), MAY_WRITE) == 0);
+			exe_writable |= inode_owner_or_capable(file_inode(exe_file));
+#endif
+		}
+		fput(exe_file);
+	}
+
+	if(exe_writable)
+	{
+		flags |= PPM_EXE_WRITABLE;
+	}
+
+	// write all the additional flags for execve family here...
+
+	/* Parameter 20: flags (type: PT_FLAGS32) */
+	res = val_to_ring(args, flags, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	cred = get_current_cred();
+
+	/* Parameter 21: cap_inheritable (type: PT_UINT64) */
+	val = ((uint64_t)cred->cap_inheritable.cap[1] << 32) | cred->cap_inheritable.cap[0];
+	res = val_to_ring(args, capabilities_to_scap(val), 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		goto out;
+	}
+
+	/* Parameter 22: cap_permitted (type: PT_UINT64) */
+	val = ((uint64_t)cred->cap_permitted.cap[1] << 32) | cred->cap_permitted.cap[0];
+	res = val_to_ring(args, capabilities_to_scap(val), 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		goto out;
+	}
+
+	/* Parameter 23: cap_effective (type: PT_UINT64) */
+	val = ((uint64_t)cred->cap_effective.cap[1] << 32) | cred->cap_effective.cap[0];
+	res = val_to_ring(args, capabilities_to_scap(val), 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		goto out;
+	}
+
+	/* Parameter 24: uid */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
+	euid = from_kuid_munged(current_user_ns(), current_euid());
+#elif LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 20)
+	euid = current_euid();
+#else
+	euid = current->euid;
+#endif
+	res = val_to_ring(args, euid, 0, false, 0);
+	if (unlikely(res != PPM_SUCCESS))
+	{
+		goto out;
+	}
+
+	put_cred(cred);
+	return add_sentinel(args);
+
+out:
+	put_cred(cred);
+	return res;
+}
+
+int f_sched_prog_fork(struct event_filler_arguments *args)
+{
+	int res = 0;
+	struct task_struct *child = args->child;
+	struct mm_struct *mm = child->mm;
+	int args_len = 0;
+	int correctly_read = 0;
+	unsigned int exe_len = 0; /* the length of the executable string. */
+	int ptid = 0;
+	char *spwd = "";
+	long total_vm = 0;
+	long total_rss = 0;
+	long swap = 0;
+	int available = STR_STORAGE_SIZE;
+	uint32_t flags = 0;
+	uint64_t euid = task_euid(child).val;
+	uint64_t egid = child->cred->egid.val;
+	struct pid_namespace *pidns = task_active_pid_ns(child);
+
+	/* Parameter 1: res (type: PT_ERRNO) */
+	/* Please note: here we are in the clone child exit
+	 * event, so the return value will be always 0.
+	 */
+	res = val_to_ring(args, 0, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/*
+	* The call always succeed so get `exe`, `args` from the child
+	* process; put one \0-separated exe-args string into
+	* str_storage
+	*/
+	if(unlikely(!mm))
+	{
+		args->str_storage[0] = 0;
+		pr_info("'f_sched_prog_fork' drop, mm=NULL\n");
+		return PPM_FAILURE_BUG;
+	}
+
+	if(unlikely(!mm->arg_end))
+	{
+		args->str_storage[0] = 0;
+		pr_info("'f_sched_prog_fork' drop, mm->arg_end=NULL\n");
+		return PPM_FAILURE_BUG;
+	}
+
+	/* the combined length of the arguments string + executable string. */
+	args_len = mm->arg_end - mm->arg_start;
+
+	if(args_len > PAGE_SIZE)
+	{
+		args_len = PAGE_SIZE;
+	}
+
+	correctly_read = ppm_copy_from_user(args->str_storage, (const void __user *)mm->arg_start, args_len);
+
+	if(args_len && correctly_read == 0)
+	{
+		args->str_storage[args_len - 1] = 0;
+	}
+	else
+	{
+		args_len = 0;
+		*args->str_storage = 0;
+	}
+
+	exe_len = strnlen(args->str_storage, args_len);
+	if(exe_len < args_len)
+	{
+		++exe_len;
+	}
+
+	/* Parameter 2: exe (type: PT_CHARBUF) */
+	res = val_to_ring(args, (uint64_t)(long)args->str_storage, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 3: args (type: PT_CHARBUFARRAY) */
+	res = val_to_ring(args, (int64_t)(long)args->str_storage + exe_len, args_len - exe_len, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 4: tid (type: PT_PID) */
+	res = val_to_ring(args, (int64_t)child->pid, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 5: pid (type: PT_PID) */
+	res = val_to_ring(args, (int64_t)child->tgid, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 6: ptid (type: PT_PID) */
+	if(child->real_parent)
+	{
+		ptid = child->real_parent->pid;
+	}
+
+	res = val_to_ring(args, (int64_t)ptid, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 7: cwd (type: PT_CHARBUF)
+	 * cwd, pushed empty to avoid breaking compatibility
+	 * with the older event format
+	 */
+	res = val_to_ring(args, (uint64_t)(long)spwd, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 8: fdlimit (type: PT_UINT64) */
+	res = val_to_ring(args, (int64_t)rlimit(RLIMIT_NOFILE), 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 9: pgft_maj (type: PT_UINT64) */
+	res = val_to_ring(args, child->maj_flt, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 10: pgft_min (type: PT_UINT64) */
+	res = val_to_ring(args, child->min_flt, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	if(mm)
+	{
+		total_vm = mm->total_vm << (PAGE_SHIFT - 10);
+		total_rss = ppm_get_mm_rss(mm) << (PAGE_SHIFT - 10);
+		swap = ppm_get_mm_swap(mm) << (PAGE_SHIFT - 10);
+	}
+
+	/* Parameter 11: vm_size (type: PT_UINT32) */
+	res = val_to_ring(args, total_vm, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 12: vm_rss (type: PT_UINT32) */
+	res = val_to_ring(args, total_rss, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 13: vm_swap (type: PT_UINT32) */
+	res = val_to_ring(args, swap, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 14: comm (type: PT_CHARBUF) */
+	res = val_to_ring(args, (uint64_t)child->comm, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	args->str_storage[0] = 0;
+#ifdef CONFIG_CGROUPS
+	rcu_read_lock();
+#include <linux/cgroup_subsys.h>
+cgroups_error:
+	rcu_read_unlock();
+#endif
+
+	/* Parameter 15: cgroups (type: PT_CHARBUFARRAY) */
+	res = val_to_ring(args, (int64_t)(long)args->str_storage, STR_STORAGE_SIZE - available, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Since Linux 2.5.35, the flags mask must also include
+	 * CLONE_SIGHAND if CLONE_THREAD is specified (and note that,
+	 * since Linux 2.6.0, CLONE_SIGHAND also requires CLONE_VM to
+	 * be included). 
+	 * Taken from https://man7.org/linux/man-pages/man2/clone.2.html
+	 */
+	if(child->pid != child->tgid)
+	{
+		flags |= PPM_CL_CLONE_THREAD | PPM_CL_CLONE_SIGHAND | PPM_CL_CLONE_VM;
+	}
+
+	/* If CLONE_FILES is set, the calling process and the child
+	 * process share the same file descriptor table.
+	 * Taken from https://man7.org/linux/man-pages/man2/clone.2.html
+	 */
+	if(child->files == current->files)
+	{
+		flags |= PPM_CL_CLONE_FILES;
+	}
+
+	/* It's possible to have a process in a PID namespace that 
+	 * nevertheless has tid == vtid,  so we need to generate this
+	 * custom flag `PPM_CL_CHILD_IN_PIDNS`.
+	 */
+	if(pidns != &init_pid_ns)
+	{
+		flags |= PPM_CL_CHILD_IN_PIDNS;
+	}
+
+	/* Parameter 16: flags (type: PT_FLAGS32) */
+	res = val_to_ring(args, flags, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 17: uid (type: PT_UINT32) */
+	res = val_to_ring(args, euid, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 18: gid (type: PT_UINT32) */
+	res = val_to_ring(args, egid, 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 19: vtid (type: PT_PID) */
+	res = val_to_ring(args, task_pid_vnr(child), 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	/* Parameter 20: vpid (type: PT_PID) */
+	res = val_to_ring(args, task_tgid_vnr(child), 0, false, 0);
+	if(unlikely(res != PPM_SUCCESS))
+	{
+		return res;
+	}
+
+	return add_sentinel(args);
+}
+#endif
 
 #endif /* WDIG */

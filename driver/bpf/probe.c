@@ -170,6 +170,10 @@ BPF_PROBE("sched/", sched_switch, sched_switch_args)
 	return 0;
 }
 
+#ifndef __aarch64__
+/* Page fault tracepoints are not defined in ARM64, so
+ * we don't inject anything into the kernel.
+ */
 static __always_inline int bpf_page_fault(struct page_fault_args *ctx)
 {
 	struct scap_bpf_settings *settings;
@@ -200,6 +204,7 @@ BPF_PROBE("exceptions/", page_fault_kernel, page_fault_args)
 {
 	return bpf_page_fault(ctx);
 }
+#endif
 
 BPF_PROBE("signal/", signal_deliver, signal_deliver_args)
 {
@@ -243,6 +248,126 @@ int bpf_sched_process_fork(struct sched_process_fork_args *ctx)
 
 	__stash_args(ctx->child_pid, args.args);
 
+	return 0;
+}
+#endif
+
+#ifdef __aarch64__
+/* This section explains why we need two additional `raw_tracepoint`
+ * in ARM64 architectures. Right now, we catch information from all
+ * syscalls with `sys_enter` and `sys_exit` tracepoint. In x86 we are
+ * able to catch all the information we want through these tracepoints
+ * but in ARM64 we cannot do the same thing.
+ * More precisely we are not able to catch 2 main events:
+ * 
+ * - `execve` exit event.
+ * - `clone` child exit event.
+ * 
+ * Here https://www.spinics.net/lists/linux-trace/msg01001.html
+ * you can find a brief description of the problem.
+ * 
+ * This exit events don't call the `sys_exit` tracepoint and so our
+ * bpf programs are not called. These events are really important so
+ * in order to not lose them, we use 2 new tracepoints: 
+ * 
+ * - `sched_process_exec`: we catch every process that correctly performs
+ *                         an execve call.
+ * - `sched_process_fork`: we catch every new process that is spawned.
+ * 
+ * Please note: we need to use raw_tracepoint programs in order to access
+ * the raw tracepoint arguments! This is not so relevant for `sched_process_exec`
+ * since we can access all needed information from the current task, but it is
+ * essential for `sched_process_fork` since the only way we have to access the
+ * child task struct is through the raw tracepoint arguments.
+ * 
+ * Since we need to use `BPF_PROG_TYPE_RAW_TRACEPOINT`, the ARM64 support for our
+ * BPF probe requires kernel versions greater or equal than `4.17`. If you run old kernels, 
+ * you can use the kernel module which requires kernel versions greater or equal than `3.4`.
+ */
+
+/* This macro `BPF_PROBE()` is equivalent to:
+ *
+ * __bpf_section(raw_tracepoint/sched_process_exec)
+ * int bpf_sched_process_exec(struct sched_process_exec_raw_args *ctx)
+ */
+BPF_PROBE("sched_process_exec", sched_process_exec, sched_process_exec_raw_args)
+{
+	struct scap_bpf_settings *settings;
+	/* We will always send an execve exit event. */
+	enum ppm_event_type event_type = PPME_SYSCALL_EXECVE_19_X;
+
+	/* We are not interested in kernel threads. */
+	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+	unsigned int flags = _READ(task->flags);
+	if(flags & PF_KTHREAD)
+	{
+		return 0;
+	}
+
+	/* Check if the capture is enabled. */
+	settings = get_bpf_settings();
+	if(!(settings && settings->capture_enabled))
+	{
+		return 0;
+	}
+
+	/* Reset the tail context in the CPU state map. */
+	uint32_t cpu = bpf_get_smp_processor_id();
+	struct scap_bpf_per_cpu_state * state = get_local_state(cpu);
+	if(!state)
+	{
+		return 0;
+	}
+	uint64_t ts = settings->boot_time + bpf_ktime_get_boot_ns();
+	reset_tail_ctx(state, event_type, ts);
+	++state->n_evts;
+
+
+	int filler_code = PPM_FILLER_sched_prog_exec;
+	bpf_tail_call(ctx, &tail_map, filler_code);
+	bpf_printk("Can't tail call filler 'sched_proc_exec' evt=%d, filler=%d\n",
+		   event_type,
+		   filler_code);	
+	return 0;
+}
+
+BPF_PROBE("sched_process_fork", sched_process_fork, sched_process_fork_raw_args)
+{
+	struct scap_bpf_settings *settings;
+	/* We will always send a clone exit event. */
+	enum ppm_event_type event_type = PPME_SYSCALL_CLONE_20_X;
+
+	/* We are not interested in kernel threads. */
+	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+	unsigned int flags = _READ(task->flags);
+	if(flags & PF_KTHREAD)
+	{
+		return 0;
+	}
+
+	/* Check if the capture is enabled. */
+	settings = get_bpf_settings();
+	if(!(settings && settings->capture_enabled))
+	{
+		return 0;
+	}
+
+	/* Reset the tail context in the CPU state map. */
+	uint32_t cpu = bpf_get_smp_processor_id();
+	struct scap_bpf_per_cpu_state * state = get_local_state(cpu);
+	if(!state)
+	{
+		return 0;
+	}
+	uint64_t ts = settings->boot_time + bpf_ktime_get_boot_ns();
+	reset_tail_ctx(state, event_type, ts);
+	++state->n_evts;
+
+	int filler_code = PPM_FILLER_sched_prog_fork;
+	bpf_tail_call(ctx, &tail_map, filler_code);
+	bpf_printk("Can't tail call filler 'sched_proc_fork' evt=%d, filler=%d\n",
+		   event_type,
+		   filler_code);	
 	return 0;
 }
 #endif
