@@ -98,6 +98,7 @@ static __always_inline long bpf_syscall_get_nr(void *ctx)
 
 	struct pt_regs *regs = (struct pt_regs *)args->regs;
 
+<<<<<<< HEAD
 #ifdef CONFIG_X86_64
 
 	/* See here for the definition:
@@ -121,12 +122,31 @@ static __always_inline long bpf_syscall_get_nr(void *ctx)
 	id = id & 0xffff;
 
 #endif /* CONFIG_X86_64 */
+=======
+#ifdef __aarch64__
+	
+	id = _READ(regs->syscallno);
+
+#else 
+	
+	/* Right now we used this for all other architectures that are not ARM
+	 * becuase we support only `x86`, but we have to check if it is correct
+	 * in case of other architectures.
+	 */
+	id = _READ(regs->orig_ax);
+
+#endif
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 
 #else
 
 	id = args->id;
 
+<<<<<<< HEAD
 #endif /* BPF_SUPPORTS_RAW_TRACEPOINTS */
+=======
+#endif
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 
 	return id;
 }
@@ -156,11 +176,34 @@ static __always_inline unsigned long bpf_syscall_get_argument_from_ctx(void *ctx
 	struct sys_enter_args *args = (struct sys_enter_args *)ctx;
 	struct pt_regs *regs = (struct pt_regs *)args->regs;
 
+<<<<<<< HEAD
 #ifdef CONFIG_X86_64
 
 	/* See here for the definition:
 	 * https://github.com/libbpf/libbpf/blob/master/src/bpf_tracing.h#L75-L87
 	 */
+=======
+#ifdef __aarch64__
+	
+	struct user_pt_regs *user_regs = (struct user_pt_regs *)args->regs;
+	switch (idx) {
+	case 0:
+		arg = _READ(regs->orig_x0);
+		break;
+	case 1:
+	case 2:
+	case 3:
+	case 4:
+	case 5:
+		arg = _READ(user_regs->regs[idx]);
+		break;
+	default:
+		arg = 0;
+	}
+
+#else
+	
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 	switch (idx) {
 	case 0:
 		arg = _READ(regs->di);
@@ -184,6 +227,7 @@ static __always_inline unsigned long bpf_syscall_get_argument_from_ctx(void *ctx
 		arg = 0;
 	}
 
+<<<<<<< HEAD
 #elif CONFIG_ARM64
 
 	/* See here for the definition:
@@ -227,6 +271,9 @@ static __always_inline unsigned long bpf_syscall_get_argument_from_ctx(void *ctx
 	}
 
 #endif /* CONFIG_X86_64 */
+=======
+#endif
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 
 #else
 
@@ -236,7 +283,11 @@ static __always_inline unsigned long bpf_syscall_get_argument_from_ctx(void *ctx
 	else
 		arg = 0;
 		
+<<<<<<< HEAD
 #endif /* BPF_SUPPORTS_RAW_TRACEPOINTS */
+=======
+#endif
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 
 	return arg;
 }

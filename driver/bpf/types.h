@@ -129,6 +129,7 @@ struct sys_stash_args {
 };
 #endif
 
+<<<<<<< HEAD
 #ifdef CAPTURE_SCHED_PROC_EXEC
 
 #ifndef BPF_SUPPORTS_RAW_TRACEPOINTS
@@ -157,6 +158,19 @@ struct sched_process_exec_args
 #endif /* CAPTURE_SCHED_PROC_EXEC */
 
 #ifdef CAPTURE_SCHED_PROC_FORK
+=======
+#ifdef __aarch64__
+/* TP_PROTO(struct task_struct *p, pid_t old_pid, struct linux_binprm *bprm)
+ * Taken from `/include/trace/events/sched.h`
+ */
+ struct sched_process_exec_raw_args
+ {
+ 	struct task_struct *p;
+ 	pid_t old_pid;
+ 	struct linux_binprm *bprm;
+ };
+
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 /* TP_PROTO(struct task_struct *parent, struct task_struct *child)
  * Taken from `/include/trace/events/sched.h`
  */

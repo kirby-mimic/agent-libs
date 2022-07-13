@@ -1063,7 +1063,11 @@ static __always_inline bool bpf_in_ia32_syscall()
 	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 	u32 status = 0;
 
+<<<<<<< HEAD
 #ifdef CONFIG_X86_64
+=======
+#if (defined(__i386__) || defined(__x86_64__) || defined(_M_IX86))
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 18)
 	status = _READ(task->thread.status);
@@ -1073,6 +1077,7 @@ static __always_inline bool bpf_in_ia32_syscall()
 	status = _READ(task->thread.status);
 #else
 	status = _READ(task->thread_info.status);
+<<<<<<< HEAD
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 18) */
 
 	/* See here for the definition:
@@ -1102,6 +1107,22 @@ static __always_inline bool bpf_in_ia32_syscall()
 	return false;
 
 #endif /* CONFIG_X86_64 */
+=======
+#endif
+	return status & TS_COMPAT;
+
+#elif defined(__aarch64__)
+
+	status = _READ(task->thread_info.flags);
+	return status & _TIF_32BIT;
+
+#else
+
+	/* Unknown architecture. */
+	return status;
+
+#endif 
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 }
 
 #endif

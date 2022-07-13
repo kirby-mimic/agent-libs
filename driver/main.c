@@ -62,12 +62,17 @@ or GPL2.txt for full copies of the license.
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("the Falco authors");
 
+<<<<<<< HEAD
 #if defined(CAPTURE_SCHED_PROC_EXEC) && (LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0))
 	#error The kernel module CAPTURE_SCHED_PROC_EXEC support requires kernel versions greater or equal than '3.4'.
 #endif
 
 #if defined(CAPTURE_SCHED_PROC_FORK) && (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 0))
 	#error The kernel module CAPTURE_SCHED_PROC_FORK support requires kernel versions greater or equal than '2.6'.
+=======
+#if defined(CONFIG_ARM64) && (LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0))
+	#error The kernel module ARM64 support requires kernel versions greater or equal than '3.4'.
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 #endif
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 35))
@@ -114,7 +119,11 @@ struct event_data_t {
 			struct k_sigaction *ka;
 		} signal_data;
 
+<<<<<<< HEAD
 #ifdef CAPTURE_SCHED_PROC_FORK
+=======
+#ifdef CONFIG_ARM64
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 		/* Here we save only the child task struct since it is the
 		 * unique parameter we will use in our `f_sched_prog_fork`
 		 * filler. On the other side the `f_sched_prog_exec` filler
@@ -173,11 +182,16 @@ TRACEPOINT_PROBE(sched_switch_probe, bool preempt, struct task_struct *prev, str
 TRACEPOINT_PROBE(signal_deliver_probe, int sig, struct siginfo *info, struct k_sigaction *ka);
 #endif
 
+<<<<<<< HEAD
 /* tracepoints `page_fault_user/kernel` don't exist on some architectures.*/
+=======
+/* tracepoints `page_fault_user/kernel` don't exist on ARM64 architecture .*/
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 #ifdef CAPTURE_PAGE_FAULTS
 TRACEPOINT_PROBE(page_fault_probe, unsigned long address, struct pt_regs *regs, unsigned long error_code);
 #endif
 
+<<<<<<< HEAD
 #ifdef CAPTURE_SCHED_PROC_FORK
 TRACEPOINT_PROBE(sched_proc_fork_probe, struct task_struct *parent, struct task_struct *child);
 #endif
@@ -186,6 +200,13 @@ TRACEPOINT_PROBE(sched_proc_fork_probe, struct task_struct *parent, struct task_
 TRACEPOINT_PROBE(sched_proc_exec_probe, struct task_struct *p, pid_t old_pid, struct linux_binprm *bprm);
 #endif
 
+=======
+#ifdef CONFIG_ARM64
+TRACEPOINT_PROBE(sched_proc_exec_probe, struct task_struct *p, pid_t old_pid, struct linux_binprm *bprm);
+TRACEPOINT_PROBE(sched_proc_fork_probe, struct task_struct *parent, struct task_struct *child);
+#endif
+
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 static struct ppm_device *g_ppm_devs;
 static struct class *g_ppm_class;
 static unsigned int g_ppm_numdevs;
@@ -229,6 +250,7 @@ static bool g_fault_tracepoint_registered;
 static bool g_fault_tracepoint_disabled;
 #endif
 
+<<<<<<< HEAD
 #ifdef CAPTURE_SCHED_PROC_FORK
 static struct tracepoint *tp_sched_proc_fork;
 #endif
@@ -237,6 +259,13 @@ static struct tracepoint *tp_sched_proc_fork;
 static struct tracepoint *tp_sched_proc_exec;
 #endif
 
+=======
+#ifdef CONFIG_ARM64
+static struct tracepoint *tp_sched_proc_exec;
+static struct tracepoint *tp_sched_proc_fork;
+#endif
+
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 #ifdef _DEBUG
 static bool verbose = 1;
 #else
@@ -558,21 +587,28 @@ static int ppm_open(struct inode *inode, struct file *filp)
 		}
 #endif
 
+<<<<<<< HEAD
 		/* 
 		 * CAPTURE_SCHED_PROC_EXEC
 		 */
 #ifdef CAPTURE_SCHED_PROC_EXEC
+=======
+#ifdef CONFIG_ARM64
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 		ret = compat_register_trace(sched_proc_exec_probe, "sched_process_exec", tp_sched_proc_exec);
 		if (ret) {
 			pr_err("can't create the 'sched_proc_exec' tracepoint\n");
 			goto err_sched_proc_exec;
 		}
+<<<<<<< HEAD
 #endif
 
 		/* 
 		 * CAPTURE_SCHED_PROC_FORK
 		 */
 #ifdef CAPTURE_SCHED_PROC_FORK
+=======
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 		ret = compat_register_trace(sched_proc_fork_probe, "sched_process_fork", tp_sched_proc_fork);
 		if (ret) {
 			pr_err("can't create the 'sched_proc_fork' tracepoint\n");
@@ -586,11 +622,23 @@ static int ppm_open(struct inode *inode, struct file *filp)
 
 	goto cleanup_open;
 
+<<<<<<< HEAD
 	/* 
 	 * CAPTURE_SCHED_PROC_FORK
 	 */
 #ifdef CAPTURE_SCHED_PROC_FORK
 err_sched_proc_fork:
+=======
+#ifdef CONFIG_ARM64
+err_sched_proc_fork:
+	compat_unregister_trace(sched_proc_exec_probe, "sched_process_exec", tp_sched_proc_exec);
+err_sched_proc_exec:
+	compat_unregister_trace(signal_deliver_probe, "signal_deliver", tp_signal_deliver);
+#endif
+#ifdef CAPTURE_SIGNAL_DELIVERIES
+err_signal_deliver:
+	compat_unregister_trace(sched_switch_probe, "sched_switch", tp_sched_switch);
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 #endif
 
 	/* 
@@ -771,6 +819,7 @@ static int ppm_release(struct inode *inode, struct file *filp)
 				g_fault_tracepoint_registered = false;
 			}
 #endif
+<<<<<<< HEAD
 
 			/* 
 			 * CAPTURE_SCHED_PROC_EXEC
@@ -786,6 +835,12 @@ static int ppm_release(struct inode *inode, struct file *filp)
 			compat_unregister_trace(sched_proc_fork_probe, "sched_process_fork", tp_sched_proc_fork);
 #endif			
 
+=======
+#ifdef CONFIG_ARM64
+			compat_unregister_trace(sched_proc_exec_probe, "sched_process_exec", tp_sched_proc_exec);
+			compat_unregister_trace(sched_proc_fork_probe, "sched_process_fork", tp_sched_proc_fork);
+#endif
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 20)
 			tracepoint_synchronize_unregister();
 #endif
@@ -2129,6 +2184,7 @@ static int record_event_consumer(struct ppm_consumer_t *consumer,
 		 */
 		switch (event_datap->category)
 		{
+<<<<<<< HEAD
 #ifdef CAPTURE_SCHED_PROC_EXEC
 		case PPMC_SCHED_PROC_EXEC:
 			cbres = f_sched_prog_exec(&args);
@@ -2136,6 +2192,13 @@ static int record_event_consumer(struct ppm_consumer_t *consumer,
 #endif
 
 #ifdef CAPTURE_SCHED_PROC_FORK
+=======
+#ifdef CONFIG_ARM64
+		case PPMC_SCHED_PROC_EXEC:
+			cbres = f_sched_prog_exec(&args);
+			break;
+
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 		case PPMC_SCHED_PROC_FORK:
 			/* First of all we need to update the event header with the child pid. */
 			args.child = event_datap->event_info.sched_proc_fork_data.child;
@@ -2143,7 +2206,10 @@ static int record_event_consumer(struct ppm_consumer_t *consumer,
 			cbres = f_sched_prog_fork(&args);
 			break;
 #endif
+<<<<<<< HEAD
 
+=======
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 		default:
 			if (likely(g_ppm_events[event_type].filler_callback)) 
 			{
@@ -2536,7 +2602,14 @@ TRACEPOINT_PROBE(page_fault_probe, unsigned long address, struct pt_regs *regs, 
 }
 #endif
 
+<<<<<<< HEAD
 #ifdef CAPTURE_SCHED_PROC_EXEC
+=======
+#ifdef CONFIG_ARM64
+/* We explained why we need these tracepoints for ARM64 in the BPF probe code.
+ * Please take a look at `/bpf/probe.c`.
+ */ 
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 TRACEPOINT_PROBE(sched_proc_exec_probe, struct task_struct *p, pid_t old_pid, struct linux_binprm *bprm)
 {
 	struct event_data_t event_data;
@@ -2552,9 +2625,13 @@ TRACEPOINT_PROBE(sched_proc_exec_probe, struct task_struct *p, pid_t old_pid, st
 	event_data.category = PPMC_SCHED_PROC_EXEC;
 	record_event_all_consumers(PPME_SYSCALL_EXECVE_19_X, UF_NEVER_DROP, &event_data);
 }
+<<<<<<< HEAD
 #endif 
 
 #ifdef CAPTURE_SCHED_PROC_FORK
+=======
+
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 TRACEPOINT_PROBE(sched_proc_fork_probe, struct task_struct *parent, struct task_struct *child)
 {
 	struct event_data_t event_data;
@@ -2701,6 +2778,7 @@ static void visit_tracepoint(struct tracepoint *tp, void *priv)
 	else if (!strcmp(tp->name, "page_fault_kernel"))
 		tp_page_fault_kernel = tp;
 #endif
+<<<<<<< HEAD
 
 #ifdef CAPTURE_SCHED_PROC_EXEC
 	else if (!strcmp(tp->name, "sched_process_exec"))
@@ -2708,6 +2786,11 @@ static void visit_tracepoint(struct tracepoint *tp, void *priv)
 #endif
 
 #ifdef CAPTURE_SCHED_PROC_FORK
+=======
+#ifdef CONFIG_ARM64
+	else if (!strcmp(tp->name, "sched_process_exec"))
+		tp_sched_proc_exec = tp;
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 	else if (!strcmp(tp->name, "sched_process_fork"))
 		tp_sched_proc_fork = tp;	
 #endif
@@ -2754,23 +2837,33 @@ static int get_tracepoint_handles(void)
 		g_fault_tracepoint_disabled = true;
 	}
 #endif
+<<<<<<< HEAD
 
 #ifdef CAPTURE_SCHED_PROC_EXEC
+=======
+#ifdef CONFIG_ARM64
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 	if (!tp_sched_proc_exec)
 	{
 		pr_err("failed to find 'sched_process_exec' tracepoint\n");
 		return -ENOENT;
 	}
+<<<<<<< HEAD
 #endif
 
 #ifdef CAPTURE_SCHED_PROC_FORK
+=======
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 	if (!tp_sched_proc_fork)
 	{
 		pr_err("failed to find 'sched_process_fork' tracepoint\n");
 		return -ENOENT;
 	}
 #endif
+<<<<<<< HEAD
 
+=======
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 	return 0;
 }
 #else

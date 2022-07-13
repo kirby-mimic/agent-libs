@@ -128,6 +128,21 @@ struct scap
 	void* m_win_buf_handle;
 	void* m_win_descs_handle;
 #endif
+<<<<<<< HEAD
+=======
+	bool m_bpf;
+	bool m_udig;
+	bool m_udig_capturing;
+	// Anonymous struct with bpf stuff
+	struct
+	{
+		int m_bpf_prog_fds[BPF_PROGS_MAX];
+		int m_bpf_prog_cnt;
+		int m_bpf_event_fd[BPF_PROGS_MAX];
+		int m_bpf_map_fds[BPF_MAPS_MAX];
+		int m_bpf_prog_array_map_idx;
+	};
+>>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 
 	// The set of process names that are suppressed
 	char **m_suppressed_comms;
