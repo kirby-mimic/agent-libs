@@ -126,6 +126,7 @@ bool sinsp_container_manager::resolve_container(sinsp_threadinfo* tinfo, bool qu
 	ASSERT(tinfo);
 	bool matches = false;
 
+	g_logger.format(sinsp_logger::SEV_NOTICE, "resolve_container: tid %ld", tinfo->m_tid);
 	tinfo->m_container_id = "";
 	if (m_inspector->m_parser->m_fd_listener)
 	{
@@ -148,6 +149,8 @@ bool sinsp_container_manager::resolve_container(sinsp_threadinfo* tinfo, bool qu
 			break;
 		}
 	}
+
+	g_logger.format(sinsp_logger::SEV_NOTICE, "resolve_container: tid %ld is in container <%s>", tinfo->m_tid, tinfo->m_container_id.c_str());
 
 	// Also possibly set the category for the threadinfo
 	identify_category(tinfo);

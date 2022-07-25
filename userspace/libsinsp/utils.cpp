@@ -1821,5 +1821,5 @@ unsigned int read_num_possible_cpus(void)
 ///////////////////////////////////////////////////////////////////////////////
 void sinsp_scap_debug_log_fn(const char* msg)
 {
-	g_logger.log(msg, sinsp_logger::SEV_DEBUG);
+	g_logger.log(msg, sinsp_logger::SEV_NOTICE);
 }

@@ -20,6 +20,8 @@ limitations under the License.
 #include <mutex>
 #include <thread>
 
+#include "logger.h"
+
 namespace libsinsp {
 template<typename T>
 class ConstMutexGuard;
@@ -35,13 +37,21 @@ class ConstMutexGuard;
 template<typename T>
 class MutexGuard {
 public:
-	MutexGuard(std::unique_lock<std::mutex> lock, T *inner) : m_lock(std::move(lock)), m_inner(inner) {}
+	MutexGuard(std::unique_lock<std::mutex> lock, T *inner) : m_lock(std::move(lock)), m_inner(inner)
+	{
+		g_logger.format(sinsp_logger::SEV_NOTICE, "mutex_guard: locking %p", m_inner);
+	}
 
 	// we cannot copy a MutexGuard, only move
 	MutexGuard(MutexGuard &rhs) = delete;
 	MutexGuard& operator=(MutexGuard &rhs) = delete;
 	MutexGuard(MutexGuard &&rhs) noexcept : m_lock(std::move(rhs.m_lock)),
 						m_inner(rhs.m_inner) {}
+
+	~MutexGuard()
+	{
+		g_logger.format(sinsp_logger::SEV_NOTICE, "mutex_guard: unlocking %p", m_inner);
+	}
 
 	T *operator->()
 	{
@@ -80,7 +90,14 @@ template<typename T>
 class ConstMutexGuard {
 public:
 	ConstMutexGuard(std::unique_lock<std::mutex> lock, const T *inner) : m_lock(std::move(lock)),
-									     m_inner(inner) {
+									     m_inner(inner)
+	{
+		g_logger.format(sinsp_logger::SEV_NOTICE, "const_mutex_guard: locking %p", m_inner);
+	}
+
+	~ConstMutexGuard()
+	{
+		g_logger.format(sinsp_logger::SEV_NOTICE, "const_mutex_guard: unlocking %p", m_inner);
 	}
 
 	// we cannot copy a ConstMutexGuard, only move

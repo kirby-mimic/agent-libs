@@ -388,6 +388,7 @@ void sinsp_threadinfo::add_fd_from_scap(scap_fdinfo *fdi, OUT sinsp_fdinfo_t *re
 
 void sinsp_threadinfo::init(scap_threadinfo* pi)
 {
+	g_logger.format(sinsp_logger::SEV_NOTICE, "sinsp_threadinfo::init (tid=%ld)", pi->tid);
 	scap_fdinfo *fdi;
 	scap_fdinfo *tfdi;
 
