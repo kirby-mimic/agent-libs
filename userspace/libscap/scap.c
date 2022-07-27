@@ -259,8 +259,6 @@ scap_t* scap_open_live_int(char *error, int32_t *rc,
 		return NULL;
 	}
 
-<<<<<<< HEAD
-=======
 	// Special case -- force fallback path if all syscalls are enabled.
 	// This works around the following situation:
 	// - g_syscall_code_routing_table[] is incomplete
@@ -313,9 +311,6 @@ scap_t* scap_open_live_int(char *error, int32_t *rc,
 		}
 	}
 
-
-
->>>>>>> 1992399cb (Add special case code to work around syscall default behavior)
 	//
 	// Open and initialize all the devices
 	//
