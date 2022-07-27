@@ -252,11 +252,7 @@ public:
 		m_cpu_period(100000),
 		m_cpuset_cpu_count(0),
 		m_is_pod_sandbox(false),
-<<<<<<< HEAD
-=======
 		m_container_user("<NA>"),
-		m_lookup_state(sinsp_container_lookup_state::SUCCESSFUL),
->>>>>>> 407d66e2a (Track container user info and expose via user.name)
 		m_metadata_deadline(0),
 		m_size_rw_bytes(-1)
 	{
@@ -320,13 +316,9 @@ public:
 
 	bool m_is_pod_sandbox;
 
-<<<<<<< HEAD
 	sinsp_container_lookup m_lookup;
-=======
 	std::string m_container_user;
 
-	sinsp_container_lookup_state m_lookup_state;
->>>>>>> 407d66e2a (Track container user info and expose via user.name)
 #ifdef HAS_ANALYZER
 	std::string m_sysdig_agent_conf;
 #endif
