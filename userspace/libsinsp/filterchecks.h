@@ -178,11 +178,8 @@ public:
 	bool m_needs_state_tracking = false;
 	check_eval_cache_entry* m_eval_cache_entry = NULL;
 	check_extraction_cache_entry* m_extraction_cache_entry = NULL;
-<<<<<<< HEAD
 	std::vector<extract_value_t> m_extracted_values;
-=======
 	check_cache_metrics *m_cache_metrics = NULL;
->>>>>>> 2953a4286 (feat(filterchecks): add optional metrics struct for caching)
 
 protected:
 	// This is a single-value version of extract for subclasses non supporting extracting
