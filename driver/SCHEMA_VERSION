@@ -1,5 +1,1 @@
-<<<<<<< HEAD
 2.0.0
-=======
-1.1.0
->>>>>>> 4dca61619 (Add euid to execve/execveat exit events)
