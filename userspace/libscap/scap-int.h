@@ -77,8 +77,6 @@ inline const char *gzerror(FILE *F, int *E) {*E = ferror(F); return "error readi
 //
 #define PF_CLONING 1
 
-<<<<<<< HEAD
-=======
 //
 // ebpf defs
 //
@@ -109,10 +107,8 @@ typedef struct scap_device
 			struct udig_ring_buffer_status* m_bufstatus; // used by udig
 		};
 	};
-}scap_device;
+} scap_device;
 
-
->>>>>>> ba1167097 (Pull change from falcosecurity/libs: increase BPF_PROGS_MAX to 128 (#95))
 typedef struct scap_tid
 {
 	uint64_t tid;
