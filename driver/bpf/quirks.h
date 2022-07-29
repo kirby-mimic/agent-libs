@@ -24,21 +24,12 @@ or GPL2.txt for full copies of the license.
 #define BPF_FORBIDS_ZERO_ACCESS
 #endif
 
-<<<<<<< HEAD
 #if (defined(CONFIG_X86_64) || defined(CONFIG_ARM64) || defined(CONFIG_S390)) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0)
     #define BPF_SUPPORTS_RAW_TRACEPOINTS
 #endif
 
 #if CAPTURE_SCHED_PROC_FORK && !defined(BPF_SUPPORTS_RAW_TRACEPOINTS)
     #error The CAPTURE_SCHED_PROC_FORK support requires 'raw_tracepoints' so kernel versions greater or equal than '4.17'.
-=======
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0)
-#define BPF_SUPPORTS_RAW_TRACEPOINTS
-#endif
-
-#if defined(__aarch64__) && !defined(BPF_SUPPORTS_RAW_TRACEPOINTS)
-    #error The BPF ARM64 support requires 'raw_tracepoints' so kernel versions greater or equal than '4.17'.
->>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 #endif
 
 /* Redefine asm_volatile_goto to work around clang not supporting it

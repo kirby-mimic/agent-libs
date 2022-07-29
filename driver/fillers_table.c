@@ -11,8 +11,6 @@ or GPL2.txt for full copies of the license.
 #ifdef __KERNEL__
 #include <linux/compat.h>
 #include "ppm.h"
-<<<<<<< HEAD
-=======
 #else
 #ifndef UDIG
 #define CAPTURE_CONTEXT_SWITCHES
@@ -20,8 +18,7 @@ or GPL2.txt for full copies of the license.
 #ifdef __x86_64__
 	#define CAPTURE_PAGE_FAULTS
 #endif
-#endif /* UDIG */
->>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
+#endif /* !UDIG */
 #endif /* __KERNEL__ */
 
 #if defined(__KERNEL__) || defined(UDIG)

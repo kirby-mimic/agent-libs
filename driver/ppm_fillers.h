@@ -10,8 +10,6 @@ or GPL2.txt for full copies of the license.
 #ifndef PPM_FILLERS_H_
 #define PPM_FILLERS_H_
 
-<<<<<<< HEAD
-=======
 /* This is described in syscall(2). Some syscalls take 64-bit arguments. On
  * arches that have 64-bit registers, these arguments are shipped in a register.
  * On 32-bit arches, however, these are split between two consecutive registers,
@@ -29,7 +27,6 @@ or GPL2.txt for full copies of the license.
 #endif /* __x86_64__ */
 #endif /* __KERNEL__ */
 
->>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 #define FILLER_LIST_MAPPER(FN)			\
 	FN(sys_autofill)			\
 	FN(sys_generic)				\

@@ -558,12 +558,9 @@ static int32_t load_tracepoint(struct bpf_engine* handle, const char *event, str
 
 	free(error);
 
-	if (handle->m_bpf_prog_cnt + 1 >= BPF_PROGS_MAX) {
-<<<<<<< HEAD:userspace/libscap/engine/bpf/scap_bpf.c
+	if (handle->m_bpf_prog_cnt + 1 >= BPF_PROGS_MAX) 
+	{
 		snprintf(handle->m_lasterr, SCAP_LASTERR_SIZE, "libscap: too many programs recorded: %d (limit is %d)", handle->m_bpf_prog_cnt + 1 ,BPF_PROGS_MAX);
-=======
-		snprintf(handle->m_lasterr, SCAP_LASTERR_SIZE, "libscap: too many programs recorded: %d (limit is %d)", handle->m_bpf_prog_cnt + 1, BPF_PROGS_MAX);
->>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93)):userspace/libscap/scap_bpf.c
 		return SCAP_FAILURE;
 	}
 

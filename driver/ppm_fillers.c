@@ -3663,11 +3663,7 @@ int f_sys_preadv64_e(struct event_filler_arguments *args)
 
 	return add_sentinel(args);
 }
-<<<<<<< HEAD
 #endif /* CAPTURE_64BIT_ARGS_SINGLE_REGISTER */
-=======
-#endif /* _64BIT_ARGS_SINGLE_REGISTER */
->>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 
 int f_sys_readv_preadv_x(struct event_filler_arguments *args)
 {
@@ -3875,11 +3871,7 @@ int f_sys_pwritev_e(struct event_filler_arguments *args)
 	res = val_to_ring(args, pos64, 0, false, 0);
 	if (unlikely(res != PPM_SUCCESS))
 		return res;
-<<<<<<< HEAD
 #endif /* CAPTURE_64BIT_ARGS_SINGLE_REGISTER */
-=======
-#endif /* _64BIT_ARGS_SINGLE_REGISTER */
->>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 
 	return add_sentinel(args);
 }
@@ -6360,11 +6352,7 @@ out:
 	return res;
 }
 
-<<<<<<< HEAD
 #ifdef CAPTURE_SCHED_PROC_EXEC
-=======
-#ifdef CONFIG_ARM64
->>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 int f_sched_prog_exec(struct event_filler_arguments *args)
 {
 	int res = 0;
@@ -6383,10 +6371,7 @@ int f_sched_prog_exec(struct event_filler_arguments *args)
 	int tty_nr = 0;
 	uint32_t flags = 0;
 	bool exe_writable = false;
-<<<<<<< HEAD
-=======
 	uint64_t euid = 0;
->>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 	struct file *exe_file = NULL;
 	const struct cred *cred = NULL;
 
@@ -6676,8 +6661,6 @@ cgroups_error:
 		goto out;
 	}
 
-<<<<<<< HEAD
-=======
 	/* Parameter 24: uid */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
 	euid = from_kuid_munged(current_user_ns(), current_euid());
@@ -6692,7 +6675,6 @@ cgroups_error:
 		goto out;
 	}
 
->>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 	put_cred(cred);
 	return add_sentinel(args);
 
@@ -6700,14 +6682,10 @@ out:
 	put_cred(cred);
 	return res;
 }
-<<<<<<< HEAD
 #endif
 
 
 #ifdef CAPTURE_SCHED_PROC_FORK
-=======
-
->>>>>>> 7c1adc752 (Incorporate ARM support changes from upstream falcosecurity/libs repo (#93))
 int f_sched_prog_fork(struct event_filler_arguments *args)
 {
 	int res = 0;
