@@ -185,8 +185,6 @@ bool cri_async_source::parse(const key_type& key, sinsp_container_info& containe
 	return true;
 }
 
-<<<<<<< HEAD
-=======
 void cri_async_source::run_impl()
 {
 	libsinsp::cgroup_limits::cgroup_limits_key key;
@@ -227,7 +225,6 @@ bool cri_async_source::lookup_sync(const libsinsp::cgroup_limits::cgroup_limits_
 	return true;
 }
 
->>>>>>> 511b6ac1b (refactor(libsinsp/container): introduce sinsp_container_lookup class)
 cri::cri(container_cache_interface &cache) : container_engine_base(cache)
 {
 	if (s_cri_unix_socket_paths.empty())
@@ -361,8 +358,6 @@ bool cri::resolve(sinsp_threadinfo *tinfo, bool query_os_for_missing_info)
 		}
 
 		cache->set_lookup_status(container_id, m_cri->get_cri_runtime_type(), sinsp_container_lookup::state::STARTED);
-<<<<<<< HEAD
-=======
 		auto cb = [cache](const libsinsp::cgroup_limits::cgroup_limits_key& key, const sinsp_container_info& res)
 		{
 			g_logger.format(sinsp_logger::SEV_DEBUG,
@@ -372,7 +367,6 @@ bool cri::resolve(sinsp_threadinfo *tinfo, bool query_os_for_missing_info)
 
 			cache->notify_new_container(res);
 		};
->>>>>>> 511b6ac1b (refactor(libsinsp/container): introduce sinsp_container_lookup class)
 
 		sinsp_container_info result;
 

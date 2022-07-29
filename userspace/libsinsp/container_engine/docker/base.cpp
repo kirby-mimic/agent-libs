@@ -60,8 +60,6 @@ docker_base::resolve_impl(sinsp_threadinfo *tinfo, const docker_lookup_request& 
 
 void docker_base::parse_docker(const docker_lookup_request& request, container_cache_interface *cache)
 {
-<<<<<<< HEAD
-=======
 	auto cb = [cache](const docker_lookup_request& request, const sinsp_container_info& res)
 	{
 		g_logger.format(sinsp_logger::SEV_DEBUG,
@@ -72,7 +70,6 @@ void docker_base::parse_docker(const docker_lookup_request& request, container_c
 		cache->notify_new_container(res);
 	};
 
->>>>>>> 511b6ac1b (refactor(libsinsp/container): introduce sinsp_container_lookup class)
 	sinsp_container_info result;
 
 	bool done;

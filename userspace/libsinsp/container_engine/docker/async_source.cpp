@@ -40,8 +40,6 @@ docker_async_source::~docker_async_source()
 			"docker_async: Source destructor");
 }
 
-<<<<<<< HEAD
-=======
 bool docker_async_source::lookup_sync(const docker_lookup_request& request, sinsp_container_info& value)
 {
 	value.set_lookup_status(sinsp_container_lookup::state::SUCCESSFUL);
@@ -89,7 +87,6 @@ void docker_async_source::run_impl()
 	}
 }
 
->>>>>>> 511b6ac1b (refactor(libsinsp/container): introduce sinsp_container_lookup class)
 bool docker_async_source::get_k8s_pod_spec(const Json::Value &config_obj,
 					   Json::Value &spec)
 {

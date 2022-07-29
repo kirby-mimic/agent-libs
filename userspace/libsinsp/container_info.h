@@ -79,7 +79,6 @@ public:
 		return m_state == state::SUCCESSFUL;
 	}
 
-<<<<<<< HEAD
 	/**
 	 * True when not successful and we didn't do too many attempts
 	 */
@@ -122,10 +121,6 @@ public:
 private:
 	state m_state = state::SUCCESSFUL;
 	short m_retry = 0;
-=======
-private:
-	state m_state = state::SUCCESSFUL;
->>>>>>> 511b6ac1b (refactor(libsinsp/container): introduce sinsp_container_lookup class)
 };
 
 class sinsp_container_info
@@ -324,10 +319,6 @@ public:
 	sinsp_container_lookup m_lookup;
 	std::string m_container_user;
 
-<<<<<<< HEAD
-=======
-	sinsp_container_lookup m_lookup;
->>>>>>> 511b6ac1b (refactor(libsinsp/container): introduce sinsp_container_lookup class)
 #ifdef HAS_ANALYZER
 	std::string m_sysdig_agent_conf;
 #endif
