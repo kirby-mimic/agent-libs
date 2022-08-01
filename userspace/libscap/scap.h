@@ -328,6 +328,7 @@ typedef struct {
 	UT_hash_handle hh; ///< makes this structure hashable
 } scap_mountinfo;
 
+<<<<<<< HEAD
 typedef void (*proc_entry_callback)(void* context,
 									scap_t* handle,
 									int64_t tid,
@@ -371,6 +372,8 @@ typedef struct {
 	bool ppm_sc[PPM_SC_MAX];
 } interesting_ppm_sc_set;
 
+=======
+>>>>>>> 75270a5f (Additional build changes)
 //
 // The following stuff is byte aligned because we save it to disk.
 //

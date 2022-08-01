@@ -756,34 +756,6 @@ scap_t* scap_open_offline_int(scap_open_args* oargs, int* rc, char* error)
 	return handle;
 }
 
-scap_t* scap_open_offline(const char* fname, char *error, int32_t* rc)
-{
-	gzFile gzfile = gzopen(fname, "rb");
-	if(gzfile == NULL)
-	{
-		snprintf(error, SCAP_LASTERR_SIZE, "can't open file %s", fname);
-		*rc = SCAP_FAILURE;
-		return NULL;
-	}
-	scap_reader_t* reader = scap_reader_open_gzfile(gzfile);
-
-	return scap_open_offline_int(reader, error, rc, NULL, NULL, true, 0, NULL);
-}
-
-scap_t* scap_open_offline_fd(int fd, char *error, int32_t *rc)
-{
-	gzFile gzfile = gzdopen(fd, "rb");
-	if(gzfile == NULL)
-	{
-		snprintf(error, SCAP_LASTERR_SIZE, "can't open fd %d", fd);
-		*rc = SCAP_FAILURE;
-		return NULL;
-	}
-	scap_reader_t* reader = scap_reader_open_gzfile(gzfile);
-
-	return scap_open_offline_int(reader, error, rc, NULL, NULL, true, 0, NULL);
-}
-
 scap_t* scap_open_live(char *error, int32_t *rc)
 {
 	return scap_open_live_int(error, rc, NULL, NULL, true, NULL, NULL, NULL, NULL, SCAP_PROC_SCAN_TIMEOUT_NONE, SCAP_PROC_SCAN_LOG_NONE);
