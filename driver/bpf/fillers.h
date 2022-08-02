@@ -5935,10 +5935,6 @@ FILLER(sys_dup3_x, true)
  * 
  * These `sched_proc_exec` fillers will generate a 
  * `PPME_SYSCALL_EXECVE_19_X` event.
- * 
- * Please note: `is_syscall` is used only if `BPF_RAW_TRACEPOINT`
- * are not defined but in our ARM implementation they are always defined,
- * so the value of this flag is not relevant for that architecture at all.
  */
 FILLER(sched_prog_exec, false)
 {
