@@ -42,14 +42,73 @@ limitations under the License.
 	#include <regex>
 #endif  // _WIN32
 
+namespace
+{
+enum RGEX_ID
+{
+	RGX_NOTBLANK_ID,
+	RGX_IDENTIFIER_ID,
+	RGX_FIELDNAME_ID,
+	RGX_FIELDARGBARESTR_ID,
+	RGX_HEXNUM_ID,
+	RGX_NUMBER_ID,
+	RGX_BARESTR_ID
+};
+
+const std::string rgex_patterns[] = {
+	"not[[:space:]]+",
+	"[a-zA-Z]+[a-zA-Z0-9_]*",
+	"[a-zA-Z]+[a-zA-Z0-9_]*(\\.[a-zA-Z]+[a-zA-Z0-9_]*)+",
+	"[^][\"'[:space:]]+",
+	"0[xX][0-9a-zA-Z]+",
+	"[+\\-]?[0-9]+[\\.]?[0-9]*([eE][+\\-][0-9]+)?",
+	"[^()\"'[:space:]=,]+",
+};
+
+template<RGEX_ID Rid >
+class rgex_id_class
+{
+private:
+	regex_t m_re;
+public:
+	rgex_id_class()
+	{
+		auto rgx = "^(" + rgex_patterns[Rid] + ")";
+		if(regcomp(&m_re, rgx.c_str(), REG_EXTENDED) != 0)
+		{
+			ASSERT(false);
+		}
+	}
+
+	const regex_t* value() const
+	{
+		return &m_re;
+	}
+
+	~rgex_id_class()
+	{
+		regfree(&m_re);
+	}
+
+	const std::string& rexp() const
+	{
+		return rgex_patterns[Rid];
+	}
+};
+
+};
+
+#define RGEX_ID_CLASS_VAR(ID) rgex_id_class<ID ## _ID> ID
+
+RGEX_ID_CLASS_VAR(RGX_NOTBLANK);
+RGEX_ID_CLASS_VAR(RGX_IDENTIFIER);
+RGEX_ID_CLASS_VAR(RGX_FIELDNAME);
+RGEX_ID_CLASS_VAR(RGX_FIELDARGBARESTR);
+RGEX_ID_CLASS_VAR(RGX_HEXNUM);
+RGEX_ID_CLASS_VAR(RGX_NUMBER);
+RGEX_ID_CLASS_VAR(RGX_BARESTR);
+
 #ifdef USE_POSIX_REGEX
-	#define RGX_NOTBLANK            "not[[:space:]]+"
-	#define RGX_IDENTIFIER          "[a-zA-Z]+[a-zA-Z0-9_]*"
-	#define RGX_FIELDNAME           "[a-zA-Z]+[a-zA-Z0-9_]*(\\.[a-zA-Z]+[a-zA-Z0-9_]*)+"
-	#define RGX_FIELDARGBARESTR     "[^][\"'[:space:]]+"
-	#define RGX_HEXNUM              "0[xX][0-9a-zA-Z]+"
-	#define RGX_NUMBER              "[+\\-]?[0-9]+[\\.]?[0-9]*([eE][+\\-][0-9]+)?"
-	#define RGX_BARESTR             "[^()\"'[:space:]=,]+"
 #else   // USE_POSIX_REGEX
 	#define RGX_NOTBLANK            "not[ \\b\\t\\n\\r]+"
 	#define RGX_IDENTIFIER          "[a-zA-Z]+[a-zA-Z0-9_]*"
@@ -526,39 +585,33 @@ inline bool parser::lex_list_op()
 	return lex_helper_str_list(binary_list_ops);
 }
 
-bool parser::lex_helper_rgx(string rgx)
+template <typename T>
+bool parser::lex_helper_rgx(const T& rgx_struct)
 {
 #ifndef _WIN32
-	regex_t re;
+	const regex_t* re = rgx_struct.value();
+
 	regmatch_t re_match;
-	rgx = "^(" + rgx + ")";
-    if (regcomp(&re, rgx.c_str(), REG_EXTENDED) != 0)
-	{
-        ASSERT(false);
-		return false;
-    }
-    if (regexec(&re, cursor(), 1, &re_match, 0) == 0)
+	if(regexec(re, cursor(), 1, &re_match, 0) == 0)
 	{
 		m_last_token = string(cursor(), re_match.rm_eo);
 		update_pos(m_last_token, m_pos);
-		regfree(&re);
 		return true;
 	}
-	regfree(&re);
-#else   // _WIN32
+#else  // _WIN32
 	cmatch match;
-	auto r = regex("^(" + rgx + ")");
-	if (regex_search (cursor(), match, r))
+	auto r = regex("^(" + rgx_struct.rexp() + ")");
+	if(regex_search(cursor(), match, r))
 	{
 		size_t group_idx = 0;
-		if (match.size() > group_idx && match[group_idx].matched)
+		if(match.size() > group_idx && match[group_idx].matched)
 		{
 			m_last_token = match[group_idx].str();
 			update_pos(m_last_token, m_pos);
 			return true;
 		}
 	}
-#endif  // _WIN32
+#endif // _WIN32
 
 	return false;
 }

@@ -169,7 +169,8 @@ private:
 	bool lex_num_op();
 	bool lex_str_op();
 	bool lex_list_op();
-	bool lex_helper_rgx(std::string rgx);
+	template <typename T>
+	bool lex_helper_rgx(const T& rgx);
 	bool lex_helper_str(const std::string& str);
 	bool lex_helper_str_list(const std::vector<std::string>& list);
 	void depth_push();

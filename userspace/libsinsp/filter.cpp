@@ -1148,10 +1148,9 @@ int32_t sinsp_filter_check::parse_field_name(const char* str, bool alloc_state, 
 
 	for(j = 0; j < m_info.m_nfields; j++)
 	{
-		string fldname = m_info.m_fields[j].m_name;
-		int32_t fldlen = (uint32_t)fldname.length();
+		int32_t fldlen = (uint32_t)strlen(m_info.m_fields[j].m_name);
 
-		if(val.compare(0, fldlen, fldname) == 0)
+		if(val.compare(0, fldlen, m_info.m_fields[j].m_name) == 0)
 		{
 			if(fldlen > max_fldlen)
 			{
