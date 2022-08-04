@@ -31,6 +31,9 @@ limitations under the License.
 //
 int32_t scap_create_userlist(scap_t* handle)
 {
+	bool file_lookup = false;
+	FILE *f = NULL;
+	char filename[SCAP_MAX_PATH_SIZE];
 	uint32_t usercnt, useridx;
 	uint32_t grpcnt, grpidx;
 	struct passwd *p;
@@ -76,11 +79,37 @@ int32_t scap_create_userlist(scap_t* handle)
 		return SCAP_FAILURE;		
 	}
 
-	// users
-	setpwent();
-	p = getpwent();
+	// check for host root
+	const char *host_root = scap_get_host_root();
+	if(host_root[0] == '\0')
+	{
+		file_lookup = false;
+	}
+	else
+	{
+		file_lookup = true;
+	}
 
-	for(useridx = 0; p; p = getpwent(), useridx++)
+	// users
+	if(file_lookup)
+	{
+		snprintf(filename, sizeof(filename), "%s/etc/passwd", scap_get_host_root());
+		f = fopen(filename, "r");
+		if(f == NULL)
+		{
+			snprintf(handle->m_lasterr, SCAP_LASTERR_SIZE, "failed to open %s", filename);
+			free(handle->m_userlist->users);
+			free(handle->m_userlist->groups);
+			free(handle->m_userlist);
+			return SCAP_FAILURE;
+		}
+	}
+	else
+	{
+		setpwent();
+	}
+
+	for(useridx = 0; file_lookup ? (p = fgetpwent(f)) : (p = getpwent()); useridx++)
 	{
 		if (useridx == usercnt)
 		{
@@ -96,6 +125,14 @@ int32_t scap_create_userlist(scap_t* handle)
 				free(handle->m_userlist->users);
 				free(handle->m_userlist->groups);
 				free(handle->m_userlist);
+				if(file_lookup)
+				{
+					fclose(f);
+				}
+				else
+				{
+					endpwent();
+				}
 				return SCAP_FAILURE;
 			}
 		}
@@ -140,7 +177,15 @@ int32_t scap_create_userlist(scap_t* handle)
 			strlen(user->shell) + 2;
 	}
 
-	endpwent();
+	if(file_lookup)
+	{
+		fclose(f);
+	}
+	else
+	{
+		endpwent();
+	}
+
 	handle->m_userlist->nusers = useridx;
 	if (useridx < usercnt)
 	{
@@ -149,10 +194,25 @@ int32_t scap_create_userlist(scap_t* handle)
 	}
 
 	// groups
-	setgrent();
-	g = getgrent();
+	if(file_lookup)
+	{
+		snprintf(filename, sizeof(filename), "%s/etc/group", scap_get_host_root());
+		f = fopen(filename, "r");
+		if(f == NULL)
+		{
+			snprintf(handle->m_lasterr, SCAP_LASTERR_SIZE, "failed to open %s", filename);
+			free(handle->m_userlist->users);
+			free(handle->m_userlist->groups);
+			free(handle->m_userlist);
+			return SCAP_FAILURE;
+		}
+	}
+	else
+	{
+		setgrent();
+	}
 
-	for(grpidx = 0; g; g = getgrent(), grpidx++)
+	for(grpidx = 0; file_lookup ? (g = fgetgrent(f)) : (g = getgrent()); grpidx++)
 	{
 		if (grpidx == grpcnt)
 		{
@@ -168,6 +228,14 @@ int32_t scap_create_userlist(scap_t* handle)
 				free(handle->m_userlist->users);
 				free(handle->m_userlist->groups);
 				free(handle->m_userlist);
+				if(file_lookup)
+				{
+					fclose(f);
+				}
+				else
+				{
+					endgrent();
+				}
 				return SCAP_FAILURE;
 			}
 		}
@@ -189,7 +257,15 @@ int32_t scap_create_userlist(scap_t* handle)
 			strlen(group->name) + 2;
 	}
 
-	endgrent();
+	if(file_lookup)
+	{
+		fclose(f);
+	}
+	else
+	{
+		endgrent();
+	}
+
 	handle->m_userlist->ngroups = grpidx;
 	if (grpidx < grpcnt)
 	{
