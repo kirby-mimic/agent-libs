@@ -93,15 +93,16 @@ int32_t scap_create_userlist(scap_t* handle)
 	// users
 	if(file_lookup)
 	{
-		snprintf(filename, sizeof(filename), "%s/etc/passwd", scap_get_host_root());
+		snprintf(filename, sizeof(filename), "%s/etc/passwd", host_root);
 		f = fopen(filename, "r");
 		if(f == NULL)
 		{
-			snprintf(handle->m_lasterr, SCAP_LASTERR_SIZE, "failed to open %s", filename);
+			// if we don't have it inside the host root, we'll proceed without a list
 			free(handle->m_userlist->users);
 			free(handle->m_userlist->groups);
 			free(handle->m_userlist);
-			return SCAP_FAILURE;
+			handle->m_userlist = NULL;
+			return SCAP_SUCCESS;
 		}
 	}
 	else
@@ -196,10 +197,11 @@ int32_t scap_create_userlist(scap_t* handle)
 	// groups
 	if(file_lookup)
 	{
-		snprintf(filename, sizeof(filename), "%s/etc/group", scap_get_host_root());
+		snprintf(filename, sizeof(filename), "%s/etc/group", host_root);
 		f = fopen(filename, "r");
 		if(f == NULL)
 		{
+			// if we reached this point we had passwd but we don't have group
 			snprintf(handle->m_lasterr, SCAP_LASTERR_SIZE, "failed to open %s", filename);
 			free(handle->m_userlist->users);
 			free(handle->m_userlist->groups);
