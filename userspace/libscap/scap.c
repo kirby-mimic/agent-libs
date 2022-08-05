@@ -317,7 +317,7 @@ scap_t* scap_open_live_int(char *error, int32_t *rc,
 		if((*rc = scap_create_userlist(handle)) != SCAP_SUCCESS)
 		{
 			scap_close(handle);
-			snprintf(error, SCAP_LASTERR_SIZE, "error creating the interface list");
+			snprintf(error, SCAP_LASTERR_SIZE, "error creating the user list");
 			return NULL;
 		}
 	}
@@ -742,7 +742,7 @@ scap_t* scap_open_udig_int(char *error, int32_t *rc,
 		if((*rc = scap_create_userlist(handle)) != SCAP_SUCCESS)
 		{
 			scap_close(handle);
-			snprintf(error, SCAP_LASTERR_SIZE, "error creating the interface list");
+			snprintf(error, SCAP_LASTERR_SIZE, "error creating the user list");
 			return NULL;
 		}
 	}
@@ -1099,7 +1099,7 @@ scap_t* scap_open_nodriver_int(char *error, int32_t *rc,
 		if((*rc = scap_create_userlist(handle)) != SCAP_SUCCESS)
 		{
 			scap_close(handle);
-			snprintf(error, SCAP_LASTERR_SIZE, "error creating the interface list");
+			snprintf(error, SCAP_LASTERR_SIZE, "error creating the user list");
 			return NULL;
 		}
 	}
