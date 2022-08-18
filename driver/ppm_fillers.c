@@ -1254,9 +1254,11 @@ cgroups_error:
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0)
 				exe_writable |= (inode_permission(current_user_ns(), file_inode(exe_file), MAY_WRITE) == 0);
 				exe_writable |= inode_owner_or_capable(current_user_ns(), file_inode(exe_file));
-#else
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)
 				exe_writable |= (inode_permission(file_inode(exe_file), MAY_WRITE) == 0);
 				exe_writable |= inode_owner_or_capable(file_inode(exe_file));
+#else
+				/* This feature is not supported on kernels < 2.6.39 */
 #endif
 			}
 			fput(exe_file);
@@ -6587,9 +6589,11 @@ cgroups_error:
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0)
 			exe_writable |= (inode_permission(current_user_ns(), file_inode(exe_file), MAY_WRITE) == 0);
 			exe_writable |= inode_owner_or_capable(current_user_ns(), file_inode(exe_file));
-#else
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)
 			exe_writable |= (inode_permission(file_inode(exe_file), MAY_WRITE) == 0);
 			exe_writable |= inode_owner_or_capable(file_inode(exe_file));
+#else
+			/* This feature is not supported on kernels < 2.6.39 */
 #endif
 		}
 		fput(exe_file);
