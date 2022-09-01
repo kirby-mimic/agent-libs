@@ -33,65 +33,84 @@ limitations under the License.
 
 namespace {
 
-struct passwd *__getpwuid(uid_t uid)
+#ifdef HAVE_PWD_H
+struct passwd *__getpwuid(uint32_t uid)
 {
-// See fgetpwent() feature test macros:
-// https://man7.org/linux/man-pages/man3/fgetpwent.3.html
-#if defined HAVE_PWD_H && (defined _DEFAULT_SOURCE || defined _SVID_SOURCE)
 	static std::string host_root(scap_get_host_root());
-	if (host_root.empty())
+	if(host_root.empty())
 	{
+		// When we don't have any host root set,
+		// leverage NSS (see man nsswitch.conf)
 		return getpwuid(uid);
 	}
 
+	// If we have a host root and we can use fgetpwent,
+	// we take the entry directly from file
+
+// See fgetpwent() feature test macros:
+// https://man7.org/linux/man-pages/man3/fgetpwent.3.html
+#if defined _DEFAULT_SOURCE || defined _SVID_SOURCE
 	static std::string filename(host_root + "/etc/passwd");
 
 	auto f = fopen(filename.c_str(), "r");
 	if(f)
 	{
-		while(auto p = fgetpwent(f))
+		struct passwd *p = nullptr;
+		while((p = fgetpwent(f)))
 		{
 			if(uid == p->pw_uid)
 			{
-				return p;
+				break;
 			}
 		}
+
 		fclose(f);
+		return p;
 	}
 #endif
 
-	return NULL;
+	return nullptr;
 }
+#endif
 
-struct group *__getgrgid(gid_t gid)
+#ifdef HAVE_GRP_H
+struct group *__getgrgid(uint32_t gid)
 {
-// See fgetgrent() feature test macros: https://man7.org/linux/man-pages/man3/fgetgrent.3.html
-#if defined HAVE_GRP_H && (defined _DEFAULT_SOURCE || defined _SVID_SOURCE)
 	static std::string host_root(scap_get_host_root());
-	if (host_root.empty())
+	if(host_root.empty())
 	{
+		// When we don't have any host root set,
+		// leverage NSS (see man nsswitch.conf)
 		return getgrgid(gid);
 	}
 
+	// If we have a host root and we can use fgetgrent,
+	// we take the entry directly from file
+
+// See fgetgrent() feature test macros: https://man7.org/linux/man-pages/man3/fgetgrent.3.html
+#if defined _DEFAULT_SOURCE || defined _SVID_SOURCE
 	static std::string filename(host_root + "/etc/group");
 
 	auto f = fopen(filename.c_str(), "r");
 	if(f)
 	{
-		while(auto p = fgetgrent(f))
+		struct group *p = nullptr;
+		while((p = fgetgrent(f)))
 		{
 			if(gid == p->gr_gid)
 			{
-				return p;
+				break;
 			}
 		}
+
 		fclose(f);
+		return p;
 	}
 #endif
 
 	return NULL;
 }
-
+#endif
 }
 
 using namespace std;
