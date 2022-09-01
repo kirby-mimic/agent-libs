@@ -238,13 +238,9 @@ int32_t scap_add_fd_to_proc_table(scap_t* handle, scap_threadinfo* pi, scap_fdin
 // Remove the given fd from the process table of the process pointed by pi
 void scap_fd_remove(scap_t* handle, scap_threadinfo* pi, int64_t fd);
 // read the file descriptors for a given process directory
-<<<<<<< HEAD
-int32_t scap_fd_scan_fd_dir(scap_t* handle, char * procdir, scap_threadinfo* pi, struct scap_ns_socket_list** sockets_by_ns, char *error);
+int32_t scap_fd_scan_fd_dir(scap_t* handle, char * procdir, scap_threadinfo* pi, struct scap_ns_socket_list** sockets_by_ns, uint64_t* num_fds_ret, char *error);
 // scan fd information for a specific thread from engine vtable. src_tinfo is a pointer to a threadinfo returned by the engine
 int32_t scap_fd_scan_vtable(scap_t *handle, const scap_threadinfo *src_tinfo, scap_threadinfo *dst_tinfo, char *error);
-=======
-int32_t scap_fd_scan_fd_dir(scap_t* handle, char * procdir, scap_threadinfo* pi, struct scap_ns_socket_list** sockets_by_ns, uint64_t* num_fds_ret, char *error);
->>>>>>> 029f77627 (Enhancements to initial scan of /proc, for supportability)
 // read tcp or udp sockets from the proc filesystem
 int32_t scap_fd_read_ipv4_sockets_from_proc_fs(scap_t* handle, const char * dir, int l4proto, scap_fdinfo ** sockets);
 // read all sockets and add them to the socket table hashed by their ino

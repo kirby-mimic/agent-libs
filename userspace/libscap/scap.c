@@ -166,13 +166,10 @@ scap_t* scap_open_live_int(char *error, int32_t *rc,
 	// Preliminary initializations
 	//
 	handle->m_mode = SCAP_MODE_LIVE;
-<<<<<<< HEAD
-=======
 	handle->m_udig = false;
 	handle->m_debug_log_fn = debug_log_fn;
 	handle->m_proc_scan_timeout_ms = proc_scan_timeout_ms;
 	handle->m_proc_scan_log_interval_ms = proc_scan_log_interval_ms;
->>>>>>> 029f77627 (Enhancements to initial scan of /proc, for supportability)
 
 	if(scap_bpf_engine.match(&oargs))
 	{
@@ -337,15 +334,12 @@ scap_t* scap_open_udig_int(char *error, int32_t *rc,
 	// Preliminary initializations
 	//
 	handle->m_mode = SCAP_MODE_LIVE;
-<<<<<<< HEAD
-=======
 	handle->m_udig = true;
 	handle->m_debug_log_fn = debug_log_fn;
 	handle->m_proc_scan_timeout_ms = proc_scan_timeout_ms;
 	handle->m_proc_scan_log_interval_ms = proc_scan_log_interval_ms;
 	handle->m_bpf = false;
 	handle->m_udig_capturing = false;
->>>>>>> 029f77627 (Enhancements to initial scan of /proc, for supportability)
 	handle->m_ncpus = 1;
 
 	handle->m_vtable = &scap_udig_engine;
@@ -648,8 +642,6 @@ scap_t* scap_open_offline_int(scap_open_args* oargs, int* rc, char* error)
 	return handle;
 }
 
-<<<<<<< HEAD
-=======
 scap_t* scap_open_offline(const char* fname, char *error, int32_t* rc)
 {
 	gzFile gzfile = gzopen(fname, "rb");
@@ -683,7 +675,6 @@ scap_t* scap_open_live(char *error, int32_t *rc)
 	return scap_open_live_int(error, rc, NULL, NULL, true, NULL, NULL, NULL, NULL, SCAP_PROC_SCAN_TIMEOUT_NONE, SCAP_PROC_SCAN_LOG_NONE);
 }
 
->>>>>>> 029f77627 (Enhancements to initial scan of /proc, for supportability)
 scap_t* scap_open_nodriver_int(char *error, int32_t *rc,
 			       proc_entry_callback proc_callback,
 			       void* proc_callback_context,
@@ -716,7 +707,6 @@ scap_t* scap_open_nodriver_int(char *error, int32_t *rc,
 	//
 	memset(handle, 0, sizeof(scap_t));
 	handle->m_mode = SCAP_MODE_NODRIVER;
-<<<<<<< HEAD
 	handle->m_vtable = &scap_nodriver_engine;
 	handle->m_engine.m_handle = handle->m_vtable->alloc_handle(handle, handle->m_lasterr);
 	if(!handle->m_engine.m_handle)
@@ -730,11 +720,9 @@ scap_t* scap_open_nodriver_int(char *error, int32_t *rc,
 	handle->m_proclist.m_proc_callback = proc_callback;
 	handle->m_proclist.m_proc_callback_context = proc_callback_context;
 	handle->m_proclist.m_proclist = NULL;
-=======
 	handle->m_debug_log_fn = debug_log_fn;
 	handle->m_proc_scan_timeout_ms = proc_scan_timeout_ms;
 	handle->m_proc_scan_log_interval_ms = proc_scan_log_interval_ms;
->>>>>>> 029f77627 (Enhancements to initial scan of /proc, for supportability)
 
 	//
 	// Extract machine information

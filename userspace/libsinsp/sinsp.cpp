@@ -529,7 +529,6 @@ void sinsp::open_live_common(uint32_t timeout_ms, scap_mode_t mode)
 	oargs.proc_callback = NULL;
 	oargs.proc_callback_context = NULL;
 	oargs.udig = m_udig;
-<<<<<<< HEAD
 	oargs.gvisor = m_gvisor;
 	if (m_gvisor)
 	{
@@ -539,11 +538,9 @@ void sinsp::open_live_common(uint32_t timeout_ms, scap_mode_t mode)
 		oargs.gvisor_root_path = NULL;
 		oargs.gvisor_config_path = NULL;
 	}
-=======
 	oargs.debug_log_fn = &sinsp_scap_debug_log_fn;
 	oargs.proc_scan_timeout_ms = m_proc_scan_timeout_ms;
 	oargs.proc_scan_log_interval_ms = m_proc_scan_log_interval_ms;
->>>>>>> 029f77627 (Enhancements to initial scan of /proc, for supportability)
 
 	fill_syscalls_of_interest(&oargs);
 

@@ -310,8 +310,6 @@ typedef struct {
 	UT_hash_handle hh; ///< makes this structure hashable
 } scap_mountinfo;
 
-<<<<<<< HEAD
-=======
 typedef void (*proc_entry_callback)(void* context,
 									scap_t* handle,
 									int64_t tid,
@@ -379,8 +377,6 @@ typedef struct scap_open_args
 	uint64_t proc_scan_log_interval_ms; // Interval for logging progress messages from /proc scan
 }scap_open_args;
 
-
->>>>>>> 029f77627 (Enhancements to initial scan of /proc, for supportability)
 //
 // The following stuff is byte aligned because we save it to disk.
 //

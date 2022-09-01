@@ -37,13 +37,10 @@ limitations under the License.
 #include "scap.h"
 #include "../../driver/ppm_ringbuffer.h"
 #include "scap-int.h"
-<<<<<<< HEAD
 #include "scap_engines.h"
 #include "engine/kmod/kmod.h"
-=======
 #include "clock_helpers.h"
 #include "debug_log_helpers.h"
->>>>>>> 029f77627 (Enhancements to initial scan of /proc, for supportability)
 
 #if defined(CYGWING_AGENT) || defined(_WIN32)
 #include <io.h>
