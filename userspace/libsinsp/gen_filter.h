@@ -73,26 +73,6 @@ enum evt_src
 	ESRC_MAX = 3,
 };
 
-
-class gen_event_filter_expression;
-
-class ruleset_visitor
-{
-public:
-	virtual ~ruleset_visitor() = default;
-
-	class rule_reader
-	{
-	public:
-		virtual std::string name() const = 0;
-		virtual std::vector<uint16_t> syscalls() const = 0;
-		virtual gen_event_filter_expression* condition() = 0;
-	};
-
-	virtual void on_ruleset(std::string name) = 0;
-	virtual void on_rule(rule_reader &) = 0;
-};
-
 class gen_event
 {
 public:
