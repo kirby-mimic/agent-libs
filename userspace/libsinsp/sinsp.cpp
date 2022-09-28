@@ -514,7 +514,14 @@ void sinsp::fill_tp_of_interest(scap_open_args *oargs, const std::unordered_set<
 			oargs->tp_of_interest.tp[i] = tp_of_interest.find(i) != tp_of_interest.end();
 		}
 	}
+<<<<<<< HEAD
 }
+=======
+	oargs.import_users = m_usergroup_manager.m_import_users;
+	// We need to subscribe to container manager notifiers beore
+	// scap starts scanning proc.
+	m_usergroup_manager.init();
+>>>>>>> a05a56de (chore(userspace/libsinsp): moved init call.)
 
 std::unordered_set<uint32_t> sinsp::get_all_tp()
 {
