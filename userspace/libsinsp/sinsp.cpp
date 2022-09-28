@@ -546,7 +546,11 @@ void sinsp::open_common(scap_open_args* oargs)
 		oargs->proc_callback = ::on_new_entry_from_proc;
 		oargs->proc_callback_context = this;
 	}
+<<<<<<< HEAD
 	oargs->import_users = m_usergroup_manager.m_import_users;
+=======
+	oargs.import_users = m_usergroup_manager.m_import_users;
+>>>>>>> 33d361b6 (update(userspace/libsinsp): fix typo.)
 	// We need to subscribe to container manager notifiers before
 	// scap starts scanning proc.
 	m_usergroup_manager.subscribe_container_mgr();
