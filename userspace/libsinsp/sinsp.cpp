@@ -548,7 +548,7 @@ void sinsp::open_live_common(uint32_t timeout_ms, scap_mode_t mode)
 		oargs.proc_callback_context = this;
 	}
 	oargs.import_users = m_usergroup_manager.m_import_users;
-	// We need to subscribe to container manager notifiers beore
+	// We need to subscribe to container manager notifiers before
 	// scap starts scanning proc.
 	m_usergroup_manager.init();
 
