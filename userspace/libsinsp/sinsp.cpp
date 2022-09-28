@@ -550,7 +550,7 @@ void sinsp::open_live_common(uint32_t timeout_ms, scap_mode_t mode)
 	oargs.import_users = m_usergroup_manager.m_import_users;
 	// We need to subscribe to container manager notifiers before
 	// scap starts scanning proc.
-	m_usergroup_manager.init();
+	m_usergroup_manager.subscribe_container_mgr();
 
 	add_suppressed_comms(oargs);
 
