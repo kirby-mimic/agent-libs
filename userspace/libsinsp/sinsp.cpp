@@ -550,6 +550,20 @@ void sinsp::open_common(scap_open_args* oargs)
 	// We need to subscribe to container manager notifiers before
 	// scap starts scanning proc.
 	m_usergroup_manager.subscribe_container_mgr();
+<<<<<<< HEAD
+=======
+
+	add_suppressed_comms(oargs);
+
+	if(m_bpf)
+	{
+		oargs.bpf_probe = m_bpf_probe.c_str();
+	}
+	else
+	{
+		oargs.bpf_probe = NULL;
+	}
+>>>>>>> bbfa0136 (chore(userspace/libsinsp): renamed user_group_manager::init to a more meaningful name.)
 
 	add_suppressed_comms(oargs);
 
