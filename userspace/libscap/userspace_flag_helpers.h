@@ -11,6 +11,8 @@
 #include <sys/resource.h>
 #include <sys/file.h>
 
+#include "compat/misc.h"
+
 #define ASSERT assert
 #define F_CANCELLK 1024 + 5
 
