@@ -13,6 +13,8 @@
 #include <sys/prctl.h>
 #include <sched.h>
 
+#include "compat/misc.h"
+
 #define ASSERT assert
 #ifndef F_CANCELLK
 #define F_CANCELLK (1024 + 5)
