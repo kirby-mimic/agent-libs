@@ -33,6 +33,7 @@ struct iovec {
 #include <functional>
 #include <memory>
 #include <set>
+#include "tsl/robin_map.h"
 #include "fdinfo.h"
 #include "internal_metrics.h"
 #include "sinsp_cpuarch.h"
@@ -548,7 +549,7 @@ public:
 	}
 
 protected:
-	std::unordered_map<int64_t, ptr_t> m_threads;
+	tsl::robin_map<int64_t, ptr_t> m_threads;
 };
 
 

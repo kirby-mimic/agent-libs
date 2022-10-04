@@ -1602,7 +1602,7 @@ void sinsp_parser::parse_clone_exit(sinsp_evt *evt)
 		//
 		for(auto fdit = tinfo->m_fdtable.m_table.begin(); fdit != tinfo->m_fdtable.m_table.end(); ++fdit)
 		{
-			fdit->second.set_is_cloned();
+			fdit.value().set_is_cloned();
 		}
 
 		//

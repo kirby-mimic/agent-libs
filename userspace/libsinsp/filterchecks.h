@@ -16,7 +16,7 @@ limitations under the License.
 */
 
 #pragma once
-#include <unordered_set>
+#include "tsl/robin_set.h"
 #include <json/json.h>
 #include "filter_value.h"
 #include "prefix_search.h"
@@ -202,7 +202,7 @@ protected:
 	inline uint8_t* filter_value_p(uint16_t i = 0) { return &m_val_storages[i][0]; }
 	inline vector<uint8_t>* filter_value(uint16_t i = 0) { return &m_val_storages[i]; }
 
-	unordered_set<filter_value_t,
+	tsl::robin_set<filter_value_t,
 		g_hash_membuf,
 		g_equal_to_membuf> m_val_storages_members;
 

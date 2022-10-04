@@ -703,7 +703,7 @@ int lua_cbacks::get_machine_info(lua_State *ls)
 
 int lua_cbacks::get_thread_table_int(lua_State *ls, bool include_fds, bool barebone)
 {
-	unordered_map<int64_t, sinsp_fdinfo_t>::iterator fdit;
+	tsl::robin_map<int64_t, sinsp_fdinfo_t>::iterator fdit;
 	uint32_t j;
 	sinsp_filter_compiler* compiler = NULL;
 	sinsp_filter* filter = NULL;
@@ -778,7 +778,7 @@ int lua_cbacks::get_thread_table_int(lua_State *ls, bool include_fds, bool bareb
 			for(fdit = fdtable->m_table.begin(); fdit != fdtable->m_table.end(); ++fdit)
 			{
 				tevt.m_tinfo = &tinfo;
-				tevt.m_fdinfo = &(fdit->second);
+				tevt.m_fdinfo = &(fdit.value());
 				tscapevt.tid = tinfo.m_tid;
 				int64_t tlefd = tevt.m_tinfo->m_lastevent_fd;
 				tevt.m_tinfo->m_lastevent_fd = fdit->first;
@@ -902,7 +902,7 @@ int lua_cbacks::get_thread_table_int(lua_State *ls, bool include_fds, bool bareb
 			for(fdit = fdtable->m_table.begin(); fdit != fdtable->m_table.end(); ++fdit)
 			{
 				tevt.m_tinfo = &tinfo;
-				tevt.m_fdinfo = &(fdit->second);
+				tevt.m_fdinfo = &(fdit.value());
 				tscapevt.tid = tinfo.m_tid;
 				int64_t tlefd = tevt.m_tinfo->m_lastevent_fd;
 				tevt.m_tinfo->m_lastevent_fd = fdit->first;
@@ -921,14 +921,14 @@ int lua_cbacks::get_thread_table_int(lua_State *ls, bool include_fds, bool bareb
 				if(!barebone)
 				{
 					lua_pushliteral(ls, "name");
-					lua_pushstring(ls, fdit->second.tostring_clean().c_str());
+					lua_pushstring(ls, fdit.value().tostring_clean().c_str());
 					lua_settable(ls, -3);
 					lua_pushliteral(ls, "type");
-					lua_pushstring(ls, fdit->second.get_typestring());
+					lua_pushstring(ls, fdit.value().get_typestring());
 					lua_settable(ls, -3);
 				}
 
-				scap_fd_type evt_type = fdit->second.m_type;
+				scap_fd_type evt_type = fdit.value().m_type;
 				if(evt_type == SCAP_FD_IPV4_SOCK || evt_type == SCAP_FD_IPV4_SERVSOCK ||
 				   evt_type == SCAP_FD_IPV6_SOCK || evt_type == SCAP_FD_IPV6_SERVSOCK)
 				{
@@ -943,38 +943,38 @@ int lua_cbacks::get_thread_table_int(lua_State *ls, bool include_fds, bool bareb
 					{
 						include_client = true;
 						af = AF_INET;
-						cip = (uint8_t*)&(fdit->second.m_sockinfo.m_ipv4info.m_fields.m_sip);
-						sip = (uint8_t*)&(fdit->second.m_sockinfo.m_ipv4info.m_fields.m_dip);
-						cport = fdit->second.m_sockinfo.m_ipv4info.m_fields.m_sport;
-						sport = fdit->second.m_sockinfo.m_ipv4info.m_fields.m_dport;
-						is_server = fdit->second.is_role_server();
+						cip = (uint8_t*)&(fdit.value().m_sockinfo.m_ipv4info.m_fields.m_sip);
+						sip = (uint8_t*)&(fdit.value().m_sockinfo.m_ipv4info.m_fields.m_dip);
+						cport = fdit.value().m_sockinfo.m_ipv4info.m_fields.m_sport;
+						sport = fdit.value().m_sockinfo.m_ipv4info.m_fields.m_dport;
+						is_server = fdit.value().is_role_server();
 					}
 					else if (evt_type == SCAP_FD_IPV4_SERVSOCK)
 					{
 						include_client = false;
 						af = AF_INET;
 						cip = NULL;
-						sip = (uint8_t*)&(fdit->second.m_sockinfo.m_ipv4serverinfo.m_ip);
-						sport = fdit->second.m_sockinfo.m_ipv4serverinfo.m_port;
+						sip = (uint8_t*)&(fdit.value().m_sockinfo.m_ipv4serverinfo.m_ip);
+						sport = fdit.value().m_sockinfo.m_ipv4serverinfo.m_port;
 						is_server = true;
 					}
 					else if (evt_type == SCAP_FD_IPV6_SOCK)
 					{
 						include_client = true;
 						af = AF_INET6;
-						cip = (uint8_t*)&(fdit->second.m_sockinfo.m_ipv6info.m_fields.m_sip);
-						sip = (uint8_t*)&(fdit->second.m_sockinfo.m_ipv6info.m_fields.m_dip);
-						cport = fdit->second.m_sockinfo.m_ipv6info.m_fields.m_sport;
-						sport = fdit->second.m_sockinfo.m_ipv6info.m_fields.m_dport;
-						is_server = fdit->second.is_role_server();
+						cip = (uint8_t*)&(fdit.value().m_sockinfo.m_ipv6info.m_fields.m_sip);
+						sip = (uint8_t*)&(fdit.value().m_sockinfo.m_ipv6info.m_fields.m_dip);
+						cport = fdit.value().m_sockinfo.m_ipv6info.m_fields.m_sport;
+						sport = fdit.value().m_sockinfo.m_ipv6info.m_fields.m_dport;
+						is_server = fdit.value().is_role_server();
 					}
 					else
 					{
 						include_client = false;
 						af = AF_INET6;
 						cip = NULL;
-						sip = (uint8_t*)&(fdit->second.m_sockinfo.m_ipv6serverinfo.m_ip);
-						sport = fdit->second.m_sockinfo.m_ipv6serverinfo.m_port;
+						sip = (uint8_t*)&(fdit.value().m_sockinfo.m_ipv6serverinfo.m_ip);
+						sport = fdit.value().m_sockinfo.m_ipv6serverinfo.m_port;
 						is_server = true;
 					}
 
@@ -1025,7 +1025,7 @@ int lua_cbacks::get_thread_table_int(lua_State *ls, bool include_fds, bool bareb
 
 					// l4proto
 					const char* l4ps;
-					scap_l4_proto l4p = fdit->second.get_l4proto();
+					scap_l4_proto l4p = fdit.value().get_l4proto();
 
 					switch(l4p)
 					{

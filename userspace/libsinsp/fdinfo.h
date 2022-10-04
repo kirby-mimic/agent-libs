@@ -16,6 +16,7 @@ limitations under the License.
 */
 
 #pragma once
+#include "tsl/robin_map.h"
 #include "sinsp_pd_callback_type.h"
 #include <unordered_map>
 #include <vector>
@@ -529,7 +530,7 @@ public:
 
 	inline sinsp_fdinfo_t* find(int64_t fd)
 	{
-		std::unordered_map<int64_t, sinsp_fdinfo_t>::iterator fdit;
+		tsl::robin_map<int64_t, sinsp_fdinfo_t>::iterator fdit;
 
 		//
 		// Try looking up in our simple cache
@@ -560,9 +561,9 @@ public:
 			m_inspector->m_stats.m_n_noncached_fd_lookups++;
 	#endif
 			m_last_accessed_fd = fd;
-			m_last_accessed_fdinfo = &(fdit->second);
-			lookup_device(&(fdit->second), fd);
-			return &(fdit->second);
+			m_last_accessed_fdinfo = &(fdit.value());
+			lookup_device(&(fdit.value()), fd);
+			return &(fdit.value());
 		}
 	}
 	
@@ -575,7 +576,7 @@ public:
 	void reset_cache();
 
 	sinsp* m_inspector;
-	std::unordered_map<int64_t, sinsp_fdinfo_t> m_table;
+	tsl::robin_map<int64_t, sinsp_fdinfo_t> m_table;
 
 	//
 	// Simple fd cache

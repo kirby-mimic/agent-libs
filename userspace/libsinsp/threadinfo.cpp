@@ -130,33 +130,33 @@ sinsp_threadinfo::~sinsp_threadinfo()
 
 void sinsp_threadinfo::fix_sockets_coming_from_proc()
 {
-	unordered_map<int64_t, sinsp_fdinfo_t>::iterator it;
+	tsl::robin_map<int64_t, sinsp_fdinfo_t>::iterator it;
 
 	for(it = m_fdtable.m_table.begin(); it != m_fdtable.m_table.end(); it++)
 	{
-		if(it->second.m_type == SCAP_FD_IPV4_SOCK)
+		if(it.value().m_type == SCAP_FD_IPV4_SOCK)
 		{
-			if(m_inspector->m_thread_manager->m_server_ports.find(it->second.m_sockinfo.m_ipv4info.m_fields.m_sport) !=
+			if(m_inspector->m_thread_manager->m_server_ports.find(it.value().m_sockinfo.m_ipv4info.m_fields.m_sport) !=
 				m_inspector->m_thread_manager->m_server_ports.end())
 			{
 				uint32_t tip;
 				uint16_t tport;
 
-				tip = it->second.m_sockinfo.m_ipv4info.m_fields.m_sip;
-				tport = it->second.m_sockinfo.m_ipv4info.m_fields.m_sport;
+				tip = it.value().m_sockinfo.m_ipv4info.m_fields.m_sip;
+				tport = it.value().m_sockinfo.m_ipv4info.m_fields.m_sport;
 
-				it->second.m_sockinfo.m_ipv4info.m_fields.m_sip = it->second.m_sockinfo.m_ipv4info.m_fields.m_dip;
-				it->second.m_sockinfo.m_ipv4info.m_fields.m_dip = tip;
-				it->second.m_sockinfo.m_ipv4info.m_fields.m_sport = it->second.m_sockinfo.m_ipv4info.m_fields.m_dport;
-				it->second.m_sockinfo.m_ipv4info.m_fields.m_dport = tport;
+				it.value().m_sockinfo.m_ipv4info.m_fields.m_sip = it.value().m_sockinfo.m_ipv4info.m_fields.m_dip;
+				it.value().m_sockinfo.m_ipv4info.m_fields.m_dip = tip;
+				it.value().m_sockinfo.m_ipv4info.m_fields.m_sport = it.value().m_sockinfo.m_ipv4info.m_fields.m_dport;
+				it.value().m_sockinfo.m_ipv4info.m_fields.m_dport = tport;
 
-				it->second.m_name = ipv4tuple_to_string(&it->second.m_sockinfo.m_ipv4info, m_inspector->m_hostname_and_port_resolution_enabled);
+				it.value().m_name = ipv4tuple_to_string(&it.value().m_sockinfo.m_ipv4info, m_inspector->m_hostname_and_port_resolution_enabled);
 
-				it->second.set_role_server();
+				it.value().set_role_server();
 			}
 			else
 			{
-				it->second.set_role_client();
+				it.value().set_role_client();
 			}
 		}
 	}
@@ -800,22 +800,22 @@ void sinsp_threadinfo::remove_fd(int64_t fd)
 
 bool sinsp_threadinfo::is_bound_to_port(uint16_t number)
 {
-	unordered_map<int64_t, sinsp_fdinfo_t>::iterator it;
+	tsl::robin_map<int64_t, sinsp_fdinfo_t>::iterator it;
 
 	sinsp_fdtable* fdt = get_fd_table();
 
 	for(it = fdt->m_table.begin(); it != fdt->m_table.end(); ++it)
 	{
-		if(it->second.m_type == SCAP_FD_IPV4_SOCK)
+		if(it.value().m_type == SCAP_FD_IPV4_SOCK)
 		{
-			if(it->second.m_sockinfo.m_ipv4info.m_fields.m_dport == number)
+			if(it.value().m_sockinfo.m_ipv4info.m_fields.m_dport == number)
 			{
 				return true;
 			}
 		}
-		else if(it->second.m_type == SCAP_FD_IPV4_SERVSOCK)
+		else if(it.value().m_type == SCAP_FD_IPV4_SERVSOCK)
 		{
-			if(it->second.m_sockinfo.m_ipv4serverinfo.m_port == number)
+			if(it.value().m_sockinfo.m_ipv4serverinfo.m_port == number)
 			{
 				return true;
 			}
@@ -827,16 +827,16 @@ bool sinsp_threadinfo::is_bound_to_port(uint16_t number)
 
 bool sinsp_threadinfo::uses_client_port(uint16_t number)
 {
-	unordered_map<int64_t, sinsp_fdinfo_t>::iterator it;
+	tsl::robin_map<int64_t, sinsp_fdinfo_t>::iterator it;
 
 	sinsp_fdtable* fdt = get_fd_table();
 
 	for(it = fdt->m_table.begin();
 		it != fdt->m_table.end(); ++it)
 	{
-		if(it->second.m_type == SCAP_FD_IPV4_SOCK)
+		if(it.value().m_type == SCAP_FD_IPV4_SOCK)
 		{
-			if(it->second.m_sockinfo.m_ipv4info.m_fields.m_sport == number)
+			if(it.value().m_sockinfo.m_ipv4info.m_fields.m_sport == number)
 			{
 				return true;
 			}
@@ -1458,8 +1458,8 @@ void sinsp_thread_manager::remove_thread(int64_t tid, bool force)
 		//
 		if((tinfo->m_pid == tinfo->m_tid) || tinfo->m_flags & PPM_CL_IS_MAIN_THREAD)
 		{
-			unordered_map<int64_t, sinsp_fdinfo_t>* fdtable = &(tinfo->get_fd_table()->m_table);
-			unordered_map<int64_t, sinsp_fdinfo_t>::iterator fdit;
+			tsl::robin_map<int64_t, sinsp_fdinfo_t>* fdtable = &(tinfo->get_fd_table()->m_table);
+			tsl::robin_map<int64_t, sinsp_fdinfo_t>::iterator fdit;
 
 			erase_fd_params eparams;
 			eparams.m_remove_from_table = false;
@@ -1475,7 +1475,7 @@ void sinsp_thread_manager::remove_thread(int64_t tid, bool force)
 				// here it means we have a problem.
 				//
 				ASSERT(eparams.m_fd != CANCELED_FD_NUMBER);
-				eparams.m_fdinfo = &(fdit->second);
+				eparams.m_fdinfo = &(fdit.value());
 
 				m_inspector->m_parser->erase_fd(&eparams);
 			}
@@ -1697,7 +1697,7 @@ void sinsp_thread_manager::dump_threads_to_file(scap_dumper_t* dumper)
 			//
 			// Add the FDs
 			//
-			unordered_map<int64_t, sinsp_fdinfo_t>& fdtable = tinfo.get_fd_table()->m_table;
+			tsl::robin_map<int64_t, sinsp_fdinfo_t>& fdtable = tinfo.get_fd_table()->m_table;
 			for(auto it = fdtable.begin(); it != fdtable.end(); ++it)
 			{
 				//
@@ -1714,7 +1714,7 @@ void sinsp_thread_manager::dump_threads_to_file(scap_dumper_t* dumper)
 				// Populate the fd info
 				//
 				scfdinfo->fd = it->first;
-				tinfo.fd_to_scap(scfdinfo, &it->second);
+				tinfo.fd_to_scap(scfdinfo, &it.value());
 
 				//
 				// Add the new fd to the scap table.
