@@ -331,7 +331,7 @@ sinsp_fdinfo_t* sinsp_fdtable::add(int64_t fd, sinsp_fdinfo_t* fdinfo)
 #ifdef GATHER_INTERNAL_STATS
 			m_inspector->m_stats.m_n_added_fds++;
 #endif
-			pair<unordered_map<int64_t, sinsp_fdinfo_t>::iterator, bool> insert_res = m_table.emplace(fd, *fdinfo);
+			pair<emhash8::HashMap<int64_t, sinsp_fdinfo_t>::iterator, bool> insert_res = m_table.emplace(fd, *fdinfo);
 			return &(insert_res.first->second);
 		}
 		else
@@ -382,7 +382,7 @@ sinsp_fdinfo_t* sinsp_fdtable::add(int64_t fd, sinsp_fdinfo_t* fdinfo)
 
 void sinsp_fdtable::erase(int64_t fd)
 {
-	unordered_map<int64_t, sinsp_fdinfo_t>::iterator fdit = m_table.find(fd);
+	emhash8::HashMap<int64_t, sinsp_fdinfo_t>::iterator fdit = m_table.find(fd);
 
 	if(fd == m_last_accessed_fd)
 	{

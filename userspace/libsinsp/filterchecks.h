@@ -17,6 +17,7 @@ limitations under the License.
 
 #pragma once
 #include <unordered_set>
+#include <hash_set8.hpp>
 #include <json/json.h>
 #include "filter_value.h"
 #include "prefix_search.h"
@@ -186,7 +187,7 @@ protected:
 	// multiple values. By default, this returns NULL.
 	// Subclasses are meant to either override this, or the multi-valued extract method.
 	virtual uint8_t* extract(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings = true);
-	
+
 	bool flt_compare(cmpop op, ppm_param_type type, void* operand1, uint32_t op1_len = 0, uint32_t op2_len = 0);
 	bool flt_compare(cmpop op, ppm_param_type type, vector<extract_value_t>& values, uint32_t op2_len = 0);
 
@@ -202,7 +203,7 @@ protected:
 	inline uint8_t* filter_value_p(uint16_t i = 0) { return &m_val_storages[i][0]; }
 	inline vector<uint8_t>* filter_value(uint16_t i = 0) { return &m_val_storages[i]; }
 
-	unordered_set<filter_value_t,
+	emhash8::HashSet<filter_value_t,
 		g_hash_membuf,
 		g_equal_to_membuf> m_val_storages_members;
 

@@ -703,7 +703,7 @@ int lua_cbacks::get_machine_info(lua_State *ls)
 
 int lua_cbacks::get_thread_table_int(lua_State *ls, bool include_fds, bool barebone)
 {
-	unordered_map<int64_t, sinsp_fdinfo_t>::iterator fdit;
+	emhash8::HashMap<int64_t, sinsp_fdinfo_t>::iterator fdit;
 	uint32_t j;
 	sinsp_filter_compiler* compiler = NULL;
 	sinsp_filter* filter = NULL;
@@ -1100,7 +1100,7 @@ int lua_cbacks::get_thread_table_barebone_nofds(lua_State *ls)
 int lua_cbacks::get_container_table(lua_State *ls)
 {
 #ifndef _WIN32
-	unordered_map<int64_t, sinsp_fdinfo_t>::iterator fdit;
+	emhash8::HashMap<int64_t, sinsp_fdinfo_t>::iterator fdit;
 	uint32_t j;
 	sinsp_evt tevt;
 

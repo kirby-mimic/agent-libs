@@ -130,7 +130,7 @@ sinsp_threadinfo::~sinsp_threadinfo()
 
 void sinsp_threadinfo::fix_sockets_coming_from_proc()
 {
-	unordered_map<int64_t, sinsp_fdinfo_t>::iterator it;
+	emhash8::HashMap<int64_t, sinsp_fdinfo_t>::iterator it;
 
 	for(it = m_fdtable.m_table.begin(); it != m_fdtable.m_table.end(); it++)
 	{
@@ -800,7 +800,7 @@ void sinsp_threadinfo::remove_fd(int64_t fd)
 
 bool sinsp_threadinfo::is_bound_to_port(uint16_t number)
 {
-	unordered_map<int64_t, sinsp_fdinfo_t>::iterator it;
+	emhash8::HashMap<int64_t, sinsp_fdinfo_t>::iterator it;
 
 	sinsp_fdtable* fdt = get_fd_table();
 
@@ -827,7 +827,7 @@ bool sinsp_threadinfo::is_bound_to_port(uint16_t number)
 
 bool sinsp_threadinfo::uses_client_port(uint16_t number)
 {
-	unordered_map<int64_t, sinsp_fdinfo_t>::iterator it;
+	emhash8::HashMap<int64_t, sinsp_fdinfo_t>::iterator it;
 
 	sinsp_fdtable* fdt = get_fd_table();
 
@@ -1458,8 +1458,8 @@ void sinsp_thread_manager::remove_thread(int64_t tid, bool force)
 		//
 		if((tinfo->m_pid == tinfo->m_tid) || tinfo->m_flags & PPM_CL_IS_MAIN_THREAD)
 		{
-			unordered_map<int64_t, sinsp_fdinfo_t>* fdtable = &(tinfo->get_fd_table()->m_table);
-			unordered_map<int64_t, sinsp_fdinfo_t>::iterator fdit;
+			emhash8::HashMap<int64_t, sinsp_fdinfo_t>* fdtable = &(tinfo->get_fd_table()->m_table);
+			emhash8::HashMap<int64_t, sinsp_fdinfo_t>::iterator fdit;
 
 			erase_fd_params eparams;
 			eparams.m_remove_from_table = false;
@@ -1697,7 +1697,7 @@ void sinsp_thread_manager::dump_threads_to_file(scap_dumper_t* dumper)
 			//
 			// Add the FDs
 			//
-			unordered_map<int64_t, sinsp_fdinfo_t>& fdtable = tinfo.get_fd_table()->m_table;
+			emhash8::HashMap<int64_t, sinsp_fdinfo_t>& fdtable = tinfo.get_fd_table()->m_table;
 			for(auto it = fdtable.begin(); it != fdtable.end(); ++it)
 			{
 				//

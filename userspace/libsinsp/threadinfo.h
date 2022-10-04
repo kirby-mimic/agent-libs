@@ -33,6 +33,8 @@ struct iovec {
 #include <functional>
 #include <memory>
 #include <set>
+#include "sinsp_pd_callback_type.h"
+#include <hash_table8.hpp>
 #include "fdinfo.h"
 #include "internal_metrics.h"
 #include "sinsp_cpuarch.h"
@@ -548,7 +550,7 @@ public:
 	}
 
 protected:
-	std::unordered_map<int64_t, ptr_t> m_threads;
+	emhash8::HashMap<int64_t, ptr_t> m_threads;
 };
 
 
