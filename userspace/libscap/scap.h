@@ -328,52 +328,6 @@ typedef struct {
 	UT_hash_handle hh; ///< makes this structure hashable
 } scap_mountinfo;
 
-<<<<<<< HEAD
-typedef void (*proc_entry_callback)(void* context,
-									scap_t* handle,
-									int64_t tid,
-									scap_threadinfo* tinfo,
-									scap_fdinfo* fdinfo);
-
-/*!
-  \brief Arguments for scap_open
-*/
-typedef enum {
-	/*!
-	 * Default value that mostly exists so that sinsp can have a valid value
-	 * before it is initialized.
-	 */
-	SCAP_MODE_NONE = 0,
-	/*!
-	 * Read system call data from a capture file.
-	 */
-	SCAP_MODE_CAPTURE,
-	/*!
-	 * Read system call data from the underlying operating system.
-	 */
-	SCAP_MODE_LIVE,
-	/*!
-	 * Do not read system call data. If next is called, a dummy event is
-	 * returned.
-	 */
-	SCAP_MODE_NODRIVER,
-	/*!
-	 * Do not read system call data. Events come from the configured input plugin.
-	 */
-	SCAP_MODE_PLUGIN,
-} scap_mode_t;
-
-/*!
-  \brief Argument for scap_open
-  Set any PPM_SC syscall idx to true to enable its tracing at driver level,
-  otherwise syscalls are not traced (so called "uninteresting syscalls").
-*/
-typedef struct {
-	bool ppm_sc[PPM_SC_MAX];
-} interesting_ppm_sc_set;
-
-=======
->>>>>>> 75270a5f (Additional build changes)
 //
 // The following stuff is byte aligned because we save it to disk.
 //
