@@ -2339,12 +2339,8 @@ void sinsp_parser::parse_execve_exit(sinsp_evt *evt)
 
 	if(etype == PPME_SYSCALL_EXECVE_19_X || etype == PPME_SYSCALL_EXECVEAT_X)
 	{
-<<<<<<< HEAD
-		if(etype == PPME_SYSCALL_EXECVE_19_X)
-=======
 		// Get capabilities
 		if(evt->get_num_params() > 22)
->>>>>>> 10b8690f (Add euid to execve/execveat exit events)
 		{
 			parinfo = evt->get_param(20);
 			ASSERT(parinfo->m_len == sizeof(uint64_t));
