@@ -113,29 +113,6 @@ scap_t* scap_open_live_int(char *error, int32_t *rc, scap_open_args* oargs)
 	char filename[SCAP_MAX_PATH_SIZE] = {0};
 	scap_t* handle = NULL;
 
-<<<<<<< HEAD
-=======
-	scap_open_args oargs = {0};
-	oargs.proc_callback = proc_callback;
-	oargs.proc_callback_context = proc_callback_context;
-	oargs.import_users = import_users;
-	oargs.bpf_probe = bpf_probe;
-	memcpy(&oargs.suppressed_comms, suppressed_comms, sizeof(*suppressed_comms));
-
-	if(!ppm_sc_of_interest)
-	{
-		/* Fallback: set all syscalls as interesting. */
-		for(int j = 0; j < PPM_SC_MAX; j++)
-		{
-			oargs.ppm_sc_of_interest.ppm_sc[j] = 1;
-		}
-	}
-	else
-	{
-		memcpy(&oargs.ppm_sc_of_interest, ppm_sc_of_interest, sizeof(*ppm_sc_of_interest));
-	}
-
->>>>>>> 6c94d5d2 (Add special case code to work around syscall default behavior)
 	//
 	// Allocate the handle
 	//
@@ -1038,7 +1015,6 @@ scap_t* scap_open(scap_open_args* oargs, char *error, int32_t *rc)
 	}
 	else if(strncmp(engine_name, UDIG_ENGINE, UDIG_ENGINE_LEN) == 0)
 	{
-<<<<<<< HEAD
 		return scap_open_udig_int(error, rc, oargs->proc_callback,
 								oargs->proc_callback_context,
 								oargs->import_users,
@@ -1046,18 +1022,6 @@ scap_t* scap_open(scap_open_args* oargs, char *error, int32_t *rc)
 								oargs->debug_log_fn,
 								oargs->proc_scan_timeout_ms,
 								oargs->proc_scan_interval_ms);
-=======
-		*rc = handle->m_vtable->init(handle, args);
-		if(*rc != SCAP_SUCCESS)
-		{
-			snprintf(error, SCAP_LASTERR_SIZE, "%s", handle->m_lasterr);
-			/* Since we use the custom mode `SCAP_MODE_MODERN_BPF` and not
-			 * `SCAP_MODE_LIVE`, the `scap_close()` is ok!
-			 */
-			scap_close(handle);
-			return NULL;
-		}
->>>>>>> 6c94d5d2 (Add special case code to work around syscall default behavior)
 	}
 	else if(strncmp(engine_name, GVISOR_ENGINE, GVISOR_ENGINE_LEN) == 0)
 	{
@@ -1073,7 +1037,6 @@ scap_t* scap_open(scap_open_args* oargs, char *error, int32_t *rc)
 	{
 		return scap_open_live_int(error, rc, oargs);
 	}
-<<<<<<< HEAD
 	else if(strncmp(engine_name, NODRIVER_ENGINE, NODRIVER_ENGINE_LEN) == 0)
 	{
 		return scap_open_nodriver_int(error, rc, oargs->proc_callback,
@@ -1086,71 +1049,6 @@ scap_t* scap_open(scap_open_args* oargs, char *error, int32_t *rc)
 	else if(strncmp(engine_name, SOURCE_PLUGIN_ENGINE, SOURCE_PLUGIN_ENGINE_LEN) == 0)
 	{
 		return scap_open_plugin_int(error, rc, oargs);
-=======
-	case SCAP_MODE_LIVE:
-#ifndef CYGWING_AGENT
-		if(args.udig)
-		{
-			return scap_open_udig_int(error, rc, args.proc_callback,
-						args.proc_callback_context,
-						args.import_users,
-						args.suppressed_comms,
-						args.debug_log_fn,
-						args.proc_scan_timeout_ms,
-						args.proc_scan_log_interval_ms);
-		}
-		else if (args.gvisor)
-		{
-			return scap_open_gvisor_int(error, rc, &args);
-		}
-		{
-			return scap_open_live_int(error, rc, args.proc_callback,
-						args.proc_callback_context,
-						args.import_users,
-						args.bpf_probe,
-						args.suppressed_comms,
-						&args.ppm_sc_of_interest,
-						args.debug_log_fn,
-						args.proc_scan_timeout_ms,
-						args.proc_scan_log_interval_ms);
-		}
-#else
-		snprintf(error,	SCAP_LASTERR_SIZE, "scap_open: live mode currently not supported on Windows.");
-		*rc = SCAP_NOT_SUPPORTED;
-		return NULL;
-#endif
-	case SCAP_MODE_NODRIVER:
-		return scap_open_nodriver_int(error, rc, args.proc_callback,
-					      args.proc_callback_context,
-					      args.import_users,
-					      args.debug_log_fn,
-					      args.proc_scan_timeout_ms,
-					      args.proc_scan_log_interval_ms);
-	case SCAP_MODE_PLUGIN:
-		handle = scap_open_plugin_int(error, rc, args.input_plugin, args.input_plugin_params);
-		if(handle && handle->m_vtable)
-		{
-			int32_t res = handle->m_vtable->init(handle, &args);
-			if(res != SCAP_SUCCESS)
-			{
-				strlcpy(error, handle->m_lasterr, SCAP_LASTERR_SIZE);
-				scap_close(handle);
-				handle = NULL;
-			}
-			*rc = res;
-			return handle;
-		}
-#ifdef HAS_ENGINE_MODERN_BPF
-	case SCAP_MODE_MODERN_BPF:
-	    /* Temp workaround until the v-table implementation
-		 * is completed.
-		 */
-		return scap_open_modern_bpf_int(error, rc, &args);
-#endif
-	case SCAP_MODE_NONE:
-		// error
-		break;
->>>>>>> 6c94d5d2 (Add special case code to work around syscall default behavior)
 	}
 
 	snprintf(error, SCAP_LASTERR_SIZE, "incorrect engine '%s'", engine_name);
