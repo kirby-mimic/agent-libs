@@ -31,7 +31,6 @@ limitations under the License.
 #include <grp.h>
 #endif
 
-<<<<<<< HEAD
 #if defined(HAVE_PWD_H) || defined(HAVE_GRP_H)
 std::string sinsp_usergroup_manager::s_host_root;
 #endif
@@ -55,27 +54,10 @@ struct passwd *__getpwuid(uint32_t uid)
 // https://man7.org/linux/man-pages/man3/fgetpwent.3.html
 #if defined _DEFAULT_SOURCE || defined _SVID_SOURCE
 	static std::string filename(sinsp_usergroup_manager::s_host_root + "/etc/passwd");
-=======
-namespace {
-
-struct passwd *__getpwuid(uid_t uid)
-{
-// See fgetpwent() feature test macros:
-// https://man7.org/linux/man-pages/man3/fgetpwent.3.html
-#if defined HAVE_PWD_H && (defined _DEFAULT_SOURCE || defined _SVID_SOURCE)
-	static std::string host_root(scap_get_host_root());
-	if (host_root.empty())
-	{
-		return getpwuid(uid);
-	}
-
-	static std::string filename(host_root + "/etc/passwd");
->>>>>>> 8753189c (new(userspace): consider scap host root for passwd and group lookup)
 
 	auto f = fopen(filename.c_str(), "r");
 	if(f)
 	{
-<<<<<<< HEAD
 		struct passwd *p = nullptr;
 		while((p = fgetpwent(f)))
 		{
@@ -110,38 +92,10 @@ struct group *__getgrgid(uint32_t gid)
 // See fgetgrent() feature test macros: https://man7.org/linux/man-pages/man3/fgetgrent.3.html
 #if defined _DEFAULT_SOURCE || defined _SVID_SOURCE
 	static std::string filename(sinsp_usergroup_manager::s_host_root + "/etc/group");
-=======
-		while(auto p = fgetpwent(f))
-		{
-			if(uid == p->pw_uid)
-			{
-				return p;
-			}
-		}
-		fclose(f);
-	}
-#endif
-
-	return NULL;
-}
-
-struct group *__getgrgid(gid_t gid)
-{
-// See fgetgrent() feature test macros: https://man7.org/linux/man-pages/man3/fgetgrent.3.html
-#if defined HAVE_GRP_H && (defined _DEFAULT_SOURCE || defined _SVID_SOURCE)
-	static std::string host_root(scap_get_host_root());
-	if (host_root.empty())
-	{
-		return getgrgid(gid);
-	}
-
-	static std::string filename(host_root + "/etc/group");
->>>>>>> 8753189c (new(userspace): consider scap host root for passwd and group lookup)
 
 	auto f = fopen(filename.c_str(), "r");
 	if(f)
 	{
-<<<<<<< HEAD
 		struct group *p = nullptr;
 		while((p = fgetgrent(f)))
 		{
@@ -153,26 +107,12 @@ struct group *__getgrgid(gid_t gid)
 
 		fclose(f);
 		return p;
-=======
-		while(auto p = fgetgrent(f))
-		{
-			if(gid == p->gr_gid)
-			{
-				return p;
-			}
-		}
-		fclose(f);
->>>>>>> 8753189c (new(userspace): consider scap host root for passwd and group lookup)
 	}
 #endif
 
 	return NULL;
 }
-<<<<<<< HEAD
 #endif
-=======
-
->>>>>>> 8753189c (new(userspace): consider scap host root for passwd and group lookup)
 }
 
 using namespace std;
