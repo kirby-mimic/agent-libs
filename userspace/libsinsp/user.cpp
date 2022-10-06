@@ -40,12 +40,7 @@ namespace {
 #ifdef HAVE_PWD_H
 struct passwd *__getpwuid(uint32_t uid)
 {
-<<<<<<< HEAD
 	if(sinsp_usergroup_manager::s_host_root.empty())
-=======
-	static std::string host_root(scap_get_host_root());
-	if(host_root.empty())
->>>>>>> 8b31408e ([Part 3] Consider scap host root for passwd and group lookup (#102))
 	{
 		// When we don't have any host root set,
 		// leverage NSS (see man nsswitch.conf)
@@ -58,11 +53,7 @@ struct passwd *__getpwuid(uint32_t uid)
 // See fgetpwent() feature test macros:
 // https://man7.org/linux/man-pages/man3/fgetpwent.3.html
 #if defined _DEFAULT_SOURCE || defined _SVID_SOURCE
-<<<<<<< HEAD
 	static std::string filename(sinsp_usergroup_manager::s_host_root + "/etc/passwd");
-=======
-	static std::string filename(host_root + "/etc/passwd");
->>>>>>> 8b31408e ([Part 3] Consider scap host root for passwd and group lookup (#102))
 
 	auto f = fopen(filename.c_str(), "r");
 	if(f)
@@ -88,12 +79,7 @@ struct passwd *__getpwuid(uint32_t uid)
 #ifdef HAVE_GRP_H
 struct group *__getgrgid(uint32_t gid)
 {
-<<<<<<< HEAD
 	if(sinsp_usergroup_manager::s_host_root.empty())
-=======
-	static std::string host_root(scap_get_host_root());
-	if(host_root.empty())
->>>>>>> 8b31408e ([Part 3] Consider scap host root for passwd and group lookup (#102))
 	{
 		// When we don't have any host root set,
 		// leverage NSS (see man nsswitch.conf)
@@ -105,11 +91,7 @@ struct group *__getgrgid(uint32_t gid)
 
 // See fgetgrent() feature test macros: https://man7.org/linux/man-pages/man3/fgetgrent.3.html
 #if defined _DEFAULT_SOURCE || defined _SVID_SOURCE
-<<<<<<< HEAD
 	static std::string filename(sinsp_usergroup_manager::s_host_root + "/etc/group");
-=======
-	static std::string filename(host_root + "/etc/group");
->>>>>>> 8b31408e ([Part 3] Consider scap host root for passwd and group lookup (#102))
 
 	auto f = fopen(filename.c_str(), "r");
 	if(f)
