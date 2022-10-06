@@ -498,13 +498,7 @@ void sinsp::fill_ppm_sc_of_interest(scap_open_args *oargs, const std::unordered_
 			oargs->ppm_sc_of_interest.ppm_sc[i] = ppm_sc_of_interest.find(i) != ppm_sc_of_interest.end();
 		}
 	}
-<<<<<<< HEAD
 }
-=======
-	oargs.debug_log_fn = &sinsp_scap_debug_log_fn;
-	oargs.proc_scan_timeout_ms = m_proc_scan_timeout_ms;
-	oargs.proc_scan_log_interval_ms = m_proc_scan_log_interval_ms;
->>>>>>> 85d2bc76 (Enhancements to initial scan of /proc, for supportability)
 
 void sinsp::fill_tp_of_interest(scap_open_args *oargs, const std::unordered_set<uint32_t> &tp_of_interest)
 {
@@ -645,20 +639,12 @@ void sinsp::open_savefile(const std::string& filename, int fd)
 		params.fname = NULL;
 		m_filesize = 0;
 	}
-<<<<<<< HEAD
 	else
 	{
 		if(filename.empty())
 		{
 			throw sinsp_exception("When you use the 'savefile' engine you need to provide a path to the file.");
 		}
-=======
-	oargs.import_users = m_usergroup_manager.m_import_users;
-	oargs.debug_log_fn = &sinsp_scap_debug_log_fn;
-	oargs.proc_scan_timeout_ms = m_proc_scan_timeout_ms;
-	oargs.proc_scan_log_interval_ms = m_proc_scan_log_interval_ms;
-	fill_syscalls_of_interest(&oargs);
->>>>>>> 85d2bc76 (Enhancements to initial scan of /proc, for supportability)
 
 		params.fname = filename.c_str();
 		params.fd = 0;
@@ -827,8 +813,6 @@ std::string sinsp::get_error_desc(const std::string& msg)
 	return errstr;
 }
 
-<<<<<<< HEAD
-=======
 void sinsp::open_int()
 {
 	char error[SCAP_LASTERR_SIZE] = {0};
@@ -857,6 +841,9 @@ void sinsp::open_int()
 	oargs.proc_callback_context = NULL;
 	oargs.import_users = m_usergroup_manager.m_import_users;
 	oargs.start_offset = 0;
+	oargs.debug_log_fn = &sinsp_scap_debug_log_fn;
+	oargs.proc_scan_timeout_ms = m_proc_scan_timeout_ms;
+	oargs.proc_scan_log_interval_ms = m_proc_scan_log_interval_ms;
 	fill_syscalls_of_interest(&oargs);
 
 	add_suppressed_comms(oargs);
@@ -916,7 +903,6 @@ void sinsp::fdopen(int fd)
 	open_int();
 }
 
->>>>>>> 85d2bc76 (Enhancements to initial scan of /proc, for supportability)
 void sinsp::close()
 {
 	if(m_h)
