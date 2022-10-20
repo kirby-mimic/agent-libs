@@ -141,10 +141,6 @@ void sinsp_usergroup_manager::subscribe_container_mgr()
 		m_inspector->m_container_manager.subscribe_on_remove_container([&](const sinsp_container_info &cinfo) -> void {
 			delete_container_users_groups(cinfo);
 		});
-
-		m_inspector->m_container_manager.subscribe_on_new_container([&](const sinsp_container_info&cinfo, sinsp_threadinfo *tinfo) -> void {
-		        load_from_container(cinfo.m_id, cinfo.m_overlayfs_root);
-	       });
 	}
 }
 
@@ -235,6 +231,37 @@ bool sinsp_usergroup_manager::clear_host_users_groups()
 	return res;
 }
 
+#ifdef HAVE_PWD_H
+scap_userinfo *sinsp_usergroup_manager::userinfo_map_insert(sinsp_usergroup_manager::userinfo_map &map, passwd *p)
+{
+	ASSERT(p);
+
+	auto &usr = map[p->pw_uid];
+
+	usr.uid = p->pw_uid;
+	usr.gid = p->pw_gid;
+	strlcpy(usr.name, p->pw_name, MAX_CREDENTIALS_STR_LEN);
+	strlcpy(usr.homedir, p->pw_dir, SCAP_MAX_PATH_SIZE);
+	strlcpy(usr.shell, p->pw_shell, SCAP_MAX_PATH_SIZE);
+
+	return &usr;
+}
+#endif
+
+#ifdef HAVE_GRP_H
+scap_groupinfo *sinsp_usergroup_manager::groupinfo_map_insert(sinsp_usergroup_manager::groupinfo_map &map, group *g)
+{
+	ASSERT(g);
+
+	auto &grp = map[g->gr_gid];
+
+	grp.gid = g->gr_gid;
+	strlcpy(grp.name, g->gr_name, MAX_CREDENTIALS_STR_LEN);
+
+	return &grp;
+}
+#endif
+
 scap_userinfo *sinsp_usergroup_manager::add_user(const string &container_id, uint32_t uid, uint32_t gid, const char *name, const char *home, const char *shell, bool notify)
 {
 	g_logger.format(sinsp_logger::SEV_DEBUG,
@@ -257,49 +284,64 @@ scap_userinfo *sinsp_usergroup_manager::add_user(const string &container_id, uin
 			p = __getpwuid(uid);
 			if (p)
 			{
-				name = p->pw_name;
-				home = p->pw_dir;
-				shell = p->pw_shell;
+				usr = userinfo_map_insert(m_userlist[container_id], p);
+
+				if (notify)
+				{
+					notify_user_changed(usr, container_id);
+				}
 			}
 		}
 #endif
-
-		if (name == NULL)
-		{
-			name = "<NA>";
-		}
-		if (home == NULL)
-		{
-			home = "<NA>";
-		}
-		if (shell == NULL)
-		{
-			shell = "<NA>";
-		}
-
-		auto &userlist = m_userlist[container_id];
-		userlist[uid].uid = uid;
-		userlist[uid].gid = gid;
-		strlcpy(userlist[uid].name, name, MAX_CREDENTIALS_STR_LEN);
-		strlcpy(userlist[uid].homedir, home, SCAP_MAX_PATH_SIZE);
-		strlcpy(userlist[uid].shell, shell, SCAP_MAX_PATH_SIZE);
-
-		if (notify)
-		{
-			notify_user_changed(&userlist[uid], container_id);
-		}
-
-		usr = &userlist[uid];
 	}
-	else  if (name != NULL)
+	else if (name != NULL)
 	{
 		// Update user if it was already there
 		strlcpy(usr->name, name, MAX_CREDENTIALS_STR_LEN);
 		strlcpy(usr->homedir, home, SCAP_MAX_PATH_SIZE);
 		strlcpy(usr->shell, shell, SCAP_MAX_PATH_SIZE);
-
 	}
 	return usr;
+}
+
+scap_userinfo *sinsp_usergroup_manager::add_container_user(const std::string &container_id, int64_t pid, uint32_t uid, bool notify)
+{
+	ASSERT(!container_id.empty());
+	if(container_id.empty())
+	{
+		return nullptr;
+	}
+
+	scap_userinfo *retval{nullptr};
+
+#if defined HAVE_PWD_H && defined HAVE_FGET__ENT
+	std::string proc_root_etc = s_host_root + "/proc/" + std::to_string(pid) + "/root/etc/";
+
+	auto passwd_in_container = proc_root_etc + "passwd";
+	auto pwd_file = fopen(passwd_in_container.c_str(), "r");
+	if(pwd_file)
+	{
+		auto &userlist = m_userlist[container_id];
+		while(auto p = fgetpwent(pwd_file))
+		{
+			// Here we cache all container users
+			auto *usr = userinfo_map_insert(userlist, p);
+
+			if(notify)
+			{
+				notify_user_changed(usr, container_id);
+			}
+
+			if(uid == p->pw_uid)
+			{
+				retval = usr;
+			}
+		}
+		fclose(pwd_file);
+	}
+#endif
+
+	return retval;
 }
 
 bool sinsp_usergroup_manager::rm_user(const string &container_id, uint32_t uid, bool notify)
@@ -335,40 +377,70 @@ scap_groupinfo *sinsp_usergroup_manager::add_group(const string &container_id, u
 	if (!gr)
 	{
 #ifdef HAVE_GRP_H
-		struct group *p = nullptr;
+		struct group *g = nullptr;
 		if (container_id.empty() && !name)
 		{
 			// On Host, try to load info from db
-			p = __getgrgid(gid);
-			if (p)
+			g = __getgrgid(gid);
+			if (g)
 			{
-				name = p->gr_name;
+				gr = groupinfo_map_insert(m_grouplist[container_id], g);
+
+				if (notify)
+				{
+					notify_group_changed(gr, container_id, true);
+				}
 			}
 		}
 #endif
-
-		if (name == NULL)
-		{
-			name = "<NA>";
-		}
-
-		auto &grplist = m_grouplist[container_id];
-		grplist[gid].gid = gid;
-		strlcpy(grplist[gid].name, name, MAX_CREDENTIALS_STR_LEN);
-
-		if (notify)
-		{
-			notify_group_changed(&grplist[gid], container_id, true);
-		}
-		gr = &grplist[gid];
 	}
-	else  if (name != NULL)
+	else if (name != NULL)
 	{
 		// Update group if it was already there
 		strlcpy(gr->name, name, MAX_CREDENTIALS_STR_LEN);
 
 	}
 	return gr;
+}
+
+scap_groupinfo *sinsp_usergroup_manager::add_container_group(const std::string &container_id, int64_t pid, uint32_t gid, bool notify)
+{
+	ASSERT(!container_id.empty());
+	if(container_id.empty())
+	{
+		return nullptr;
+	}
+
+	scap_groupinfo *retval{nullptr};
+
+#if defined HAVE_GRP_H && defined HAVE_FGET__ENT
+	std::string proc_root_etc = s_host_root + "/proc/" + std::to_string(pid) + "/root/etc/";
+
+	auto group_in_container = proc_root_etc + "group";
+	auto group_file = fopen(group_in_container.c_str(), "r");
+	if(group_file)
+	{
+		auto &grouplist = m_grouplist[container_id];
+		while(auto g = fgetgrent(group_file))
+		{
+			// Here we cache all container groups
+			auto *gr = groupinfo_map_insert(grouplist, g);
+
+			if(notify)
+			{
+				notify_group_changed(gr, container_id, true);
+			}
+
+			if(gid == g->gr_gid)
+			{
+				retval = gr;
+			}
+		}
+		fclose(group_file);
+	}
+#endif
+
+	return retval;
 }
 
 bool sinsp_usergroup_manager::rm_group(const string &container_id, uint32_t gid, bool notify)
@@ -617,45 +689,5 @@ void sinsp_usergroup_manager::notify_group_changed(const scap_groupinfo *group, 
 
 #ifndef _WIN32
 	m_inspector->m_pending_state_evts.push(cevt);
-#endif
-}
-
-void sinsp_usergroup_manager::load_from_container(const std::string &container_id, const std::string &overlayfs_root)
-{
-	if (!m_import_users)
-	{
-		return;
-	}
-
-	if (overlayfs_root.empty())
-	{
-		// Avoid loading from host
-		return;
-	}
-
-#if defined HAVE_PWD_H && defined HAVE_FGET__ENT
-	auto passwd_in_container = overlayfs_root + "/etc/passwd";
-	auto pwd_file = fopen(passwd_in_container.c_str(), "r");
-	if(pwd_file)
-	{
-		while(auto p = fgetpwent(pwd_file))
-		{
-			add_user(container_id, p->pw_uid, p->pw_gid, p->pw_name, p->pw_dir, p->pw_shell, true);
-		}
-		fclose(pwd_file);
-	}
-#endif
-
-#if defined HAVE_GRP_H && defined HAVE_FGET__ENT
-	auto group_in_container = overlayfs_root + "/etc/group";
-	auto grp_file = fopen(group_in_container.c_str(), "r");
-	if(grp_file)
-	{
-		while(auto g = fgetgrent(grp_file))
-		{
-			add_group(container_id, g->gr_gid, g->gr_name, true);
-		}
-		fclose(grp_file);
-	}
 #endif
 }

@@ -514,8 +514,15 @@ void sinsp_threadinfo::set_user(uint32_t uid)
 	scap_userinfo *user = m_inspector->m_usergroup_manager.get_user(m_container_id, uid);
 	if (!user)
 	{
-		// this can fail if import_user is disabled
-		user = m_inspector->m_usergroup_manager.add_user(m_container_id, uid, m_group.gid, NULL, NULL, NULL, m_inspector->is_live());
+		// these can fail if import_user is disabled
+		if(m_container_id.empty())
+		{
+			user = m_inspector->m_usergroup_manager.add_user(m_container_id, uid, m_group.gid, NULL, NULL, NULL, m_inspector->is_live());
+		}
+		else
+		{
+			user = m_inspector->m_usergroup_manager.add_container_user(m_container_id, m_pid, uid, m_inspector->is_live());
+		}
 	}
 
 	if (user)
@@ -537,8 +544,15 @@ void sinsp_threadinfo::set_group(uint32_t gid)
 	scap_groupinfo *group = m_inspector->m_usergroup_manager.get_group(m_container_id, gid);
 	if (!group)
 	{
-		// this can fail if import_user is disabled
-		group = m_inspector->m_usergroup_manager.add_group(m_container_id, gid, NULL, m_inspector->is_live());
+		// these can fail if import_user is disabled
+		if(m_container_id.empty())
+		{
+			group = m_inspector->m_usergroup_manager.add_group(m_container_id, gid, NULL, m_inspector->is_live());
+		}
+		else
+		{
+			group = m_inspector->m_usergroup_manager.add_container_group(m_container_id, m_pid, gid, m_inspector->is_live());
+		}
 	}
 
 	if (group)

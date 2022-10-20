@@ -25,6 +25,12 @@ limitations under the License.
 
 class sinsp;
 class sinsp_evt;
+#ifdef HAVE_PWD_H
+struct passwd;
+#endif
+#ifdef HAVE_GRP_H
+struct group;
+#endif
 
 /*
  * Basic idea:
@@ -116,10 +122,13 @@ public:
 
 	scap_userinfo *add_user(const std::string &container_id, uint32_t uid, uint32_t gid, const char *name, const char *home, const char *shell, bool notify = false);
 	scap_groupinfo *add_group(const std::string &container_id, uint32_t gid, const char *name, bool notify = false);
+
+	scap_userinfo *add_container_user(const std::string &container_id, int64_t pid, uint32_t uid, bool notify = false);
+	scap_groupinfo *add_container_group(const std::string &container_id, int64_t pid, uint32_t gid, bool notify = false);
+
 	bool rm_user(const std::string &container_id, uint32_t uid, bool notify = false);
 	bool rm_group(const std::string &container_id, uint32_t gid, bool notify = false);
 
-	void load_from_container(const std::string &container_id, const std::string &overlayfs_root);
 	bool clear_host_users_groups();
 
 	//
@@ -140,8 +149,18 @@ private:
 	void notify_user_changed(const scap_userinfo *user, const std::string &container_id, bool added = true);
 	void notify_group_changed(const scap_groupinfo *group, const std::string &container_id, bool added = true);
 
-	std::unordered_map<std::string, std::unordered_map<uint32_t, scap_userinfo>> m_userlist;
-	std::unordered_map<std::string, std::unordered_map<uint32_t, scap_groupinfo>> m_grouplist;
+	using userinfo_map = std::unordered_map<uint32_t, scap_userinfo>;
+	using groupinfo_map = std::unordered_map<uint32_t, scap_groupinfo>;
+
+#ifdef HAVE_PWD_H
+	scap_userinfo *userinfo_map_insert(userinfo_map &map, passwd *p);
+#endif
+#ifdef HAVE_GRP_H
+	scap_groupinfo *groupinfo_map_insert(groupinfo_map &map, group *g);
+#endif
+
+	std::unordered_map<std::string, userinfo_map> m_userlist;
+	std::unordered_map<std::string, groupinfo_map> m_grouplist;
 	uint64_t m_last_flush_time_ns;
 	sinsp *m_inspector;
 };
