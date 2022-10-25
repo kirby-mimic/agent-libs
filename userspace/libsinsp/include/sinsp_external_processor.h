@@ -17,8 +17,7 @@ enum event_return
 {
 	EVENT_RETURN_TIMEOUT,
 	EVENT_RETURN_EOF,
-	EVENT_RETURN_NONE,
-	EVENT_RETURN_FILTERED
+	EVENT_RETURN_NONE
 };
 
 class event_processor
