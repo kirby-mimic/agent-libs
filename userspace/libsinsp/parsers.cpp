@@ -2080,22 +2080,44 @@ void sinsp_parser::parse_execve_exit(sinsp_evt *evt)
 	case PPME_SYSCALL_EXECVE_18_X:
 	case PPME_SYSCALL_EXECVE_19_X:
 		// Get exepath
-		if (retrieve_enter_event(enter_evt, evt))
+
+		char buf[SCAP_MAX_PATH_SIZE];
+		char fullpath[SCAP_MAX_PATH_SIZE];
+		snprintf(buf,
+			 sizeof(buf),
+			 "%s/proc/%s/exe",
+			 scap_get_host_root(),
+			 std::to_string(evt->m_tinfo->m_pid).c_str());
+
+		int n = readlink(buf, fullpath, sizeof(fullpath));
+		if(n >= 0)
 		{
-			char fullpath[SCAP_MAX_PATH_SIZE];
-			parinfo = enter_evt->get_param(0);
-			if (strncmp(parinfo->m_val, "<NA>", 4) == 0)
+			if(n == sizeof(fullpath))
 			{
-				evt->m_tinfo->m_exepath = "<NA>";
+				n--;
 			}
-			else
+			fullpath[n] = '\0';
+		}
+		else //can't read from /proc, read from the event params
+		{
+			if(retrieve_enter_event(enter_evt, evt))
 			{
-				sinsp_utils::concatenate_paths(fullpath, SCAP_MAX_PATH_SIZE,
-											   evt->m_tinfo->m_cwd.c_str(), (uint32_t)evt->m_tinfo->m_cwd.size(),
-											   parinfo->m_val, (uint32_t)parinfo->m_len, m_inspector->m_is_windows);
-				evt->m_tinfo->m_exepath = fullpath;
+				parinfo = enter_evt->get_param(0);
+				if(strncmp(parinfo->m_val, "<NA>", 4) == 0)
+				{
+					evt->m_tinfo->m_exepath = "<NA>";
+				}
+				else
+				{
+					sinsp_utils::concatenate_paths(fullpath, SCAP_MAX_PATH_SIZE,
+								       evt->m_tinfo->m_cwd.c_str(), (uint32_t)evt->m_tinfo->m_cwd.size(),
+								       parinfo->m_val, (uint32_t)parinfo->m_len, m_inspector->m_is_windows);
+				}
 			}
 		}
+
+		evt->m_tinfo->m_exepath = fullpath;
+
 		break;
 	case PPME_SYSCALL_EXECVEAT_X:
 		// Get exepath
