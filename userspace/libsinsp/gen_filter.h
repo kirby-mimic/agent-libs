@@ -24,6 +24,8 @@ limitations under the License.
 #include <string>
 #include <vector>
 
+#include <hotpot.h>
+
 /*
  * Operators to compare events
  */
@@ -117,6 +119,10 @@ public:
 	virtual void add_filter_value(const char* str, uint32_t len, uint32_t i = 0 ) = 0;
 	virtual bool compare(gen_event *evt) = 0;
 	virtual bool extract(gen_event *evt, std::vector<extract_value_t>& values, bool sanitize_strings = true) = 0;
+
+	const std::string& hp_label();
+	HOTPOT_DECL_HAND_INLINE0(hp_timer, 1);
+	std::string m_hp_label;
 };
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -26,6 +26,8 @@ limitations under the License.
 #endif
 #include "sinsp.h"
 
+#include <hotpot.h>
+
 #include "gen_filter.h"
 
 class sinsp_filter_check_reference;
@@ -90,6 +92,7 @@ public:
 
 	virtual ~sinsp_filter_check()
 	{
+		HOTPOT_FINI_HAND_INLINE0(hp_timer);
 	}
 
 	//
@@ -181,6 +184,8 @@ public:
 	check_extraction_cache_entry* m_extraction_cache_entry = NULL;
 	std::vector<extract_value_t> m_extracted_values;
 	check_cache_metrics *m_cache_metrics = NULL;
+
+	void build_hp_label();
 
 protected:
 	// This is a single-value version of extract for subclasses non supporting extracting
