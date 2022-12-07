@@ -92,7 +92,6 @@ public:
 
 	virtual ~sinsp_filter_check()
 	{
-		HOTPOT_FINI_HAND_INLINE0(hp_timer);
 	}
 
 	//
