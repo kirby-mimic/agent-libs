@@ -190,9 +190,19 @@ bool gen_event_filter_expression::compare(gen_event *evt)
 
 const std::string& gen_event_filter_check::hp_label()
 {
+	if(m_hp_label.size() == 0)
+	{
+		build_hp_label();
+	}
 	return m_hp_label;
 }
 
+void gen_event_filter_check::build_hp_label()
+{
+	static uint32_t checkid = UINT32_MAX;
+	checkid--;
+	m_hp_label = std::to_string(checkid);
+}
 
 bool gen_event_filter_expression::extract(gen_event *evt, vector<extract_value_t>& values, bool sanitize_strings)
 {

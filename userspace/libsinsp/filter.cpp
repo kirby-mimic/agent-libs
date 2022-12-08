@@ -1168,13 +1168,12 @@ int32_t sinsp_filter_check::parse_field_name(const char* str, bool alloc_state, 
 		}
 	}
 
-	build_hp_label();
 	return max_fldlen;
 }
 
 void sinsp_filter_check::build_hp_label()
 {
-	static uint32_t checkid;
+	static uint32_t checkid = 0;
 	checkid++;
 	if(m_field)
 	{
@@ -1213,8 +1212,6 @@ void sinsp_filter_check::add_filter_value(const char* str, uint32_t len, uint32_
 	{
 		m_val_storages_paths.add_search_path(item);
 	}
-
-	build_hp_label();
 }
 
 size_t sinsp_filter_check::parse_filter_value(const char* str, uint32_t len, uint8_t *storage, uint32_t storage_len)

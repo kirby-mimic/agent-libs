@@ -121,6 +121,7 @@ public:
 	virtual bool extract(gen_event *evt, std::vector<extract_value_t>& values, bool sanitize_strings = true) = 0;
 
 	const std::string& hp_label();
+	virtual void build_hp_label();
 	HOTPOT_DECL_HAND_INLINE0(hp_timer, 1);
 	std::string m_hp_label;
 };
