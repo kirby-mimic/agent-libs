@@ -124,7 +124,9 @@ bool gen_event_filter_expression::compare(gen_event *evt)
 		chk = m_checks[j];
 		ASSERT(chk != NULL);
 
-		HOTPOT_PASS2HAND_INLINE0_NAME_RELAY(chk->hp_timer, "run_filters", "", 5000, chk->hp_label().c_str());
+		const std::string hp_label = chk->hp_label();
+		hotpot_hand_struct *ptr = chk->m_hp_fields[hp_label].get();
+		hotpot_pass2hand_name_xofy_relay(ptr, __FILE__, __LINE__, "run_filters", 0, 1, 5000, "", "", hp_label.c_str());
 		if(j == 0)
 		{
 			switch(chk->m_boolop)
@@ -188,20 +190,33 @@ bool gen_event_filter_expression::compare(gen_event *evt)
 	return res;
 }
 
+std::unordered_map<std::string, std::unique_ptr<hotpot_hand_struct>> gen_event_filter_check::m_hp_fields;
 const std::string& gen_event_filter_check::hp_label()
 {
 	if(m_hp_label.size() == 0)
 	{
 		build_hp_label();
 	}
+
+	auto it = m_hp_fields.find(m_hp_label);
+	if(it == m_hp_fields.end())
+	{
+		std::unique_ptr<hotpot_hand_struct> hand(new hotpot_hand_struct());
+		hotpot_init_hand(hand.get(), 1);
+
+		m_hp_fields[m_hp_label] = std::move(hand);
+	}
 	return m_hp_label;
 }
 
 void gen_event_filter_check::build_hp_label()
 {
-	static uint32_t checkid = UINT32_MAX;
-	checkid--;
-	m_hp_label = std::to_string(checkid);
+	m_hp_label = "gen_event_filter_check";
+}
+
+void gen_event_filter_expression::build_hp_label()
+{
+	m_hp_label = "gen_event_filter_expression";
 }
 
 bool gen_event_filter_expression::extract(gen_event *evt, vector<extract_value_t>& values, bool sanitize_strings)

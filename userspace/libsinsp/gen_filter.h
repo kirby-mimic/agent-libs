@@ -19,6 +19,7 @@ limitations under the License.
 
 #include <set>
 #include <list>
+#include <unordered_map>
 #include <map>
 #include <memory>
 #include <string>
@@ -124,6 +125,8 @@ public:
 	virtual void build_hp_label();
 	HOTPOT_DECL_HAND_INLINE0(hp_timer, 1);
 	std::string m_hp_label;
+
+	static std::unordered_map<std::string, std::unique_ptr<hotpot_hand_struct>> m_hp_fields;
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -165,6 +168,8 @@ public:
 	// expression is consistent. It returns -1 if the expression is not consistent.
 	//
 	int32_t get_expr_boolop();
+
+	virtual void build_hp_label();
 
 	gen_event_filter_expression* m_parent;
 	std::vector<gen_event_filter_check*> m_checks;

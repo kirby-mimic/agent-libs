@@ -1173,11 +1173,13 @@ int32_t sinsp_filter_check::parse_field_name(const char* str, bool alloc_state, 
 
 void sinsp_filter_check::build_hp_label()
 {
-	static uint32_t checkid = 0;
-	checkid++;
 	if(m_field)
 	{
-		m_hp_label = std::to_string(checkid) + m_field->m_name + std::to_string(m_cmpop) + std::to_string(m_val_storages.size());
+		m_hp_label = m_field->m_name + std::to_string(m_cmpop) + std::to_string(m_val_storages.size());
+	}
+	else
+	{
+		m_hp_label = "sinsp_filter_check no field?";
 	}
 }
 
