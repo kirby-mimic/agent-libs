@@ -314,9 +314,12 @@ bool cri::resolve(sinsp_threadinfo *tinfo, bool query_os_for_missing_info)
 
 		if(!m_async_source)
 		{
-			uint64_t max_wait_ms = 10000;
-			auto async_source = new cri_async_source(cache, m_cri.get(), max_wait_ms);
-			m_async_source = std::unique_ptr<cri_async_source>(async_source);
+			uint64_t max_wait_ms = 20000;
+			m_async_source = std::unique_ptr<cri_async_source>(cache, m_cri.get(), max_wait_ms);
+			g_logger.format(sinsp_logger::SEV_DEBUG,
+					"cri_async (%s): Created async source with max wait %lu",
+					container_id.c_str(),
+		            max_wait_ms);
 		}
 
 		cache->set_lookup_status(container_id, m_cri->get_cri_runtime_type(), sinsp_container_lookup::state::STARTED);
