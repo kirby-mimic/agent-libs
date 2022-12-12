@@ -137,7 +137,7 @@ bool gen_event_filter_expression::compare(gen_event *evt)
 			hotpot_hand_struct *ptr = chk->m_hp_fields[hp_label].get();
 			if(ptr->title[0] == 0)
 			{
-				snprintf(ptr->title, sizeof(ptr->title), "{run_filters::field::%s}", hp_label.c_str());
+				snprintf(ptr->title, sizeof(ptr->title), "{run_filters:field:%s}", hp_label.c_str());
 			}
 			hotpot_xxxx2hand(HOTPOT_OP_PUSH, ptr, __FILE__, __LINE__, 0, 1);
 		}
