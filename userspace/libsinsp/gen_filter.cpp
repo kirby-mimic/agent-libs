@@ -34,7 +34,7 @@ gen_event::~gen_event()
 
 gen_event_filter_check::gen_event_filter_check()
 {
-	HOTPOT_INIT_HAND_INLINE0(hp_timer, 1);
+	HOTPOT_INIT_HAND_INLINE0(hp_timer);
 }
 
 gen_event_filter_check::~gen_event_filter_check()
@@ -118,15 +118,30 @@ bool gen_event_filter_expression::compare(gen_event *evt)
 	gen_event_filter_check* chk = nullptr;
 	++m_hits;
 
+	bool should_push = true;
+
 	auto size = m_checks.size();
 	for(size_t j = 0; j < size; j++)
 	{
 		chk = m_checks[j];
 		ASSERT(chk != NULL);
 
-		const std::string hp_label = chk->hp_label();
-		hotpot_hand_struct *ptr = chk->m_hp_fields[hp_label].get();
-		hotpot_pass2hand_name_xofy_relay(ptr, __FILE__, __LINE__, "run_filters", 0, 1, 5000, "", "", hp_label.c_str());
+		const std::string& hp_label = chk->hp_label();
+		if(hp_label == "gc" || hp_label == "ge")
+		{
+			should_push = false;
+		}
+
+		if(should_push)
+		{
+			hotpot_hand_struct *ptr = chk->m_hp_fields[hp_label].get();
+			if(ptr->title[0] == 0)
+			{
+				snprintf(ptr->title, sizeof(ptr->title), "{run_filters::field::%s}", hp_label.c_str());
+			}
+			hotpot_xxxx2hand(HOTPOT_OP_PUSH, ptr, __FILE__, __LINE__, 0, 1);
+		}
+
 		if(j == 0)
 		{
 			switch(chk->m_boolop)
@@ -149,6 +164,10 @@ bool gen_event_filter_expression::compare(gen_event *evt)
 			case BO_OR:
 				if(res)
 				{
+					if(should_push)
+					{
+						HOTPOT__POP2HAND_INLINEZ();
+					}
 					goto done;
 				}
 				res = chk->compare(evt);
@@ -156,6 +175,10 @@ bool gen_event_filter_expression::compare(gen_event *evt)
 			case BO_AND:
 				if(!res)
 				{
+					if(should_push)
+					{
+						HOTPOT__POP2HAND_INLINEZ();
+					}
 					goto done;
 				}
 				res = chk->compare(evt);
@@ -163,6 +186,10 @@ bool gen_event_filter_expression::compare(gen_event *evt)
 			case BO_ORNOT:
 				if(res)
 				{
+					if(should_push)
+					{
+						HOTPOT__POP2HAND_INLINEZ();
+					}
 					goto done;
 				}
 				res = !chk->compare(evt);
@@ -170,6 +197,10 @@ bool gen_event_filter_expression::compare(gen_event *evt)
 			case BO_ANDNOT:
 				if(!res)
 				{
+					if(should_push)
+					{
+						HOTPOT__POP2HAND_INLINEZ();
+					}
 					goto done;
 				}
 				res = !chk->compare(evt);
@@ -179,6 +210,10 @@ bool gen_event_filter_expression::compare(gen_event *evt)
 				break;
 			}
 		}
+		if(should_push)
+		{
+			HOTPOT__POP2HAND_INLINEZ();
+		}
 	}
  done:
 	if (res)
@@ -186,7 +221,6 @@ bool gen_event_filter_expression::compare(gen_event *evt)
 		m_matched_true++;
 	}
 
-	HOTPOT_PASS2HAND_INLINE1_NAME_RELAY("run_filters", "", 6000, "filtercheck done");
 	return res;
 }
 
@@ -211,12 +245,12 @@ const std::string& gen_event_filter_check::hp_label()
 
 void gen_event_filter_check::build_hp_label()
 {
-	m_hp_label = "gen_event_filter_check";
+	m_hp_label = "gc";
 }
 
 void gen_event_filter_expression::build_hp_label()
 {
-	m_hp_label = "gen_event_filter_expression";
+	m_hp_label = "ge";
 }
 
 bool gen_event_filter_expression::extract(gen_event *evt, vector<extract_value_t>& values, bool sanitize_strings)

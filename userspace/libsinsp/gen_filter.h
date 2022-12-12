@@ -123,7 +123,7 @@ public:
 
 	const std::string& hp_label();
 	virtual void build_hp_label();
-	HOTPOT_DECL_HAND_INLINE0(hp_timer, 1);
+	HOTPOT_DECL_HAND_INLINE0(hp_timer);
 	std::string m_hp_label;
 
 	static std::unordered_map<std::string, std::unique_ptr<hotpot_hand_struct>> m_hp_fields;
