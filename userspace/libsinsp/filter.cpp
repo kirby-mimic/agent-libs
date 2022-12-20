@@ -1173,9 +1173,15 @@ int32_t sinsp_filter_check::parse_field_name(const char* str, bool alloc_state, 
 
 void sinsp_filter_check::build_hp_label()
 {
+	m_hp_label.clear();
+
 	if(m_field)
 	{
-		m_hp_label = m_field->m_name + std::to_string(m_cmpop) + std::to_string(m_val_storages.size());
+		if(!m_rule_owner.empty())
+		{
+			m_hp_label = "rule:" + m_rule_owner + ":";
+		}
+		m_hp_label += std::string("field-") + m_field->m_name + std::to_string(m_cmpop) + std::to_string(m_val_storages.size());
 	}
 	else
 	{
@@ -1525,6 +1531,8 @@ sinsp_filter::~sinsp_filter()
 ///////////////////////////////////////////////////////////////////////////////
 // sinsp_filter_compiler implementation
 ///////////////////////////////////////////////////////////////////////////////
+std::string sinsp_filter_compiler::s_no_owner;
+
 sinsp_filter_compiler::sinsp_filter_compiler(
 		sinsp* inspector,
 		const string& fltstr,
@@ -1560,8 +1568,10 @@ sinsp_filter_compiler::sinsp_filter_compiler(
 	m_ttable_only = ttable_only;
 }
 
-sinsp_filter* sinsp_filter_compiler::compile()
+sinsp_filter* sinsp_filter_compiler::compile(const std::string& rule_owner)
 {
+	m_rule_owner = rule_owner;
+
 	// parse filter string on-the-fly if not pre-parsed AST is provided
 	if (m_flt_ast == NULL)
 	{
@@ -1759,6 +1769,10 @@ gen_event_filter_check* sinsp_filter_compiler::create_filtercheck(string& field)
 	if(chk == NULL)
 	{
 		throw sinsp_exception("filter_check called with nonexistent field " + field);
+	}
+	if(!m_rule_owner.empty())
+	{
+		chk->set_rule_owner(m_rule_owner);
 	}
 	return chk;
 }

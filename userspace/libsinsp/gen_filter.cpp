@@ -137,7 +137,7 @@ bool gen_event_filter_expression::compare(gen_event *evt)
 			hotpot_hand_struct *ptr = chk->m_hp_fields[hp_label].get();
 			if(ptr->title[0] == 0)
 			{
-				snprintf(ptr->title, sizeof(ptr->title), "{run_filters:field:%s}", hp_label.c_str());
+				snprintf(ptr->title, sizeof(ptr->title), "{security_mgr:policies:rules_group:falco_rules:optimizer:%s}", hp_label.c_str());
 			}
 			hotpot_xxxx2hand(HOTPOT_OP_PUSH, ptr, __FILE__, __LINE__, 0, 1);
 		}
@@ -245,12 +245,31 @@ const std::string& gen_event_filter_check::hp_label()
 
 void gen_event_filter_check::build_hp_label()
 {
-	m_hp_label = "gc";
+	m_hp_label.clear();
+
+	if(!m_rule_owner.empty())
+	{
+		m_hp_label = "rule:" + m_rule_owner + ":";
+	}
+
+	m_hp_label + "gc";
 }
 
 void gen_event_filter_expression::build_hp_label()
 {
+	m_hp_label.clear();
+
+	if(!m_rule_owner.empty())
+	{
+		m_hp_label = "rule:" + m_rule_owner + ":";
+	}
+
 	m_hp_label = "ge";
+}
+
+void gen_event_filter_check::set_rule_owner(const std::string& rule_owner)
+{
+	m_rule_owner = rule_owner;
 }
 
 bool gen_event_filter_expression::extract(gen_event *evt, vector<extract_value_t>& values, bool sanitize_strings)
@@ -311,6 +330,8 @@ void gen_event_filter::push_expression(boolop op)
 	newexpr->m_boolop = op;
 	newexpr->m_parent = m_curexpr;
 
+	newexpr->set_rule_owner(m_rule_owner);
+
 	add_check((gen_event_filter_check*)newexpr);
 	m_curexpr = newexpr;
 }
@@ -335,6 +356,12 @@ bool gen_event_filter::run(gen_event *evt)
 void gen_event_filter::add_check(gen_event_filter_check* chk)
 {
 	m_curexpr->add_check((gen_event_filter_check *) chk);
+}
+
+void gen_event_filter::set_rule_owner(const std::string& rule_owner)
+{
+	m_rule_owner = rule_owner;
+	m_filter->set_rule_owner(m_rule_owner);
 }
 
 bool gen_event_filter_factory::filter_field_info::is_skippable()

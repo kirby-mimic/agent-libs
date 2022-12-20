@@ -184,7 +184,7 @@ public:
 	std::vector<extract_value_t> m_extracted_values;
 	check_cache_metrics *m_cache_metrics = NULL;
 
-	void build_hp_label();
+	void build_hp_label() override;
 
 protected:
 	// This is a single-value version of extract for subclasses non supporting extracting
