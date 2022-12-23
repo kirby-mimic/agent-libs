@@ -1808,6 +1808,9 @@ bool sinsp_filter_check_fd::extract_fd(sinsp_evt *evt)
 
 bool sinsp_filter_check_fd::compare(sinsp_evt *evt)
 {
+	libhotpot::hand& hand = get_hand();
+	libhotpot::scope scp(hand);
+
 	//
 	// Some fields are filter only and therefore get a special treatment
 	//
@@ -2949,6 +2952,9 @@ bool sinsp_filter_check_thread::compare_full_aname(sinsp_evt *evt)
 
 bool sinsp_filter_check_thread::compare(sinsp_evt *evt)
 {
+	libhotpot::hand& hand = get_hand();
+	libhotpot::scope scp(hand);
+
 	if(m_field_id == TYPE_APID)
 	{
 		if(m_argid == -1)
@@ -4834,6 +4840,9 @@ uint8_t* sinsp_filter_check_event::extract(sinsp_evt *evt, OUT uint32_t* len, bo
 
 bool sinsp_filter_check_event::compare(sinsp_evt *evt)
 {
+	libhotpot::hand& hand = get_hand();
+	libhotpot::scope scp(hand);
+
 	bool res;
 
 	m_is_compare = true;
@@ -6115,6 +6124,9 @@ inline bool sinsp_filter_check_evtin::compare_tracer(sinsp_evt *evt, sinsp_parti
 
 bool sinsp_filter_check_evtin::compare(sinsp_evt *evt)
 {
+	libhotpot::hand& hand = get_hand();
+	libhotpot::scope scp(hand);
+
 	bool res;
 
 	m_is_compare = true;

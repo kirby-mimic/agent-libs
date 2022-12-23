@@ -1173,19 +1173,13 @@ int32_t sinsp_filter_check::parse_field_name(const char* str, bool alloc_state, 
 
 void sinsp_filter_check::build_hp_label()
 {
-	m_hp_label.clear();
-
 	if(m_field)
 	{
-		if(!m_rule_owner.empty())
-		{
-			m_hp_label = "rule:" + m_rule_owner + ":";
-		}
-		m_hp_label += std::string("field-") + m_field->m_name + std::to_string(m_cmpop) + std::to_string(m_val_storages.size());
+		m_hp_label += std::string("{field-") + m_field->m_name + std::to_string(m_cmpop) + std::to_string(m_val_storages.size()) + "}";
 	}
 	else
 	{
-		m_hp_label = "sinsp_filter_check no field?";
+		m_hp_label = "{sinsp_filter_check no field}";
 	}
 }
 
@@ -1462,6 +1456,9 @@ bool sinsp_filter_check::extract_cached(sinsp_evt *evt, OUT vector<extract_value
 
 bool sinsp_filter_check::compare(gen_event *evt)
 {
+	libhotpot::hand& hand = get_hand();
+	libhotpot::scope scp(hand);
+
 	m_hits++;
 	if(m_cache_metrics != NULL)
 	{
@@ -1507,6 +1504,9 @@ bool sinsp_filter_check::compare(gen_event *evt)
 
 bool sinsp_filter_check::compare(sinsp_evt *evt)
 {
+	libhotpot::hand& hand = get_hand();
+	libhotpot::scope scp(hand);
+
 	m_extracted_values.clear();
 	if(!extract_cached(evt, m_extracted_values, false))
 	{

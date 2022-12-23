@@ -34,12 +34,10 @@ gen_event::~gen_event()
 
 gen_event_filter_check::gen_event_filter_check()
 {
-	HOTPOT_INIT_HAND_INLINE0(hp_timer);
 }
 
 gen_event_filter_check::~gen_event_filter_check()
 {
-	HOTPOT_FINI_HAND_INLINE0(hp_timer);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -113,34 +111,18 @@ std::string std::to_string(cmpop c)
 
 bool gen_event_filter_expression::compare(gen_event *evt)
 {
+	static libhotpot::hand hand("{ge}");
+	libhotpot::scope scp(hand);
 	bool res = true;
 
 	gen_event_filter_check* chk = nullptr;
 	++m_hits;
-
-	bool should_push = true;
 
 	auto size = m_checks.size();
 	for(size_t j = 0; j < size; j++)
 	{
 		chk = m_checks[j];
 		ASSERT(chk != NULL);
-
-		const std::string& hp_label = chk->hp_label();
-		if(hp_label == "gc" || hp_label == "ge")
-		{
-			should_push = false;
-		}
-
-		if(should_push)
-		{
-			hotpot_hand_struct *ptr = chk->m_hp_fields[hp_label].get();
-			if(ptr->title[0] == 0)
-			{
-				snprintf(ptr->title, sizeof(ptr->title), "{security_mgr:policies:rules_group:falco_rules:optimizer:%s}", hp_label.c_str());
-			}
-			hotpot_xxxx2hand(HOTPOT_OP_PUSH, ptr, __FILE__, __LINE__, 0, 1);
-		}
 
 		if(j == 0)
 		{
@@ -164,10 +146,6 @@ bool gen_event_filter_expression::compare(gen_event *evt)
 			case BO_OR:
 				if(res)
 				{
-					if(should_push)
-					{
-						HOTPOT__POP2HAND_INLINEZ();
-					}
 					goto done;
 				}
 				res = chk->compare(evt);
@@ -175,10 +153,6 @@ bool gen_event_filter_expression::compare(gen_event *evt)
 			case BO_AND:
 				if(!res)
 				{
-					if(should_push)
-					{
-						HOTPOT__POP2HAND_INLINEZ();
-					}
 					goto done;
 				}
 				res = chk->compare(evt);
@@ -186,10 +160,6 @@ bool gen_event_filter_expression::compare(gen_event *evt)
 			case BO_ORNOT:
 				if(res)
 				{
-					if(should_push)
-					{
-						HOTPOT__POP2HAND_INLINEZ();
-					}
 					goto done;
 				}
 				res = !chk->compare(evt);
@@ -197,10 +167,6 @@ bool gen_event_filter_expression::compare(gen_event *evt)
 			case BO_ANDNOT:
 				if(!res)
 				{
-					if(should_push)
-					{
-						HOTPOT__POP2HAND_INLINEZ();
-					}
 					goto done;
 				}
 				res = !chk->compare(evt);
@@ -209,10 +175,6 @@ bool gen_event_filter_expression::compare(gen_event *evt)
 				ASSERT(false);
 				break;
 			}
-		}
-		if(should_push)
-		{
-			HOTPOT__POP2HAND_INLINEZ();
 		}
 	}
  done:
@@ -224,7 +186,6 @@ bool gen_event_filter_expression::compare(gen_event *evt)
 	return res;
 }
 
-std::unordered_map<std::string, std::unique_ptr<hotpot_hand_struct>> gen_event_filter_check::m_hp_fields;
 const std::string& gen_event_filter_check::hp_label()
 {
 	if(m_hp_label.size() == 0)
@@ -232,39 +193,30 @@ const std::string& gen_event_filter_check::hp_label()
 		build_hp_label();
 	}
 
-	auto it = m_hp_fields.find(m_hp_label);
-	if(it == m_hp_fields.end())
-	{
-		std::unique_ptr<hotpot_hand_struct> hand(new hotpot_hand_struct());
-		hotpot_init_hand(hand.get(), 1);
-
-		m_hp_fields[m_hp_label] = std::move(hand);
-	}
 	return m_hp_label;
 }
 
 void gen_event_filter_check::build_hp_label()
 {
-	m_hp_label.clear();
-
-	if(!m_rule_owner.empty())
-	{
-		m_hp_label = "rule:" + m_rule_owner + ":";
-	}
-
-	m_hp_label + "gc";
+	m_hp_label = "{gc}";
 }
 
 void gen_event_filter_expression::build_hp_label()
 {
-	m_hp_label.clear();
+	m_hp_label = "{ge}";
+}
 
-	if(!m_rule_owner.empty())
+std::unordered_map<std::string, libhotpot::hand> gen_event_filter_check::s_hp_timers;
+
+libhotpot::hand& gen_event_filter_check::get_hand()
+{
+	auto it = s_hp_timers.find(hp_label());
+	if(it == s_hp_timers.end())
 	{
-		m_hp_label = "rule:" + m_rule_owner + ":";
+		it = s_hp_timers.emplace(hp_label(), hp_label()).first;
 	}
 
-	m_hp_label = "ge";
+	return it->second;
 }
 
 void gen_event_filter_check::set_rule_owner(const std::string& rule_owner)

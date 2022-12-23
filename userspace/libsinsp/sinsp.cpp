@@ -40,6 +40,9 @@ limitations under the License.
 #include "plugin_filtercheck.h"
 #include "strlcpy.h"
 
+#include <hotpot.h>
+#include <hotpot_helpers.h>
+
 #ifndef CYGWING_AGENT
 #ifndef MINIMAL_BUILD
 #include "k8s_api_handler.h"
@@ -1120,6 +1123,9 @@ void sinsp::get_procs_cpu_from_driver(uint64_t ts)
 
 int32_t sinsp::next(OUT sinsp_evt **puevt)
 {
+	static libhotpot::hand hand("{sinsp:next}");
+	libhotpot::scope scp(hand);
+
 	sinsp_evt* evt;
 	int32_t res;
 
@@ -1175,6 +1181,8 @@ int32_t sinsp::next(OUT sinsp_evt **puevt)
 		}
 		else 
 		{
+			static libhotpot::hand hand("{sinsp:scap_next}");
+			libhotpot::scope scp(hand);
 			// If no last event was saved, invoke
 			// the actual scap_next
 			res = scap_next(m_h, &(evt->m_pevt), &(evt->m_cpuid));
@@ -1396,6 +1404,8 @@ int32_t sinsp::next(OUT sinsp_evt **puevt)
 #ifdef SIMULATE_DROP_MODE
 	if(!sd || m_isdropping)
 	{
+		static libhotpot::hand hand("{sinsp:parser}");
+		libhotpot::scope scp(hand);
 		m_parser->process_event(evt);
 	}
 
@@ -1470,6 +1480,8 @@ int32_t sinsp::next(OUT sinsp_evt **puevt)
 	//
 	if (m_external_event_processor)
 	{
+		static libhotpot::hand hand("{sinsp:external_event_processor}");
+		libhotpot::scope scp(hand);
 		m_external_event_processor->process_event(evt, libsinsp::EVENT_RETURN_NONE);
 	}
 
