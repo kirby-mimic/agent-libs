@@ -111,7 +111,7 @@ std::string std::to_string(cmpop c)
 
 bool gen_event_filter_expression::compare(gen_event *evt)
 {
-	static libhotpot::hand hand("{ge}");
+	static libhotpot::hand hand("{expr}");
 	libhotpot::scope scp(hand);
 	bool res = true;
 
