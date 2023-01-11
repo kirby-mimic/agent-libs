@@ -111,15 +111,14 @@ std::string std::to_string(cmpop c)
 
 bool gen_event_filter_expression::compare(gen_event *evt)
 {
-	static libhotpot::hand hand("{expr}");
-	libhotpot::scope scp(hand);
+	HOTPOT_PUSH2HAND_INLINE1("{expr}"); HOTPOT_DEFER_POP();
+
+	uint32_t j;
+	uint32_t size = (uint32_t)m_checks.size();
 	bool res = true;
+	gen_event_filter_check* chk = NULL;
 
-	gen_event_filter_check* chk = nullptr;
-	++m_hits;
-
-	auto size = m_checks.size();
-	for(size_t j = 0; j < size; j++)
+	for(j = 0; j < size; j++)
 	{
 		chk = m_checks[j];
 		ASSERT(chk != NULL);
@@ -178,10 +177,6 @@ bool gen_event_filter_expression::compare(gen_event *evt)
 		}
 	}
  done:
-	if (res)
-	{
-		m_matched_true++;
-	}
 
 	return res;
 }
@@ -204,19 +199,6 @@ void gen_event_filter_check::build_hp_label()
 void gen_event_filter_expression::build_hp_label()
 {
 	m_hp_label = "{ge}";
-}
-
-std::unordered_map<std::string, libhotpot::hand> gen_event_filter_check::s_hp_timers;
-
-libhotpot::hand& gen_event_filter_check::get_hand()
-{
-	auto it = s_hp_timers.find(hp_label());
-	if(it == s_hp_timers.end())
-	{
-		it = s_hp_timers.emplace(hp_label(), hp_label()).first;
-	}
-
-	return it->second;
 }
 
 void gen_event_filter_check::set_rule_owner(const std::string& rule_owner)

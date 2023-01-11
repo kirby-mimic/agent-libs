@@ -26,7 +26,6 @@ limitations under the License.
 #include <vector>
 
 #include <hotpot.h>
-#include <hotpot_helpers.h>
 
 /*
  * Operators to compare events
@@ -126,9 +125,6 @@ public:
 	virtual void build_hp_label();
 	void set_rule_owner(const std::string& rule_owner);
 
-	libhotpot::hand& get_hand();
-
-	static std::unordered_map<std::string, libhotpot::hand> s_hp_timers;
 	std::string m_hp_label;
 	std::string m_rule_owner;
 };

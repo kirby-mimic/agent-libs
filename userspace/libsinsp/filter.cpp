@@ -1456,8 +1456,7 @@ bool sinsp_filter_check::extract_cached(sinsp_evt *evt, OUT vector<extract_value
 
 bool sinsp_filter_check::compare(gen_event *evt)
 {
-	libhotpot::hand& hand = get_hand();
-	libhotpot::scope scp(hand);
+	HOTPOT_PUSH2HAND_INLINE1("{sinsp_filter_check_gen}"); HOTPOT_DEFER_POP();
 
 	m_hits++;
 	if(m_cache_metrics != NULL)
@@ -1504,8 +1503,7 @@ bool sinsp_filter_check::compare(gen_event *evt)
 
 bool sinsp_filter_check::compare(sinsp_evt *evt)
 {
-	libhotpot::hand& hand = get_hand();
-	libhotpot::scope scp(hand);
+	HOTPOT_PUSH2HAND_INLINE1("{sinsp_filter_check_sinsp}"); HOTPOT_DEFER_POP();
 
 	m_extracted_values.clear();
 	if(!extract_cached(evt, m_extracted_values, false))
