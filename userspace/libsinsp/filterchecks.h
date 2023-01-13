@@ -115,6 +115,8 @@ public:
 	//
 	virtual int32_t parse_field_name(const char* str, bool alloc_state, bool needed_for_filtering);
 
+	std::string create_hp_label() override;
+
 	//
 	// If this check is used by a filter, extract the constant to compare it to
 	// Doesn't return the field length because the filtering engine can calculate it.
@@ -183,8 +185,6 @@ public:
 	check_extraction_cache_entry* m_extraction_cache_entry = NULL;
 	std::vector<extract_value_t> m_extracted_values;
 	check_cache_metrics *m_cache_metrics = NULL;
-
-	void build_hp_label() override;
 
 protected:
 	// This is a single-value version of extract for subclasses non supporting extracting

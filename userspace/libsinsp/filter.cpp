@@ -1171,16 +1171,20 @@ int32_t sinsp_filter_check::parse_field_name(const char* str, bool alloc_state, 
 	return max_fldlen;
 }
 
-void sinsp_filter_check::build_hp_label()
+std::string sinsp_filter_check::create_hp_label()
 {
+	std::string ret;
+
 	if(m_field)
 	{
-		m_hp_label += std::string("{field-") + m_field->m_name + std::to_string(m_cmpop) + std::to_string(m_val_storages.size()) + "}";
+		ret += std::string("{field-") + m_field->m_name + std::to_string(m_cmpop) + std::to_string(m_val_storages.size()) + "}";
 	}
 	else
 	{
-		m_hp_label = "{sinsp_filter_check no field}";
+		ret = "{sinsp_filter_check no field}";
 	}
+
+	return ret;
 }
 
 void sinsp_filter_check::add_filter_value(const char* str, uint32_t len, uint32_t i)
@@ -1503,7 +1507,7 @@ bool sinsp_filter_check::compare(gen_event *evt)
 
 bool sinsp_filter_check::compare(sinsp_evt *evt)
 {
-	HOTPOT_PUSH2HAND_INLINE1("{sinsp_filter_check_sinsp}"); HOTPOT_DEFER_POP();
+	HOTPOT_PUSH2HAND_INLINE0(hp_timer()->m_hp_timer, hp_label().c_str()); HOTPOT_DEFER_POP();
 
 	m_extracted_values.clear();
 	if(!extract_cached(evt, m_extracted_values, false))
@@ -1529,8 +1533,6 @@ sinsp_filter::~sinsp_filter()
 ///////////////////////////////////////////////////////////////////////////////
 // sinsp_filter_compiler implementation
 ///////////////////////////////////////////////////////////////////////////////
-std::string sinsp_filter_compiler::s_no_owner;
-
 sinsp_filter_compiler::sinsp_filter_compiler(
 		sinsp* inspector,
 		const string& fltstr,
@@ -1566,10 +1568,8 @@ sinsp_filter_compiler::sinsp_filter_compiler(
 	m_ttable_only = ttable_only;
 }
 
-sinsp_filter* sinsp_filter_compiler::compile(const std::string& rule_owner)
+sinsp_filter* sinsp_filter_compiler::compile()
 {
-	m_rule_owner = rule_owner;
-
 	// parse filter string on-the-fly if not pre-parsed AST is provided
 	if (m_flt_ast == NULL)
 	{
@@ -1720,6 +1720,8 @@ void sinsp_filter_compiler::visit(const libsinsp::filter::ast::binary_check_expr
 	{
 		add_filtercheck_value(check, i, m_field_values[i]);
 	}
+
+	check->create_hp_timer();
 }
 
 void sinsp_filter_compiler::visit(const libsinsp::filter::ast::value_expr* e)
@@ -1767,10 +1769,6 @@ gen_event_filter_check* sinsp_filter_compiler::create_filtercheck(string& field)
 	if(chk == NULL)
 	{
 		throw sinsp_exception("filter_check called with nonexistent field " + field);
-	}
-	if(!m_rule_owner.empty())
-	{
-		chk->set_rule_owner(m_rule_owner);
 	}
 	return chk;
 }

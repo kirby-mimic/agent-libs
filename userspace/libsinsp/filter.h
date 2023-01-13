@@ -103,13 +103,12 @@ public:
 		by it. The pointer is automatically deleted in case of exception.
 		\note Throws a sinsp_exception if the filter syntax is not valid
 	*/
-	sinsp_filter* compile(const std::string& rule_owner = s_no_owner);
+
+	sinsp_filter* compile();
 
 	const libsinsp::filter::ast::pos_info& get_pos() const { return m_pos; }
 
 private:
-
-	static std::string s_no_owner;
 	void visit(const libsinsp::filter::ast::and_expr*) override;
 	void visit(const libsinsp::filter::ast::or_expr*) override;
 	void visit(const libsinsp::filter::ast::not_expr*) override;
@@ -133,8 +132,6 @@ private:
 	std::unique_ptr<libsinsp::filter::ast::expr> m_internal_flt_ast;
 	const libsinsp::filter::ast::expr* m_flt_ast;
 	std::shared_ptr<gen_event_filter_factory> m_factory;
-
-	std::string m_rule_owner;
 
 	friend class sinsp_evt_formatter;
 };

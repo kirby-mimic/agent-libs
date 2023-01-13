@@ -25,7 +25,10 @@ limitations under the License.
 #include <string>
 #include <vector>
 
+#include "sinsp_public.h"
+
 #include <hotpot.h>
+#include <hotpot_helpers.h>
 
 /*
  * Operators to compare events
@@ -121,12 +124,31 @@ public:
 	virtual bool compare(gen_event *evt) = 0;
 	virtual bool extract(gen_event *evt, std::vector<extract_value_t>& values, bool sanitize_strings = true) = 0;
 
-	const std::string& hp_label();
-	virtual void build_hp_label();
-	void set_rule_owner(const std::string& rule_owner);
+	void create_hp_timer();
 
+protected:
+
+	virtual std::string create_hp_label();
+
+	inline const std::string& hp_label()
+	{
+		return m_hp_label;
+	}
+
+	inline libhotpot::hand *hp_timer()
+	{
+		// This should be set by create_hp_timer(), and
+		// create_hp_timer() should always be called from
+		// sinsp_filter_compiler.
+		ASSERT(m_hp_timer != NULL);
+
+		return m_hp_timer;
+	}
+
+private:
+	static std::unordered_map<std::string,libhotpot::hand> s_hp_timers;
+	libhotpot::hand *m_hp_timer;
 	std::string m_hp_label;
-	std::string m_rule_owner;
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -169,7 +191,7 @@ public:
 	//
 	int32_t get_expr_boolop();
 
-	virtual void build_hp_label();
+	std::string create_hp_label() override;
 
 	gen_event_filter_expression* m_parent;
 	std::vector<gen_event_filter_check*> m_checks;
@@ -196,9 +218,6 @@ public:
 	void add_check(gen_event_filter_check* chk);
 
 	gen_event_filter_expression* m_filter;
-
-	void set_rule_owner(const std::string& rule_owner);
-	std::string m_rule_owner;
 
 protected:
 	gen_event_filter_expression* m_curexpr;

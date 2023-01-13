@@ -1808,7 +1808,7 @@ bool sinsp_filter_check_fd::extract_fd(sinsp_evt *evt)
 
 bool sinsp_filter_check_fd::compare(sinsp_evt *evt)
 {
-	HOTPOT_PUSH2HAND_INLINE1("{sinsp_filter_check_fd}"); HOTPOT_DEFER_POP();
+	HOTPOT_PUSH2HAND_INLINE0(hp_timer()->m_hp_timer, hp_label().c_str()); HOTPOT_DEFER_POP();
 
 	//
 	// Some fields are filter only and therefore get a special treatment
@@ -2951,7 +2951,7 @@ bool sinsp_filter_check_thread::compare_full_aname(sinsp_evt *evt)
 
 bool sinsp_filter_check_thread::compare(sinsp_evt *evt)
 {
-	HOTPOT_PUSH2HAND_INLINE1("{sinsp_filter_check_thread}"); HOTPOT_DEFER_POP();
+	HOTPOT_PUSH2HAND_INLINE0(hp_timer()->m_hp_timer, hp_label().c_str()); HOTPOT_DEFER_POP();
 
 	if(m_field_id == TYPE_APID)
 	{
@@ -4838,7 +4838,7 @@ uint8_t* sinsp_filter_check_event::extract(sinsp_evt *evt, OUT uint32_t* len, bo
 
 bool sinsp_filter_check_event::compare(sinsp_evt *evt)
 {
-	HOTPOT_PUSH2HAND_INLINE1("{sinsp_filter_check_event}"); HOTPOT_DEFER_POP();
+	HOTPOT_PUSH2HAND_INLINE0(hp_timer()->m_hp_timer, hp_label().c_str()); HOTPOT_DEFER_POP();
 
 	bool res;
 
@@ -6121,7 +6121,7 @@ inline bool sinsp_filter_check_evtin::compare_tracer(sinsp_evt *evt, sinsp_parti
 
 bool sinsp_filter_check_evtin::compare(sinsp_evt *evt)
 {
-	HOTPOT_PUSH2HAND_INLINE1("{sinsp_filter_check_evtin}"); HOTPOT_DEFER_POP();
+	HOTPOT_PUSH2HAND_INLINE0(hp_timer()->m_hp_timer, hp_label().c_str()); HOTPOT_DEFER_POP();
 
 	bool res;
 

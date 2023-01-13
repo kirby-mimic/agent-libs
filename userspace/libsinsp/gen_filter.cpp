@@ -33,6 +33,7 @@ gen_event::~gen_event()
 }
 
 gen_event_filter_check::gen_event_filter_check()
+	: m_hp_timer(NULL)
 {
 }
 
@@ -181,29 +182,34 @@ bool gen_event_filter_expression::compare(gen_event *evt)
 	return res;
 }
 
-const std::string& gen_event_filter_check::hp_label()
+std::unordered_map<std::string,libhotpot::hand> gen_event_filter_check::s_hp_timers;
+
+void gen_event_filter_check::create_hp_timer()
 {
-	if(m_hp_label.size() == 0)
+	m_hp_label = create_hp_label();
+	auto it = s_hp_timers.find(m_hp_label);
+	if(it == s_hp_timers.end())
 	{
-		build_hp_label();
+		it = s_hp_timers.emplace(std::piecewise_construct,
+					 std::forward_as_tuple(m_hp_label),
+					 std::forward_as_tuple()).first;
 	}
 
-	return m_hp_label;
+	m_hp_timer = &(it->second);
 }
 
-void gen_event_filter_check::build_hp_label()
+std::string gen_event_filter_check::create_hp_label()
 {
-	m_hp_label = "{gc}";
+	std::string ret = "{gc}";
+
+	return ret;
 }
 
-void gen_event_filter_expression::build_hp_label()
+std::string gen_event_filter_expression::create_hp_label()
 {
-	m_hp_label = "{ge}";
-}
+	std::string ret = "{ge}";
 
-void gen_event_filter_check::set_rule_owner(const std::string& rule_owner)
-{
-	m_rule_owner = rule_owner;
+	return ret;
 }
 
 bool gen_event_filter_expression::extract(gen_event *evt, vector<extract_value_t>& values, bool sanitize_strings)
@@ -264,8 +270,6 @@ void gen_event_filter::push_expression(boolop op)
 	newexpr->m_boolop = op;
 	newexpr->m_parent = m_curexpr;
 
-	newexpr->set_rule_owner(m_rule_owner);
-
 	add_check((gen_event_filter_check*)newexpr);
 	m_curexpr = newexpr;
 }
@@ -290,12 +294,6 @@ bool gen_event_filter::run(gen_event *evt)
 void gen_event_filter::add_check(gen_event_filter_check* chk)
 {
 	m_curexpr->add_check((gen_event_filter_check *) chk);
-}
-
-void gen_event_filter::set_rule_owner(const std::string& rule_owner)
-{
-	m_rule_owner = rule_owner;
-	m_filter->set_rule_owner(m_rule_owner);
 }
 
 bool gen_event_filter_factory::filter_field_info::is_skippable()
