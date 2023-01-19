@@ -3679,6 +3679,26 @@ uint8_t* sinsp_filter_check_event::extract_error_count(sinsp_evt *evt, OUT uint3
 	return NULL;
 }
 
+static inline std::string get_io_subcategory(sinsp_evt::subcategory subcat)
+{
+	switch(subcat)
+	{
+	case sinsp_evt::SC_FILE:
+		return "file";
+	case sinsp_evt::SC_NET:
+		return "net";
+	case sinsp_evt::SC_IPC:
+		return "ipc";
+	case sinsp_evt::SC_NONE:
+	case sinsp_evt::SC_UNKNOWN:
+	case sinsp_evt::SC_OTHER:
+		return "other";
+	default:
+		ASSERT(false);
+		return "unknown";
+	}
+}
+
 uint8_t* sinsp_filter_check_event::extract(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
 {
 	*len = 0;
@@ -3991,32 +4011,14 @@ uint8_t* sinsp_filter_check_event::extract(sinsp_evt *evt, OUT uint32_t* len, bo
 			m_strstorage = "processing";
 			break;
 		case EC_IO_READ:
+			m_strstorage = get_io_subcategory(cat.m_subcategory) + "-read";
+			break;
 		case EC_IO_WRITE:
+			m_strstorage = get_io_subcategory(cat.m_subcategory) + "-write";
+			break;
 		case EC_IO_OTHER:
-		{
-			switch(cat.m_subcategory)
-			{
-			case sinsp_evt::SC_FILE:
-				m_strstorage = "file";
-				break;
-			case sinsp_evt::SC_NET:
-				m_strstorage = "net";
-				break;
-			case sinsp_evt::SC_IPC:
-				m_strstorage = "ipc";
-				break;
-			case sinsp_evt::SC_NONE:
-			case sinsp_evt::SC_UNKNOWN:
-			case sinsp_evt::SC_OTHER:
-				m_strstorage = "unknown";
-				break;
-			default:
-				ASSERT(false);
-				m_strstorage = "unknown";
-				break;
-			}
-		}
-		break;
+			m_strstorage = get_io_subcategory(cat.m_subcategory) + "-io";
+			break;
 		case EC_WAIT:
 			m_strstorage = "wait";
 			break;
