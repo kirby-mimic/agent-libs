@@ -38,7 +38,6 @@ using namespace std;
 // Functions used for dumping to stdout
 void plaintext_dump(sinsp_evt* ev);
 void formatted_dump(sinsp_evt* ev);
-void json_dump_init(sinsp& inspector);
 
 std::function<void(sinsp_evt*)> dump;
 static bool g_interrupted = false;
@@ -120,7 +119,7 @@ void parse_CLI_options(sinsp& inspector, int argc, char** argv)
 			filter_string = optarg;
 			break;
 		case 'j':
-			json_dump_init(inspector);
+			inspector.set_buffer_format(sinsp_evt::PF_JSON);
 			break;
 		case 'a':
 			g_all_threads = true;
@@ -388,11 +387,6 @@ void plaintext_dump(sinsp_evt* ev)
 	formatted_dump(ev);
 }
 
-void json_dump_init(sinsp& inspector)
-{
-	dump = formatted_dump;
-	inspector.set_buffer_format(sinsp_evt::PF_JSON);
-}
 
 void formatted_dump(sinsp_evt* ev)
 {
