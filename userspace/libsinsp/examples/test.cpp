@@ -22,6 +22,7 @@ limitations under the License.
 #include <csignal>
 #include <sinsp.h>
 #include <functional>
+#include <memory>
 #include "util.h"
 
 #ifndef WIN32
@@ -57,9 +58,9 @@ sinsp_evt* get_event(sinsp& inspector);
 #define PROCESS_DEFAULTS "*%evt.num %evt.time %evt.category %container.id %proc.ppid %proc.pid %evt.type %proc.exe %proc.cmdline %evt.args"
 
 // Formatters used with JSON output
-static sinsp_evt_formatter* default_formatter = nullptr;
-static sinsp_evt_formatter* process_formatter = nullptr;
-static sinsp_evt_formatter* net_formatter = nullptr;
+static std::unique_ptr<sinsp_evt_formatter> default_formatter = nullptr;
+static std::unique_ptr<sinsp_evt_formatter> process_formatter = nullptr;
+static std::unique_ptr<sinsp_evt_formatter> net_formatter = nullptr;
 
 static void sigint_handler(int signum)
 {
@@ -299,11 +300,6 @@ int main(int argc, char** argv)
 		dump(inspector);
 	}
 
-	// Cleanup JSON formatters
-	delete default_formatter;
-	delete process_formatter;
-	delete net_formatter;
-
 	return 0;
 }
 
@@ -414,9 +410,9 @@ void json_dump_init(sinsp& inspector)
 		dump = json_dump;
 		inspector.set_buffer_format(sinsp_evt::PF_JSON);
 		// Initialize JSON formatters
-		default_formatter = new sinsp_evt_formatter(&inspector, DEFAULT_OUTPUT_STR);
-		process_formatter = new sinsp_evt_formatter(&inspector, PROCESS_DEFAULTS);
-		net_formatter = new sinsp_evt_formatter(&inspector, PROCESS_DEFAULTS " %fd.name");
+		default_formatter.reset(new sinsp_evt_formatter(&inspector, DEFAULT_OUTPUT_STR));
+		process_formatter.reset(new sinsp_evt_formatter(&inspector, PROCESS_DEFAULTS));
+		net_formatter.reset(new sinsp_evt_formatter(&inspector, PROCESS_DEFAULTS " %fd.name"));
 		json_dump_init_success = true;
 	}
 }
@@ -425,9 +421,9 @@ void json_dump_reinit_evt_formatter(sinsp& inspector)
 {
 	if (!output_fields_json.empty() && json_dump_init_success)
 	{
-		default_formatter = new sinsp_evt_formatter(&inspector, output_fields_json);
-		process_formatter = new sinsp_evt_formatter(&inspector, output_fields_json);
-		net_formatter = new sinsp_evt_formatter(&inspector, output_fields_json);
+		default_formatter.reset(new sinsp_evt_formatter(&inspector, output_fields_json));
+		process_formatter.reset(new sinsp_evt_formatter(&inspector, output_fields_json));
+		net_formatter.reset(new sinsp_evt_formatter(&inspector, output_fields_json));
 	}
 }
 
