@@ -37,27 +37,27 @@ using namespace std;
 
 // Functions used for dumping to stdout
 void plaintext_dump(sinsp_evt* ev);
-void json_dump(sinsp_evt* ev);
+void formatted_dump(sinsp_evt* ev);
 void json_dump_init(sinsp& inspector);
-void json_dump_reinit_evt_formatter(sinsp& inspector);
 
 std::function<void(sinsp_evt*)> dump;
 static bool g_interrupted = false;
 static const uint8_t g_backoff_timeout_secs = 2;
 static bool g_all_threads = false;
-static bool json_dump_init_success = false;
 string engine_string = KMOD_ENGINE; /* Default for backward compatibility. */
 string filter_string = "";
 string file_path = "";
 string bpf_path = "";
-string output_fields_json = "";
 unsigned long buffer_bytes_dim = DEFAULT_DRIVER_BUFFER_BYTES_DIM;
 
 sinsp_evt* get_event(sinsp& inspector, std::function<void(const std::string&)> handle_error);
 
 #define PROCESS_DEFAULTS "*%evt.num %evt.time %evt.category %container.id %proc.ppid %proc.pid %evt.type %proc.exe %proc.cmdline %evt.args"
 
-// Formatters used with JSON output
+std::string default_output = DEFAULT_OUTPUT_STR;
+std::string process_output = PROCESS_DEFAULTS;
+std::string net_output = PROCESS_DEFAULTS " %fd.name";
+
 static std::unique_ptr<sinsp_evt_formatter> default_formatter = nullptr;
 static std::unique_ptr<sinsp_evt_formatter> process_formatter = nullptr;
 static std::unique_ptr<sinsp_evt_formatter> net_formatter = nullptr;
@@ -83,7 +83,7 @@ Options:
   -k, --kmod								 Kernel module
   -s <path>, --scap_file <path>   			 Scap file
   -d <dim>, --buffer_dim <dim>               Dimension in bytes that every per-CPU buffer will have.
-  -o <fields>, --output-fields-json <fields>    [JSON support only, can also use without -j] Output fields string (see <filter> for supported display fields) that overwrites JSON default output fields for all events. * at the beginning prints JSON keys with null values, else no null fields are printed.
+  -o <fields>, --output-fields <fields>      Output fields string (see <filter> for supported display fields) that overwrites default output fields for all events. * at the beginning prints JSON keys with null values, else no null fields are printed.
 )";
 	cout << usage << endl;
 }
@@ -102,7 +102,7 @@ void parse_CLI_options(sinsp& inspector, int argc, char** argv)
 		{"kmod", no_argument, 0, 'k'},
 		{"scap_file", required_argument, 0, 's'},
 		{"buffer_dim", required_argument, 0, 'd'},
-		{"output-fields-json", required_argument, 0, 'o'},
+		{"output-fields", required_argument, 0, 'o'},
 		{0, 0, 0, 0}};
 
 	int op;
@@ -143,9 +143,9 @@ void parse_CLI_options(sinsp& inspector, int argc, char** argv)
 			buffer_bytes_dim = strtoul(optarg, NULL, 10);
 			break;
 		case 'o':
-			output_fields_json = optarg;
-			json_dump_init(inspector);
-			json_dump_reinit_evt_formatter(inspector);
+			default_output = optarg;
+			process_output = optarg;
+			net_output = optarg;
 			break;
 		default:
 			break;
@@ -295,6 +295,10 @@ int main(int argc, char** argv)
 		}
 	}
 
+	default_formatter.reset(new sinsp_evt_formatter(&inspector, default_output));
+	process_formatter.reset(new sinsp_evt_formatter(&inspector, process_output));
+	net_formatter.reset(new sinsp_evt_formatter(&inspector, net_output));
+
 	while(!g_interrupted)
 	{
 		sinsp_evt* ev = get_event(inspector, [](const std::string& error_msg)
@@ -336,94 +340,61 @@ void plaintext_dump(sinsp_evt* ev)
 		string cmdline;
 		sinsp_threadinfo::populate_cmdline(cmdline, thread);
 
-		if(g_all_threads || thread->is_main_thread())
+		if(!g_all_threads && !thread->is_main_thread())
 		{
-			string date_time;
-			sinsp_utils::ts_to_iso_8601(ev->get_ts(), &date_time);
+			return;
+		}
 
-			bool is_host_proc = thread->m_container_id.empty();
-			cout << "[" << date_time << "]:["
-			     << (is_host_proc ? "HOST" : thread->m_container_id) << "]:";
+		bool is_host_proc = thread->m_container_id.empty();
+		cout << '[' << (is_host_proc ? "HOST" : thread->m_container_id) << "]:";
 
-			cout << "[CAT=";
+		cout << "[CAT=";
 
-			if(ev->get_category() == EC_PROCESS)
+		if(ev->get_category() == EC_PROCESS)
+		{
+			cout << "PROCESS]:";
+		}
+		else if(ev->get_category() == EC_NET)
+		{
+			cout << get_event_category_name(ev->get_category()) << ":";
+			sinsp_fdinfo_t* fd_info = ev->get_fd_info();
+
+			// event subcategory should contain SC_NET if ipv4/ipv6
+			if(nullptr != fd_info && (fd_info->get_l4proto() != SCAP_L4_UNKNOWN && fd_info->get_l4proto() != SCAP_L4_NA))
 			{
-				cout << "PROCESS]:";
+				cout << fd_info->tostring() << "]:";
 			}
-			else if(ev->get_category() == EC_NET)
-			{
-				cout << get_event_category_name(ev->get_category()) << "]:";
-				sinsp_fdinfo_t* fd_info = ev->get_fd_info();
+		}
+		else if(ev->get_category() == EC_IO_READ || ev->get_category() == EC_IO_WRITE)
+		{
+			cout << get_event_category_name(ev->get_category()) << ":";
 
-				// event subcategory should contain SC_NET if ipv4/ipv6
-				if(nullptr != fd_info && (fd_info->get_l4proto() != SCAP_L4_UNKNOWN && fd_info->get_l4proto() != SCAP_L4_NA))
-				{
-					cout << "[" << fd_info->tostring() << "]:";
-				}
-			}
-			else if(ev->get_category() == EC_IO_READ || ev->get_category() == EC_IO_WRITE)
+			sinsp_fdinfo_t* fd_info = ev->get_fd_info();
+			if(nullptr != fd_info && (fd_info->get_l4proto() != SCAP_L4_UNKNOWN && fd_info->get_l4proto() != SCAP_L4_NA))
 			{
-				cout << get_event_category_name(ev->get_category()) << "]:";
-
-				sinsp_fdinfo_t* fd_info = ev->get_fd_info();
-				if(nullptr != fd_info && (fd_info->get_l4proto() != SCAP_L4_UNKNOWN && fd_info->get_l4proto() != SCAP_L4_NA))
-				{
-					cout << "[" << fd_info->tostring() << "]:";
-				}
+				cout << fd_info->tostring() << "]:";
 			}
-			else
-			{
-				cout << get_event_category_name(ev->get_category()) << "]:";
-			}
-
-			sinsp_threadinfo* p_thr = thread->get_parent_thread();
-			int64_t parent_pid = -1;
-			if(nullptr != p_thr)
-			{
-				parent_pid = p_thr->m_pid;
-			}
-
-			cout << "[PPID=" << parent_pid << "]:"
-			     << "[PID=" << thread->m_pid << "]:"
-			     << "[TYPE=" << get_event_type_name(ev->get_type()) << "]:"
-			     << "[EXE=" << thread->get_exepath() << "]:"
-			     << "[CMD=" << cmdline << "]"
-			     << endl;
+		}
+		else
+		{
+			cout << get_event_category_name(ev->get_category()) << "]:";
 		}
 	}
 	else
 	{
-		cout << "[EVENT]:[" << get_event_category_name(ev->get_category()) << "]:"
-		     << ev->get_name() << endl;
+		cout << "[EVENT]:[" << get_event_category_name(ev->get_category()) << "]:";
 	}
+
+	formatted_dump(ev);
 }
 
 void json_dump_init(sinsp& inspector)
 {
-	if (!json_dump_init_success)
-	{
-		dump = json_dump;
-		inspector.set_buffer_format(sinsp_evt::PF_JSON);
-		// Initialize JSON formatters
-		default_formatter.reset(new sinsp_evt_formatter(&inspector, DEFAULT_OUTPUT_STR));
-		process_formatter.reset(new sinsp_evt_formatter(&inspector, PROCESS_DEFAULTS));
-		net_formatter.reset(new sinsp_evt_formatter(&inspector, PROCESS_DEFAULTS " %fd.name"));
-		json_dump_init_success = true;
-	}
+	dump = formatted_dump;
+	inspector.set_buffer_format(sinsp_evt::PF_JSON);
 }
 
-void json_dump_reinit_evt_formatter(sinsp& inspector)
-{
-	if (!output_fields_json.empty() && json_dump_init_success)
-	{
-		default_formatter.reset(new sinsp_evt_formatter(&inspector, output_fields_json));
-		process_formatter.reset(new sinsp_evt_formatter(&inspector, output_fields_json));
-		net_formatter.reset(new sinsp_evt_formatter(&inspector, output_fields_json));
-	}
-}
-
-void json_dump(sinsp_evt* ev)
+void formatted_dump(sinsp_evt* ev)
 {
 	std::string output;
 	sinsp_threadinfo* thread = ev->get_thread_info();
