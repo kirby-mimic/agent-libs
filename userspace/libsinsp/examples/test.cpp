@@ -78,10 +78,10 @@ Options:
   -f <filter>, --filter <filter>             Filter string for events (see https://falco.org/docs/rules/supported-fields/ for supported fields).
   -j, --json                                 Use JSON as the output format.
   -a, --all-threads                          Output information about all threads, not just the main one.
-  -b <path>, --bpf <path>               	 BPF probe.
-  -m, --modern_bpf               			 modern BPF probe.
-  -k, --kmod								 Kernel module
-  -s <path>, --scap_file <path>   			 Scap file
+  -b <path>, --bpf <path>                    BPF probe.
+  -m, --modern_bpf                           modern BPF probe.
+  -k, --kmod                                 Kernel module
+  -s <path>, --scap_file <path>              Scap file
   -d <dim>, --buffer_dim <dim>               Dimension in bytes that every per-CPU buffer will have.
   -o <fields>, --output-fields <fields>      Output fields string (see <filter> for supported display fields) that overwrites default output fields for all events. * at the beginning prints JSON keys with null values, else no null fields are printed.
 )";
