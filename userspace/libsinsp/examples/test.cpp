@@ -55,11 +55,9 @@ sinsp_evt* get_event(sinsp& inspector, std::function<void(const std::string&)> h
 
 std::string default_output = DEFAULT_OUTPUT_STR;
 std::string process_output = PROCESS_DEFAULTS;
-std::string net_output = PROCESS_DEFAULTS " %fd.name";
 
 static std::unique_ptr<sinsp_evt_formatter> default_formatter = nullptr;
 static std::unique_ptr<sinsp_evt_formatter> process_formatter = nullptr;
-static std::unique_ptr<sinsp_evt_formatter> net_formatter = nullptr;
 
 static void sigint_handler(int signum)
 {
@@ -144,7 +142,6 @@ void parse_CLI_options(sinsp& inspector, int argc, char** argv)
 		case 'o':
 			default_output = optarg;
 			process_output = optarg;
-			net_output = optarg;
 			break;
 		default:
 			break;
@@ -296,7 +293,6 @@ int main(int argc, char** argv)
 
 	default_formatter.reset(new sinsp_evt_formatter(&inspector, default_output));
 	process_formatter.reset(new sinsp_evt_formatter(&inspector, process_output));
-	net_formatter.reset(new sinsp_evt_formatter(&inspector, net_output));
 
 	while(!g_interrupted)
 	{
@@ -400,10 +396,6 @@ void formatted_dump(sinsp_evt* ev)
 			if(ev->get_category() == EC_PROCESS)
 			{
 				process_formatter->tostring(ev, output);
-			}
-			else if(ev->get_category() == EC_NET || ev->get_category() == EC_IO_READ || ev->get_category() == EC_IO_WRITE)
-			{
-				net_formatter->tostring(ev, output);
 			}
 			else
 			{
