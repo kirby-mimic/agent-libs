@@ -15,6 +15,7 @@ limitations under the License.
 */
 
 #include <cstdlib>
+#include <cstdio>
 #include <iostream>
 #ifndef WIN32
 #include <getopt.h>
@@ -36,6 +37,7 @@ extern "C" {
 using namespace std;
 
 // Functions used for dumping to stdout
+void raw_dump(sinsp_evt* ev);
 void formatted_dump(sinsp_evt* ev);
 
 std::function<void(sinsp_evt*)> dump = formatted_dump;
@@ -84,6 +86,7 @@ Options:
   -s <path>, --scap_file <path>              Scap file
   -d <dim>, --buffer_dim <dim>               Dimension in bytes that every per-CPU buffer will have.
   -o <fields>, --output-fields <fields>      Output fields string (see <filter> for supported display fields) that overwrites default output fields for all events. * at the beginning prints JSON keys with null values, else no null fields are printed.
+  -r, --raw                                  raw event ouput
 )";
 	cout << usage << endl;
 }
@@ -103,12 +106,13 @@ void parse_CLI_options(sinsp& inspector, int argc, char** argv)
 		{"scap_file", required_argument, 0, 's'},
 		{"buffer_dim", required_argument, 0, 'd'},
 		{"output-fields", required_argument, 0, 'o'},
+		{"raw", no_argument, 0, 'r'},
 		{0, 0, 0, 0}};
 
 	int op;
 	int long_index = 0;
 	while((op = getopt_long(argc, argv,
-				"hf:jae:b:d:s:o:",
+				"hf:jae:b:d:s:o:r",
 				long_options, &long_index)) != -1)
 	{
 		switch(op)
@@ -146,6 +150,8 @@ void parse_CLI_options(sinsp& inspector, int argc, char** argv)
 			default_output = optarg;
 			process_output = optarg;
 			break;
+		case 'r':
+			dump = raw_dump;
 		default:
 			break;
 		}
@@ -346,4 +352,68 @@ void formatted_dump(sinsp_evt* ev)
 	}
 
 	cout << output << std::endl;
+}
+
+static void hexdump(const char* buf, size_t len)
+{
+	bool in_ascii = false;
+
+	putc('[', stdout);
+	for(size_t i = 0; i < len; ++i)
+	{
+		if(isprint(buf[i]))
+		{
+			if(!in_ascii)
+			{
+				in_ascii = true;
+				if(i > 0)
+				{
+					putc(' ', stdout);
+				}
+				putc('"', stdout);
+			}
+			putc(buf[i], stdout);
+		}
+		else
+		{
+			if(in_ascii)
+			{
+				in_ascii = false;
+				fputs("\" ", stdout);
+			}
+			else if(i > 0)
+			{
+				putc(' ', stdout);
+			}
+			printf("%02x", buf[i] & 0xff);
+		}
+	}
+
+	if(in_ascii)
+	{
+		putc('"', stdout);
+	}
+	putc(']', stdout);
+}
+
+void raw_dump(sinsp_evt* ev)
+{
+	string date_time;
+	sinsp_utils::ts_to_iso_8601(ev->get_ts(), &date_time);
+
+	cout << "ts=" << date_time;
+	cout << " tid=" << ev->get_tid();
+	cout << " type=" << (ev->get_direction() == SCAP_ED_IN ? '>' : '<')  << get_event_type_name(ev->get_type());
+	cout << " category=" << get_event_category_name(ev->get_category());
+	cout << " nparams=" << ev->get_num_params();
+
+	for(size_t i = 0; i < ev->get_num_params(); ++i)
+	{
+		const sinsp_evt_param *p = ev->get_param(i);
+		const struct ppm_param_info *pi = ev->get_param_info(i);
+		cout << ' ' << i << ':' << pi->name << '=';
+		hexdump(p->m_val, p->m_len);
+	}
+
+	cout << endl;
 }
