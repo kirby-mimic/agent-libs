@@ -36,10 +36,9 @@ extern "C" {
 using namespace std;
 
 // Functions used for dumping to stdout
-void plaintext_dump(sinsp_evt* ev);
 void formatted_dump(sinsp_evt* ev);
 
-std::function<void(sinsp_evt*)> dump;
+std::function<void(sinsp_evt*)> dump = formatted_dump;
 static bool g_interrupted = false;
 static const uint8_t g_backoff_timeout_secs = 2;
 static bool g_all_threads = false;
@@ -51,9 +50,13 @@ unsigned long buffer_bytes_dim = DEFAULT_DRIVER_BUFFER_BYTES_DIM;
 
 sinsp_evt* get_event(sinsp& inspector, std::function<void(const std::string&)> handle_error);
 
-#define PROCESS_DEFAULTS "*%evt.num %evt.time %evt.category %container.id %proc.ppid %proc.pid %evt.type %proc.exe %proc.cmdline %evt.args"
+#define EVENT_HEADER " %evt.time cat=%evt.category container=%container.id proc=%proc.name(%proc.pid.%thread.tid) "
+#define EVENT_TRAILER "%evt.dir %evt.type %evt.args"
 
-std::string default_output = DEFAULT_OUTPUT_STR;
+#define EVENT_DEFAULTS EVENT_HEADER EVENT_TRAILER
+#define PROCESS_DEFAULTS EVENT_HEADER "ppid=%proc.ppid exe=%proc.exe args=[%proc.cmdline] " EVENT_TRAILER
+
+std::string default_output = EVENT_DEFAULTS;
 std::string process_output = PROCESS_DEFAULTS;
 
 static std::unique_ptr<sinsp_evt_formatter> default_formatter = nullptr;
@@ -255,7 +258,6 @@ error:
 int main(int argc, char** argv)
 {
 	sinsp inspector;
-	dump = plaintext_dump;
 
 #ifndef WIN32
 	parse_CLI_options(inspector, argc, argv);
@@ -330,58 +332,6 @@ sinsp_evt* get_event(sinsp& inspector, std::function<void(const std::string&)> h
 
 	return nullptr;
 }
-
-void plaintext_dump(sinsp_evt* ev)
-{
-	sinsp_threadinfo* thread = ev->get_thread_info();
-	if(thread)
-	{
-		string cmdline;
-		sinsp_threadinfo::populate_cmdline(cmdline, thread);
-
-		bool is_host_proc = thread->m_container_id.empty();
-		cout << '[' << (is_host_proc ? "HOST" : thread->m_container_id) << "]:";
-
-		cout << "[CAT=";
-
-		if(ev->get_category() == EC_PROCESS)
-		{
-			cout << "PROCESS]:";
-		}
-		else if(ev->get_category() == EC_NET)
-		{
-			cout << get_event_category_name(ev->get_category()) << ":";
-			sinsp_fdinfo_t* fd_info = ev->get_fd_info();
-
-			// event subcategory should contain SC_NET if ipv4/ipv6
-			if(nullptr != fd_info && (fd_info->get_l4proto() != SCAP_L4_UNKNOWN && fd_info->get_l4proto() != SCAP_L4_NA))
-			{
-				cout << fd_info->tostring() << "]:";
-			}
-		}
-		else if(ev->get_category() == EC_IO_READ || ev->get_category() == EC_IO_WRITE)
-		{
-			cout << get_event_category_name(ev->get_category()) << ":";
-
-			sinsp_fdinfo_t* fd_info = ev->get_fd_info();
-			if(nullptr != fd_info && (fd_info->get_l4proto() != SCAP_L4_UNKNOWN && fd_info->get_l4proto() != SCAP_L4_NA))
-			{
-				cout << fd_info->tostring() << "]:";
-			}
-		}
-		else
-		{
-			cout << get_event_category_name(ev->get_category()) << "]:";
-		}
-	}
-	else
-	{
-		cout << "[EVENT]:[" << get_event_category_name(ev->get_category()) << "]:";
-	}
-
-	formatted_dump(ev);
-}
-
 
 void formatted_dump(sinsp_evt* ev)
 {
