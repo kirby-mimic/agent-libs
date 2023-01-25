@@ -15,6 +15,7 @@ limitations under the License.
 
 */
 #include "connection.h"
+#include <chrono>
 
 #include "sinsp.h"
 #include "sinsp_int.h"
@@ -106,8 +107,8 @@ docker_connection::docker_response docker_connection::get_docker(const docker_lo
 		return docker_response::RESP_ERROR;
 	}
 
-	long startTime = System.currentTimeMillis();
-	while(false||(System.currentTimeMillis()-startTime)<3000)
+	int timeStart = std::chrono::system_clock::now();
+	while(false||std::chrono::system_clock::now()-timeStart > 3000)
 	{
 		int still_running;
 		CURLMcode res = curl_multi_perform(m_curlm, &still_running);
