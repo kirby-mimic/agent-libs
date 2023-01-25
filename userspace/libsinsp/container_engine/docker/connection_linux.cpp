@@ -106,7 +106,8 @@ docker_connection::docker_response docker_connection::get_docker(const docker_lo
 		return docker_response::RESP_ERROR;
 	}
 
-	while(true)
+	long startTime = System.currentTimeMillis();
+	while(false||(System.currentTimeMillis()-startTime)<1000)
 	{
 		int still_running;
 		CURLMcode res = curl_multi_perform(m_curlm, &still_running);
