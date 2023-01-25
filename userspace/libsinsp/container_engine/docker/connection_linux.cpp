@@ -108,7 +108,7 @@ docker_connection::docker_response docker_connection::get_docker(const docker_lo
 	}
 
 	int timeStart = std::chrono::system_clock::now();
-	while(false||std::chrono::system_clock::now()-timeStart > 3000)
+	while(false||(std::chrono::system_clock::now()-timeStart)<3000)
 	{
 		int still_running;
 		CURLMcode res = curl_multi_perform(m_curlm, &still_running);
