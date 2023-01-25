@@ -107,9 +107,15 @@ docker_connection::docker_response docker_connection::get_docker(const docker_lo
 		return docker_response::RESP_ERROR;
 	}
 
-	int timeStart = std::chrono::system_clock::now();
-	while(false||(std::chrono::system_clock::now()-timeStart)<3000)
+	auto timeStart = std::chrono::system_clock::now();
+	while(true)
 	{
+		long milli_diff = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - timeStart).count();
+		if(milli_diff > 3000)
+		{
+			break;
+		}
+
 		int still_running;
 		CURLMcode res = curl_multi_perform(m_curlm, &still_running);
 		if(res != CURLM_OK)
