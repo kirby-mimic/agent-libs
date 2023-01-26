@@ -108,11 +108,14 @@ docker_connection::docker_response docker_connection::get_docker(const docker_lo
 	}
 
 	auto timeStart = std::chrono::system_clock::now();
+	int retries = 0;
 	while(true)
 	{
+		retries += 1;
 		long milli_diff = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - timeStart).count();
-		if(milli_diff > 3000)
+		if(milli_diff > 3000L)
 		{
+			g_logger.format(sinsp_logger::SEV_DEBUG, "number of retries: %i", retries);
 			break;
 		}
 
