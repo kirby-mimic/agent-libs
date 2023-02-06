@@ -1460,7 +1460,7 @@ bool sinsp_filter_check::extract_cached(sinsp_evt *evt, OUT vector<extract_value
 
 bool sinsp_filter_check::compare(gen_event *evt)
 {
-	HOTPOT_PUSH2HAND_INLINE1("{sinsp_filter_check_gen}"); HOTPOT_DEFER_POP();
+	HOTPOT_PUSH("{sinsp_filter_check_gen}");
 
 	m_hits++;
 	if(m_cache_metrics != NULL)
@@ -1507,7 +1507,7 @@ bool sinsp_filter_check::compare(gen_event *evt)
 
 bool sinsp_filter_check::compare(sinsp_evt *evt)
 {
-	HOTPOT_PUSH2HAND_INLINE0(hp_timer()->m_hp_timer, hp_label().c_str()); HOTPOT_DEFER_POP();
+	HOTPOT_PUSH_VIA_PTR(hp_timer()->m_hp_timer, hp_label().c_str());
 
 	m_extracted_values.clear();
 	if(!extract_cached(evt, m_extracted_values, false))

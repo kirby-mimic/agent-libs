@@ -112,7 +112,7 @@ std::string std::to_string(cmpop c)
 
 bool gen_event_filter_expression::compare(gen_event *evt)
 {
-	HOTPOT_PUSH2HAND_INLINE1("{expr}"); HOTPOT_DEFER_POP();
+	HOTPOT_PUSH("{expr}");
 
 	uint32_t j;
 	uint32_t size = (uint32_t)m_checks.size();

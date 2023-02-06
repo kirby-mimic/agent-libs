@@ -152,11 +152,10 @@ static inline int32_t refill_read_buffers(struct scap_device_set *devset)
 
 	if(are_buffers_empty(devset))
 	{
-		HOTPOT_PUSH2HAND_INLINE1("{empty_buffer_wait}");
+		HOTPOT_PUSH("{empty_buffer_wait}");
 		sleep_ms(devset->m_buffer_empty_wait_time_us / 1000);
 		devset->m_buffer_empty_wait_time_us = MIN(devset->m_buffer_empty_wait_time_us * 2,
 							  BUFFER_EMPTY_WAIT_TIME_US_MAX);
-		HOTPOT__POP2HAND_INLINEZ();
 	}
 	else
 	{
