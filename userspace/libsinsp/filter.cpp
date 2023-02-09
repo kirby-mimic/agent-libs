@@ -1676,6 +1676,8 @@ void sinsp_filter_compiler::visit(const libsinsp::filter::ast::unary_check_expr*
 	check->m_cmpop = str_to_cmpop(e->op);
 	check->m_boolop = m_last_boolop;
 	check->parse_field_name(field.c_str(), true, true);
+
+	check->create_hp_timer();
 }
 
 static void add_filtercheck_value(gen_event_filter_check *chk, size_t idx, const std::string& value)
