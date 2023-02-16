@@ -718,7 +718,7 @@ static int32_t scap_write_proclist(scap_dumper_t *d, struct scap_proclist *procl
 	{
 		return SCAP_FAILURE;
 	}
-	
+
 
 	uint32_t totlen = 0;
 	struct scap_threadinfo *tinfo;
