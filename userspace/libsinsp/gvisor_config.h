@@ -19,5 +19,5 @@ limitations under the License.
 
 namespace gvisor_config 
 {
-	std::string generate(std::string socket_path);
+	std::string generate(std::string socket_path, unsigned int max_retries=3);
 }
