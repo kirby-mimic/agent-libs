@@ -132,7 +132,7 @@ class engine {
 public:
     engine(char *lasterr);
     ~engine();
-    int32_t init(std::string config_path, std::string root_path, bool no_events);
+    int32_t init(std::string config_path, std::string root_path, bool no_events, int epoll_timeout);
     int32_t close();
 
     int32_t start_capture();
@@ -151,6 +151,7 @@ private:
     char *m_lasterr;
     int m_listenfd = 0;
     int m_epollfd = 0;
+    int m_epoll_timeout = -1;
     bool m_capture_started = false;
     bool m_no_events = false;
 
