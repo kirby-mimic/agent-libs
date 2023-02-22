@@ -2488,7 +2488,7 @@ FILLER(proc_startupdate_3, true)
 		case PPME_SYSCALL_CLONE3_X:
 #ifdef __NR_clone3
 			flags = bpf_syscall_get_argument(data, 0);
-			if (bpf_probe_read_user(&cl_args, sizeof(struct clone_args), (void *)flags)) 
+			if (bpf_probe_read_user(&cl_args, sizeof(struct clone_args), (void *)flags))
 			{
 				return PPM_FAILURE_INVALID_USER_MEMORY;
 			}
