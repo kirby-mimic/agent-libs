@@ -112,7 +112,7 @@ std::string std::to_string(cmpop c)
 
 bool gen_event_filter_expression::compare(gen_event *evt)
 {
-	HOTPOT_PUSH("{expr}");
+	HOTPOT_PUSH("{expr.v3}");
 
 	uint32_t j;
 	uint32_t size = (uint32_t)m_checks.size();
@@ -200,14 +200,14 @@ void gen_event_filter_check::create_hp_timer()
 
 std::string gen_event_filter_check::create_hp_label()
 {
-	std::string ret = "{gc}";
+	std::string ret = "{gc.v3}";
 
 	return ret;
 }
 
 std::string gen_event_filter_expression::create_hp_label()
 {
-	std::string ret = "{ge}";
+	std::string ret = "{ge.v3}";
 
 	return ret;
 }

@@ -1177,11 +1177,11 @@ std::string sinsp_filter_check::create_hp_label()
 
 	if(m_field)
 	{
-		ret += std::string("{field-") + m_field->m_name + std::to_string(m_cmpop) + std::to_string(m_val_storages.size()) + "}";
+		ret += std::string("{field-") + m_field->m_name + std::to_string(m_cmpop) + std::to_string(m_val_storages.size()) + ".v3}";
 	}
 	else
 	{
-		ret = "{sinsp_filter_check no field}";
+		ret = "{sinsp_filter_check no field.v3}";
 	}
 
 	return ret;
@@ -1460,7 +1460,7 @@ bool sinsp_filter_check::extract_cached(sinsp_evt *evt, OUT vector<extract_value
 
 bool sinsp_filter_check::compare(gen_event *evt)
 {
-	HOTPOT_PUSH("{sinsp_filter_check_gen}");
+	HOTPOT_PUSH("{sinsp_filter_check_gen.v3}");
 
 	m_hits++;
 	if(m_cache_metrics != NULL)
