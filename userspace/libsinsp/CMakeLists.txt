@@ -204,7 +204,8 @@ set(SINSP_LIBRARIES
 	"${CURL_LIBRARIES}"
 	"${JSONCPP_LIB}"
 	"${CARES_LIB}"
-	"${RE2_LIB}")
+	"${RE2_LIB}"
+	libhotpot)
 
 add_dependencies(sinsp valijson)
 add_dependencies(sinsp re2)

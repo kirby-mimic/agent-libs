@@ -65,6 +65,10 @@ if(CMAKE_SYSTEM_NAME MATCHES "Linux" AND USE_BUNDLED_DRIVER)
 	add_subdirectory(driver ${PROJECT_BINARY_DIR}/driver)
 endif()
 
+add_subdirectory(
+    ${PROJECT_SOURCE_DIR}/../libhotpot ${PROJECT_BINARY_DIR}/userspace/libhotpot
+)
+
 if(NOT CMAKE_BUILD_TYPE)
 	SET(CMAKE_BUILD_TYPE Release)
 endif()
