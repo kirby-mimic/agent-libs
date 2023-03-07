@@ -48,6 +48,7 @@ std::string get_systemd_cgroup(const sinsp_threadinfo *tinfo)
 	{
 		if(it.first == "name=systemd")
 		{
+			g_logger.format(sinsp_logger::SEV_DEBUG, "podman: found systemd cgroup in tinfo");
 			return it.second;
 		}
 	}
@@ -76,6 +77,7 @@ int get_userns_root_uid(const sinsp_threadinfo *tinfo)
 //  NO_MATCH if the process is not in a podman container
 int detect_podman(const sinsp_threadinfo *tinfo, std::string& container_id)
 {
+
 	std::string cgroup;
 	if(matches_runc_cgroups(tinfo, ROOT_PODMAN_CGROUP_LAYOUT, container_id, cgroup))
 	{
@@ -84,8 +86,10 @@ int detect_podman(const sinsp_threadinfo *tinfo, std::string& container_id)
 		int uid;
 		if (sscanf(cgroup.c_str(), "/user.slice/user-%d.slice/", &uid) == 1)
 		{
+			g_logger.format(sinsp_logger::SEV_DEBUG, "podman (%s): found user %d", container_id.c_str(), uid);
 			return uid;
 		}
+		g_logger.format(sinsp_logger::SEV_DEBUG, "podman (%s): found root user", container_id.c_str());
 		return 0; // root
 	}
 
@@ -93,8 +97,11 @@ int detect_podman(const sinsp_threadinfo *tinfo, std::string& container_id)
 	if(systemd_cgroup.empty())
 	{
 		// can't get the cgroup name
+		g_logger.format(sinsp_logger::SEV_DEBUG, "podman: did not find systemd cgroup for tid %ld", tinfo->m_tid);
 		return libsinsp::procfs_utils::NO_MATCH;
 	}
+
+	g_logger.format(sinsp_logger::SEV_DEBUG, "podman: found systemd cgroup %s for tid %ld", systemd_cgroup.c_str(), tinfo->m_tid);
 
 	size_t pos = systemd_cgroup.find("podman-");
 	if(pos != std::string::npos)
@@ -160,12 +167,15 @@ bool podman::can_api_sock_exist()
 
 	if (access(m_api_sock.c_str(), R_OK|W_OK) == 0)
 	{
+		g_logger.format(sinsp_logger::SEV_DEBUG, "podman: found root socket");
 		return true;
 	}
 
 	// NULL is errfunc
 	rc = glob(m_user_api_sock_pattern.c_str(), glob_flags, NULL, &gl);
 	globfree(&gl);
+
+	g_logger.format(sinsp_logger::SEV_DEBUG, "podman: %s socket", rc == 0 ? "found user" : "did not find any");
 
 	return (rc == 0);
 }
@@ -197,6 +207,8 @@ bool podman::resolve(sinsp_threadinfo *tinfo, bool query_os_for_missing_info)
 		api_sock = "/run/user/" + std::to_string(uid) + "/podman/podman.sock";
 		break;
 	}
+
+	g_logger.format(sinsp_logger::SEV_DEBUG, "podman (%s): using %s", container_id.c_str(), api_sock.c_str());
 
 	docker_lookup_request request(container_id, api_sock, CT_PODMAN, uid, false);
 	return resolve_impl(tinfo, request, query_os_for_missing_info);
