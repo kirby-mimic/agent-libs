@@ -111,12 +111,14 @@ int detect_podman(const sinsp_threadinfo *tinfo, std::string& container_id)
 		char c;         // ^ same
 		if(sscanf(systemd_cgroup.c_str() + pos, "podman-%d.scope/%c", &podman_pid, &c) != 2)
 		{
+			g_logger.format(sinsp_logger::SEV_DEBUG, "podman: did not find podman.scope/container_id");
 			// cgroup doesn't match the expected pattern
 			return libsinsp::procfs_utils::NO_MATCH;
 		}
 
 		if(!match_one_container_id(systemd_cgroup, ".scope/", "", container_id))
 		{
+			g_logger.format(sinsp_logger::SEV_DEBUG, "podman: could not parse container after podman.scope");
 			return libsinsp::procfs_utils::NO_MATCH;
 		}
 
@@ -124,6 +126,7 @@ int detect_podman(const sinsp_threadinfo *tinfo, std::string& container_id)
 		if(uid == 0)
 		{
 			// root doesn't spawn rootless containers
+			g_logger.format(sinsp_logger::SEV_DEBUG, "podman: detected root user for rootless container");
 			return libsinsp::procfs_utils::NO_MATCH;
 		}
 
@@ -143,6 +146,7 @@ int detect_podman(const sinsp_threadinfo *tinfo, std::string& container_id)
 		// case but as we're already basically guessing, let's keep it generic
 		if(!match_one_container_id(systemd_cgroup, "/", "", container_id))
 		{
+			g_logger.format(sinsp_logger::SEV_DEBUG, "podman: could not parse container after slash");
 			return libsinsp::procfs_utils::NO_MATCH;
 		}
 
@@ -151,6 +155,7 @@ int detect_podman(const sinsp_threadinfo *tinfo, std::string& container_id)
 		{
 			return uid;
 		}
+		g_logger.format(sinsp_logger::SEV_DEBUG, "podman: could not parse user from slice");
 		return libsinsp::procfs_utils::NO_MATCH;
 	}
 }
@@ -191,6 +196,7 @@ bool podman::resolve(sinsp_threadinfo *tinfo, bool query_os_for_missing_info)
 
 	if(! (*(m_api_sock_can_exist.get())))
 	{
+		g_logger.format(sinsp_logger::SEV_DEBUG, "podman: not detected");
 		return false;
 	}
 
