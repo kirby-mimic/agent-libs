@@ -77,10 +77,11 @@ int get_userns_root_uid(const sinsp_threadinfo *tinfo)
 //  NO_MATCH if the process is not in a podman container
 int detect_podman(const sinsp_threadinfo *tinfo, std::string& container_id)
 {
-
 	std::string cgroup;
 	if(matches_runc_cgroups(tinfo, ROOT_PODMAN_CGROUP_LAYOUT, container_id, cgroup))
 	{
+		g_logger.format(sinsp_logger::SEV_DEBUG, "podman (%s): found ROOT_PODMAN_CGROUP_LAYOUT in %s", container_id.c_str(), cgroup.c_str());
+
 		// User: /user.slice/user-1000.slice/user@1000.service/user.slice/libpod-$ID.scope/container
 		// Root: /machine.slice/libpod-$ID.scope/container
 		int uid;
@@ -106,6 +107,7 @@ int detect_podman(const sinsp_threadinfo *tinfo, std::string& container_id)
 	size_t pos = systemd_cgroup.find("podman-");
 	if(pos != std::string::npos)
 	{
+		g_logger.format(sinsp_logger::SEV_DEBUG, "podman: found podman- in %s", systemd_cgroup.c_str());
 		// .../podman-<pid>.scope/<container_id>
 		int podman_pid; // unused except to set the sscanf return value
 		char c;         // ^ same
@@ -153,6 +155,7 @@ int detect_podman(const sinsp_threadinfo *tinfo, std::string& container_id)
 		int uid;
 		if (sscanf(cgroup.c_str(), "/user.slice/user-%d.slice/", &uid) == 1)
 		{
+			g_logger.format(sinsp_logger::SEV_DEBUG, "podman: found user slice for uid %d", uid);
 			return uid;
 		}
 		g_logger.format(sinsp_logger::SEV_DEBUG, "podman: could not parse user from slice");
