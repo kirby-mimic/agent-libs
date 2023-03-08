@@ -565,11 +565,19 @@ public:
 	void set_drop_event_flags(ppm_event_flags flags);
 
 	/*!
-	  \brief Returns true if the current capture is offline
+	  \brief Returns true if the current capture is happening from a scap file
 	*/
 	inline bool is_capture()
 	{
 		return m_mode == SCAP_MODE_CAPTURE;
+	}
+
+	/*!
+	  \brief Returns true if the current capture is offline
+	*/
+	inline bool is_offline()
+	{
+		return m_mode == SCAP_MODE_CAPTURE || m_mode == SCAP_MODE_TEST;
 	}
 
 	/*!
