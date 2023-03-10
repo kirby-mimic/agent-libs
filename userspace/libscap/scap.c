@@ -93,6 +93,7 @@ scap_t* scap_open_live_int(char *error, int32_t *rc, scap_open_args* oargs, cons
 	handle->m_proc_scan_timeout_ms = oargs->proc_scan_timeout_ms;
 	handle->m_proc_scan_log_interval_ms = oargs->proc_scan_log_interval_ms;
 	handle->m_debug_log_fn = oargs->debug_log_fn;
+	handle->m_no_events = oargs->no_events;
 	//
 	// Extract machine information
 	//
@@ -914,6 +915,11 @@ uint64_t scap_max_buf_used(scap_t* handle)
 
 int32_t scap_next(scap_t* handle, OUT scap_evt** pevent, OUT uint16_t* pcpuid)
 {
+	if(handle->m_no_events)
+	{
+		return SCAP_SUCCESS;
+	}
+
 	int32_t res = SCAP_FAILURE;
 	if(handle->m_vtable)
 	{

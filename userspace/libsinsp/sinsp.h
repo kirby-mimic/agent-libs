@@ -194,6 +194,35 @@ public:
  @{
 */
 
+struct SINSP_PUBLIC sinsp_driver_params
+{
+	unsigned long driver_buffer_bytes_dim = DEFAULT_DRIVER_BUFFER_BYTES_DIM;
+	std::unordered_set<uint32_t> ppm_sc_of_interest = {};
+	std::unordered_set<uint32_t> tp_of_interest = {};
+	bool no_events = false;
+
+	sinsp_driver_params& set_driver_buffer_bytes_dim(unsigned long d)
+	{
+		driver_buffer_bytes_dim = d;
+		return *this;
+	}
+	sinsp_driver_params& set_ppm_sc_of_interest(std::unordered_set<uint32_t>&& s)
+	{
+		ppm_sc_of_interest = std::move(s);
+		return *this;
+	}
+	sinsp_driver_params& set_tp_of_interest(std::unordered_set<uint32_t>&& s)
+	{
+		tp_of_interest = std::move(s);
+		return *this;
+	}
+	sinsp_driver_params& set_no_events(bool f)
+	{
+		no_events = f;
+		return *this;
+	}
+};
+
 /*!
   \brief System inspector class.
   This is the library entry point class. The functionality it exports includes:
@@ -216,10 +245,9 @@ public:
 
 	~sinsp() override;
 
-
 	/* Wrappers to open a specific engine. */
-	virtual void open_kmod(unsigned long driver_buffer_bytes_dim = DEFAULT_DRIVER_BUFFER_BYTES_DIM, const std::unordered_set<uint32_t> &ppm_sc_of_interest = {}, const std::unordered_set<uint32_t> &tp_of_interest = {});
-	virtual void open_bpf(const std::string &bpf_path, unsigned long driver_buffer_bytes_dim = DEFAULT_DRIVER_BUFFER_BYTES_DIM, const std::unordered_set<uint32_t> &ppm_sc_of_interest = {}, const std::unordered_set<uint32_t> &tp_of_interest = {});
+	virtual void open_kmod(sinsp_driver_params&& driver_params = {});
+	virtual void open_bpf(const std::string& bpf_path, sinsp_driver_params&& driver_params = {});
 	virtual void open_udig();
 	virtual void open_nodriver();
 	virtual void open_savefile(const std::string &filename, int fd = 0);

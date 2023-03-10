@@ -497,22 +497,24 @@ scap_open_args sinsp::factory_open_args(const char* engine_name, scap_mode_t sca
 	return oargs;
 }
 
-void sinsp::open_kmod(unsigned long driver_buffer_bytes_dim, const std::unordered_set<uint32_t> &ppm_sc_of_interest, const std::unordered_set<uint32_t> &tp_of_interest)
+void sinsp::open_kmod(sinsp_driver_params&& driver_params)
 {
 	scap_open_args oargs = factory_open_args(KMOD_ENGINE, SCAP_MODE_LIVE);
 
 	/* Set interesting syscalls and tracepoints. */
-	fill_ppm_sc_of_interest(&oargs, ppm_sc_of_interest);
-	fill_tp_of_interest(&oargs, tp_of_interest);
+	fill_ppm_sc_of_interest(&oargs, driver_params.ppm_sc_of_interest);
+
+	fill_tp_of_interest(&oargs, driver_params.tp_of_interest);
+	oargs.no_events = driver_params.no_events;
 
 	/* Engine-specific args. */
 	struct scap_kmod_engine_params params;
-	params.buffer_bytes_dim = driver_buffer_bytes_dim;
+	params.buffer_bytes_dim = driver_params.driver_buffer_bytes_dim;
 	oargs.engine_params = &params;
 	open_common(&oargs);
 }
 
-void sinsp::open_bpf(const std::string& bpf_path, unsigned long driver_buffer_bytes_dim, const std::unordered_set<uint32_t> &ppm_sc_of_interest, const std::unordered_set<uint32_t> &tp_of_interest)
+void sinsp::open_bpf(const std::string& bpf_path, sinsp_driver_params&& driver_params)
 {
 	/* Validate the BPF path. */
 	if(bpf_path.empty())
@@ -523,12 +525,14 @@ void sinsp::open_bpf(const std::string& bpf_path, unsigned long driver_buffer_by
 	scap_open_args oargs = factory_open_args(BPF_ENGINE, SCAP_MODE_LIVE);
 
 	/* Set interesting syscalls and tracepoints. */
-	fill_ppm_sc_of_interest(&oargs, ppm_sc_of_interest);
-	fill_tp_of_interest(&oargs, tp_of_interest);
+	fill_ppm_sc_of_interest(&oargs, driver_params.ppm_sc_of_interest);
+	fill_tp_of_interest(&oargs, driver_params.tp_of_interest);
+
+	oargs.no_events = driver_params.no_events;
 
 	/* Engine-specific args. */
 	struct scap_bpf_engine_params params;
-	params.buffer_bytes_dim = driver_buffer_bytes_dim;
+	params.buffer_bytes_dim = driver_params.driver_buffer_bytes_dim;
 	params.bpf_probe = bpf_path.data();
 	oargs.engine_params = &params;
 	open_common(&oargs);
