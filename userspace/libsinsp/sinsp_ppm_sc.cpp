@@ -17,7 +17,7 @@ limitations under the License.
 
 #include <sinsp.h>
 
-void sinsp::fill_ppm_sc_of_interest(scap_open_args *oargs, const std::unordered_set<uint32_t> &ppm_sc_of_interest)
+void fill_ppm_sc_of_interest(scap_open_args *oargs, const std::unordered_set<uint32_t> &ppm_sc_of_interest)
 {
 	for (int i = 0; i < PPM_SC_MAX; i++)
 	{

@@ -52,6 +52,7 @@ limitations under the License.
 #include "sinsp_inet.h"
 #include "sinsp_public.h"
 #include "sinsp_exception.h"
+#include "sinsp_ppm_sc.h"
 
 #include <string>
 #include <map>
@@ -1196,7 +1197,6 @@ private:
 	void add_protodecoders();
 	void remove_thread(int64_t tid, bool force);
 
-	void fill_ppm_sc_of_interest(scap_open_args *oargs, const std::unordered_set<uint32_t> &ppm_sc_of_interest);
 	void fill_tp_of_interest(scap_open_args *oargs, const std::unordered_set<uint32_t> &tp_of_interest);
 
 	//
