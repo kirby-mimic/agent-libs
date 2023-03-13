@@ -497,22 +497,25 @@ scap_open_args sinsp::factory_open_args(const char* engine_name, scap_mode_t sca
 	return oargs;
 }
 
-void sinsp::open_kmod(unsigned long driver_buffer_bytes_dim, const std::unordered_set<uint32_t> &ppm_sc_of_interest, const std::unordered_set<uint32_t> &tp_of_interest)
+void sinsp::open_kmod(unsigned long driver_buffer_bytes_dim, sinsp_driver_params* driver_params)
 {
-	scap_open_args oargs = factory_open_args(KMOD_ENGINE, SCAP_MODE_LIVE);
+	sinsp_driver_params p = {};
+	if(driver_params == nullptr)
+	{
+		driver_params = &p;
+	}
 
-	/* Set interesting syscalls and tracepoints. */
-	fill_ppm_sc_of_interest(&oargs, ppm_sc_of_interest);
-	fill_tp_of_interest(&oargs, tp_of_interest);
+	driver_params->engine_name = KMOD_ENGINE;
+	driver_params->mode = SCAP_MODE_LIVE;
 
 	/* Engine-specific args. */
 	struct scap_kmod_engine_params params;
 	params.buffer_bytes_dim = driver_buffer_bytes_dim;
-	oargs.engine_params = &params;
-	open_common(&oargs);
+	driver_params->engine_params = &params;
+	open_common(driver_params);
 }
 
-void sinsp::open_bpf(const std::string& bpf_path, unsigned long driver_buffer_bytes_dim, const std::unordered_set<uint32_t> &ppm_sc_of_interest, const std::unordered_set<uint32_t> &tp_of_interest)
+void sinsp::open_bpf(const std::string& bpf_path, unsigned long driver_buffer_bytes_dim, sinsp_driver_params* driver_params)
 {
 	/* Validate the BPF path. */
 	if(bpf_path.empty())
@@ -520,35 +523,60 @@ void sinsp::open_bpf(const std::string& bpf_path, unsigned long driver_buffer_by
 		throw sinsp_exception("When you use the 'BPF' engine you need to provide a path to the bpf object file.");
 	}
 
-	scap_open_args oargs = factory_open_args(BPF_ENGINE, SCAP_MODE_LIVE);
+	sinsp_driver_params p = {};
+	if(driver_params == nullptr)
+	{
+		driver_params = &p;
+	}
 
-	/* Set interesting syscalls and tracepoints. */
-	fill_ppm_sc_of_interest(&oargs, ppm_sc_of_interest);
-	fill_tp_of_interest(&oargs, tp_of_interest);
+	driver_params->engine_name = BPF_ENGINE;
+	driver_params->mode = SCAP_MODE_LIVE;
 
 	/* Engine-specific args. */
 	struct scap_bpf_engine_params params;
 	params.buffer_bytes_dim = driver_buffer_bytes_dim;
 	params.bpf_probe = bpf_path.data();
-	oargs.engine_params = &params;
-	open_common(&oargs);
+	driver_params->engine_params = &params;
+	open_common(driver_params);
 }
 
-void sinsp::open_udig()
+void sinsp::open_udig(sinsp_driver_params* driver_params)
 {
-	scap_open_args oargs = factory_open_args(UDIG_ENGINE, SCAP_MODE_LIVE);
-	open_common(&oargs);
+	sinsp_driver_params p = {};
+	if(driver_params == nullptr)
+	{
+		driver_params = &p;
+	}
+
+	driver_params->engine_name = UDIG_ENGINE;
+	driver_params->mode = SCAP_MODE_LIVE;
+	open_common(driver_params);
 }
 
-void sinsp::open_nodriver()
+void sinsp::open_nodriver(sinsp_driver_params* driver_params)
 {
-	scap_open_args oargs = factory_open_args(NODRIVER_ENGINE, SCAP_MODE_NODRIVER);
-	open_common(&oargs);
+	sinsp_driver_params p = {};
+	if(driver_params == nullptr)
+	{
+		driver_params = &p;
+	}
+
+	driver_params->engine_name = NODRIVER_ENGINE;
+	driver_params->mode = SCAP_MODE_NODRIVER;
+	open_common(driver_params);
 }
 
-void sinsp::open_savefile(const std::string& filename, int fd)
+void sinsp::open_savefile(const std::string& filename, int fd, sinsp_driver_params* driver_params)
 {
-	scap_open_args oargs = factory_open_args(SAVEFILE_ENGINE, SCAP_MODE_CAPTURE);
+	sinsp_driver_params p = {};
+	if(driver_params == nullptr)
+	{
+		driver_params = &p;
+	}
+
+	driver_params->engine_name = SAVEFILE_ENGINE;
+	driver_params->mode = SCAP_MODE_CAPTURE;
+
 	struct scap_savefile_engine_params params;
 
 	m_filter_proc_table_when_saving = true;
@@ -583,62 +611,89 @@ void sinsp::open_savefile(const std::string& filename, int fd)
 
 	params.start_offset = 0;
 	params.fbuffer_size = 0;
-	oargs.engine_params = &params;
-	open_common(&oargs);
+	driver_params->engine_params = &params;
+	open_common(driver_params);
 }
 
-void sinsp::open_plugin(const std::string& plugin_name, const std::string& plugin_open_params)
+void sinsp::open_plugin(const std::string& plugin_name, const std::string& plugin_open_params, sinsp_driver_params* driver_params)
 {
-	scap_open_args oargs = factory_open_args(SOURCE_PLUGIN_ENGINE, SCAP_MODE_PLUGIN);
+	sinsp_driver_params p = {};
+	if(driver_params == nullptr)
+	{
+		driver_params = &p;
+	}
+
+	driver_params->engine_name = SOURCE_PLUGIN_ENGINE;
+	driver_params->mode = SCAP_MODE_PLUGIN;
+
 	struct scap_source_plugin_engine_params params;
 	set_input_plugin(plugin_name, plugin_open_params);
 	params.input_plugin = &m_input_plugin->as_scap_source();
 	params.input_plugin_params = (char*)m_input_plugin_open_params.c_str();
-	oargs.engine_params = &params;
-	open_common(&oargs);
+	driver_params->engine_params = &params;
+	open_common(driver_params);
 }
 
-void sinsp::open_gvisor(const std::string& config_path, const std::string& root_path)
+void sinsp::open_gvisor(const std::string& config_path, const std::string& root_path, sinsp_driver_params* driver_params)
 {
 	if(config_path.empty())
 	{
 		throw sinsp_exception("When you use the 'gvisor' engine you need to provide a path to the config file.");
 	}
 
-	scap_open_args oargs = factory_open_args(GVISOR_ENGINE, SCAP_MODE_LIVE);
+	sinsp_driver_params p = {};
+	if(driver_params == nullptr)
+	{
+		driver_params = &p;
+	}
+
+	driver_params->engine_name = GVISOR_ENGINE;
+	driver_params->mode = SCAP_MODE_LIVE;
+
 	struct scap_gvisor_engine_params params;
 	params.gvisor_root_path = root_path.c_str();
 	params.gvisor_config_path = config_path.c_str();
-	oargs.engine_params = &params;
-	open_common(&oargs);
+	driver_params->engine_params = &params;
+	open_common(driver_params);
 
 	set_get_procs_cpu_from_driver(false);
 }
 
-void sinsp::open_modern_bpf(unsigned long driver_buffer_bytes_dim, uint16_t cpus_for_each_buffer, bool online_only, const std::unordered_set<uint32_t> &ppm_sc_of_interest, const std::unordered_set<uint32_t> &tp_of_interest)
+void sinsp::open_modern_bpf(unsigned long driver_buffer_bytes_dim, uint16_t cpus_for_each_buffer, bool online_only, sinsp_driver_params* driver_params)
 {
-	scap_open_args oargs = factory_open_args(MODERN_BPF_ENGINE, SCAP_MODE_LIVE);
+	sinsp_driver_params p = {};
+	if(driver_params == nullptr)
+	{
+		driver_params = &p;
+	}
 
-	/* Set interesting syscalls and tracepoints. */
-	fill_ppm_sc_of_interest(&oargs, ppm_sc_of_interest);
-	fill_tp_of_interest(&oargs, tp_of_interest);
+	driver_params->engine_name = MODERN_BPF_ENGINE;
+	driver_params->mode = SCAP_MODE_LIVE;
 
 	/* Engine-specific args. */
 	struct scap_modern_bpf_engine_params params;
 	params.buffer_bytes_dim = driver_buffer_bytes_dim;
 	params.cpus_for_each_buffer = cpus_for_each_buffer;
 	params.allocate_online_only = online_only;
-	oargs.engine_params = &params;
-	open_common(&oargs);
+	driver_params->engine_params = &params;
+	open_common(driver_params);
 }
 
-void sinsp::open_test_input(scap_test_input_data* data)
+void sinsp::open_test_input(scap_test_input_data* data, sinsp_driver_params* driver_params)
 {
-	scap_open_args oargs = factory_open_args(TEST_INPUT_ENGINE, SCAP_MODE_LIVE);
+	sinsp_driver_params p = {};
+	if(driver_params == nullptr)
+	{
+		driver_params = &p;
+	}
+
+	driver_params->engine_name = TEST_INPUT_ENGINE;
+	driver_params->mode = SCAP_MODE_LIVE;
+
 	struct scap_test_input_engine_params params;
 	params.test_input_data = data;
-	oargs.engine_params = &params;
-	open_common(&oargs);
+	driver_params->engine_params = &params;
+	open_common(driver_params);
 
 	set_get_procs_cpu_from_driver(false);
 }

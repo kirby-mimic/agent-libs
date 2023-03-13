@@ -160,10 +160,13 @@ void open_engine(sinsp& inspector)
 	/* Get only necessary tracepoints. */
 	std::unordered_set<uint32_t> tp_set = inspector.enforce_sinsp_state_tp();
 	std::unordered_set<uint32_t> ppm_sc;
+	struct sinsp_driver_params params = {};
+	params.set_ppm_sc_of_interest(std::move(ppm_sc));
+	params.set_tp_of_interest(std::move(tp_set));
 
 	if(!engine_string.compare(KMOD_ENGINE))
 	{
-		inspector.open_kmod(buffer_bytes_dim, ppm_sc, tp_set);
+		inspector.open_kmod(buffer_bytes_dim, &params);
 	}
 	else if(!engine_string.compare(BPF_ENGINE))
 	{
@@ -176,7 +179,7 @@ void open_engine(sinsp& inspector)
 		{
 			std::cerr << bpf_path << std::endl;
 		}
-		inspector.open_bpf(bpf_path.c_str(), buffer_bytes_dim, ppm_sc, tp_set);
+		inspector.open_bpf(bpf_path.c_str(), buffer_bytes_dim, &params);
 	}
 	else if(!engine_string.compare(SAVEFILE_ENGINE))
 	{
@@ -185,11 +188,11 @@ void open_engine(sinsp& inspector)
 			std::cerr << "You must specify the path to the file if you use the 'savefile' engine" << std::endl;
 			exit(EXIT_FAILURE);
 		}
-		inspector.open_savefile(file_path.c_str(), 0);
+		inspector.open_savefile(file_path.c_str(), 0, &params);
 	}
 	else if(!engine_string.compare(MODERN_BPF_ENGINE))
 	{
-		inspector.open_modern_bpf(buffer_bytes_dim, DEFAULT_CPU_FOR_EACH_BUFFER, true, ppm_sc, tp_set);
+		inspector.open_modern_bpf(buffer_bytes_dim, DEFAULT_CPU_FOR_EACH_BUFFER, true, &params);
 	}
 	else
 	{
