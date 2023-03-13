@@ -53,6 +53,7 @@ limitations under the License.
 #include "sinsp_public.h"
 #include "sinsp_exception.h"
 #include "sinsp_ppm_sc.h"
+#include "sinsp_tp.h"
 
 #include <string>
 #include <map>
@@ -1196,8 +1197,6 @@ private:
 	void import_user_list();
 	void add_protodecoders();
 	void remove_thread(int64_t tid, bool force);
-
-	void fill_tp_of_interest(scap_open_args *oargs, const std::unordered_set<uint32_t> &tp_of_interest);
 
 	//
 	// Note: lookup_only should be used when the query for the thread is made
