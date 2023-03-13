@@ -81,6 +81,8 @@ struct scap
 
 	// Function which may be called to log a debug event
 	void(*m_debug_log_fn)(const char* msg);
+
+	bool m_no_events;
 };
 
 typedef enum ppm_dumper_type

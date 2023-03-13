@@ -136,8 +136,6 @@ int32_t engine::init(std::string config_path, std::string root_path)
 		return SCAP_FAILURE;
 	}
 
-	unlink(m_socket_path.c_str());
-	
 	// Check if runsc is installed in the system
 	runsc::result version = runsc::version();
 	if(version.error)
@@ -145,6 +143,13 @@ int32_t engine::init(std::string config_path, std::string root_path)
 		strlcpy(m_lasterr, "Cannot find runsc binary", SCAP_LASTERR_SIZE);
 		return SCAP_FAILURE;
 	}
+
+	return SCAP_SUCCESS;
+}
+
+int32_t engine::open_socket()
+{
+	unlink(m_socket_path.c_str());
 
 	int sock = socket(PF_UNIX, SOCK_SEQPACKET, 0);
 	if(sock == -1)

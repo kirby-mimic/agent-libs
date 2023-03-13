@@ -208,6 +208,11 @@ struct SINSP_PUBLIC sinsp_driver_params : public scap_open_args
 		fill_tp_of_interest(this, s);
 		return *this;
 	}
+	sinsp_driver_params& set_no_events(bool f)
+	{
+		no_events = f;
+		return *this;
+	}
 };
 
 /*!

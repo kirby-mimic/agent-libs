@@ -214,6 +214,11 @@ int32_t scap_modern_bpf__init(scap_t* handle, scap_open_args* oargs)
 	struct scap_modern_bpf_engine_params* params = oargs->engine_params;
 	bool libbpf_verbosity = false;
 
+	if(oargs->no_events)
+	{
+		return SCAP_SUCCESS;
+	}
+
 	pman_clear_state();
 
 	/* Some checks to test if we can use the modern BPF probe
