@@ -489,14 +489,6 @@ void sinsp::open_common(scap_open_args* oargs)
 	init();
 }
 
-scap_open_args sinsp::factory_open_args(const char* engine_name, scap_mode_t scap_mode)
-{
-	scap_open_args oargs{};
-	oargs.engine_name = engine_name;
-	oargs.mode = scap_mode;
-	return oargs;
-}
-
 void sinsp::open_kmod(unsigned long driver_buffer_bytes_dim, sinsp_driver_params* driver_params)
 {
 	sinsp_driver_params p = {};
