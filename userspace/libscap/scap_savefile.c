@@ -44,15 +44,15 @@ struct iovec {
 //
 int scap_dump_write(scap_dumper_t *d, void* buf, unsigned len)
 {
-	switch(d->m_type)
+	if(d->m_type == DT_FILE)
 	{
-	case DT_FILE:
 		return gzwrite(d->m_f, buf, len);
-	case DT_MEM:
+	}
+	else
+	{
 		if(d->m_targetbufcurpos + len < d->m_targetbufend)
 		{
 			memcpy(d->m_targetbufcurpos, buf, len);
-
 			d->m_targetbufcurpos += len;
 			return len;
 		}
@@ -60,10 +60,6 @@ int scap_dump_write(scap_dumper_t *d, void* buf, unsigned len)
 		{
 			return -1;
 		}
-	case DT_MEMSTREAM:
-		return fwrite(buf, 1, len, d->m_memstream);
-	default:
-		return -1;
 	}
 }
 
@@ -263,49 +259,6 @@ static int32_t scap_write_fdlist(scap_t *handle, scap_dumper_t *d)
 }
 
 //
-// Since the process list isn't thread-safe, we at least reduce the
-// time window and write everything at once with a secondary dumper.
-// By doing so, the likelihood of having a wrong total length is lower.
-//
-scap_dumper_t *scap_write_proclist_begin(scap_t *handle)
-{
-	return scap_memstream_dump_create(handle);
-}
-int scap_write_proclist_end(scap_t *handle, scap_dumper_t *d, scap_dumper_t *proclist_dumper, uint32_t totlen)
-{
-	ASSERT(handle != NULL);
-	ASSERT(proclist_dumper != NULL);
-	ASSERT(proclist_dumper->m_type == DT_MANAGED_BUF);
-
-	int res = SCAP_SUCCESS;
-
-	do
-	{
-		scap_dump_flush(proclist_dumper);
-
-		if(scap_write_proclist_header(handle, d, totlen) != SCAP_SUCCESS)
-		{
-			res = SCAP_FAILURE;
-			break;
-		}
-		if(scap_dump_write(d, proclist_dumper->m_targetbuf, totlen) <= 0)
-		{
-			res = SCAP_FAILURE;
-			break;
-		}
-		if(scap_write_proclist_trailer(handle, d, totlen) != SCAP_SUCCESS)
-		{
-			res = SCAP_FAILURE;
-			break;
-		}
-	} while(false);
-
-	scap_dump_close(proclist_dumper);
-
-	return res;
-}
-
-//
 // Write the process list block
 //
 int32_t scap_write_proclist_header(scap_t *handle, scap_dumper_t *d, uint32_t totlen)
@@ -363,7 +316,7 @@ int32_t scap_write_proclist_trailer(scap_t *handle, scap_dumper_t *d, uint32_t t
 //
 // Write the process list block
 //
-int32_t scap_write_proclist_entry(scap_t *handle, scap_dumper_t *d, struct scap_threadinfo *tinfo, uint32_t *len)
+int32_t scap_write_proclist_entry(scap_t *handle, scap_dumper_t *d, struct scap_threadinfo *tinfo, uint32_t len)
 {
 	struct iovec args = {tinfo->args, tinfo->args_len};
 	struct iovec env = {tinfo->env, tinfo->env_len};
@@ -393,7 +346,7 @@ static uint16_t iov_size(const struct iovec *iov, uint32_t iovcnt)
 	return len;
 }
 
-int32_t scap_write_proclist_entry_bufs(scap_t *handle, scap_dumper_t *d, struct scap_threadinfo *tinfo, uint32_t *len,
+int32_t scap_write_proclist_entry_bufs(scap_t *handle, scap_dumper_t *d, struct scap_threadinfo *tinfo, uint32_t len,
 				       const char *comm,
 				       const char *exe,
 				       const char *exepath,
@@ -422,47 +375,7 @@ int32_t scap_write_proclist_entry_bufs(scap_t *handle, scap_dumper_t *d, struct 
 	envlen = iov_size(envs, envscnt);
 	cgroupslen = iov_size(cgroups, cgroupscnt);
 
-	//
-	// NB: new fields must be appended
-	//
-	*len = (uint32_t)(sizeof(uint32_t) + // len
-			  sizeof(uint64_t) + // tid
-			  sizeof(uint64_t) + // pid
-			  sizeof(uint64_t) + // ptid
-			  sizeof(uint64_t) + // sid
-			  sizeof(uint64_t) + // vpgid
-			  2 + commlen +
-			  2 + exelen +
-			  2 + exepathlen +
-			  2 + argslen +
-			  2 + cwdlen +
-			  sizeof(uint64_t) + // fdlimit
-			  sizeof(uint32_t) + // flags
-			  sizeof(uint32_t) + // uid
-			  sizeof(uint32_t) + // gid
-			  sizeof(uint32_t) + // vmsize_kb
-			  sizeof(uint32_t) + // vmrss_kb
-			  sizeof(uint32_t) + // vmswap_kb
-			  sizeof(uint64_t) + // pfmajor
-			  sizeof(uint64_t) + // pfminor
-			  2 + envlen +
-			  sizeof(int64_t) + // vtid
-			  sizeof(int64_t) + // vpid
-			  2 + cgroupslen +
-			  2 + rootlen +
-			  sizeof(uint64_t) + // pidns_init_start_ts
-			  sizeof(int32_t) +  // tty
-			  sizeof(int32_t) +  // loginuid
-			  sizeof(uint8_t) +  // exe_writable
-			  sizeof(uint64_t) + // cap_inheritable
-			  sizeof(uint64_t) + // cap_permitted
-			  sizeof(uint64_t) + // cap_effective
-			  sizeof(uint8_t) + // exe_upper_layer
-			  sizeof(uint64_t) + // exe_ino
-			  sizeof(uint64_t) + // exe_ino_ctime
-			  sizeof(uint64_t)); // exe_ino_mtime
-
-	if(scap_dump_write(d, len, sizeof(uint32_t)) != sizeof(uint32_t) ||
+	if(scap_dump_write(d, &len, sizeof(uint32_t)) != sizeof(uint32_t) ||
 		    scap_dump_write(d, &(tinfo->tid), sizeof(uint64_t)) != sizeof(uint64_t) ||
 		    scap_dump_write(d, &(tinfo->pid), sizeof(uint64_t)) != sizeof(uint64_t) ||
 		    scap_dump_write(d, &(tinfo->ptid), sizeof(uint64_t)) != sizeof(uint64_t) ||
@@ -519,6 +432,11 @@ int32_t scap_write_proclist_entry_bufs(scap_t *handle, scap_dumper_t *d, struct 
 //
 static int32_t scap_write_proclist(scap_t *handle, scap_dumper_t *d)
 {
+	uint32_t totlen = 0;
+	uint32_t idx = 0;
+	struct scap_threadinfo *tinfo;
+	struct scap_threadinfo *ttinfo;
+
 	//
 	// No process list on disk if the source is a plugin
 	//
@@ -527,42 +445,86 @@ static int32_t scap_write_proclist(scap_t *handle, scap_dumper_t *d)
 		return SCAP_SUCCESS;
 	}
 
-	//
-	// Exit immediately if the process list is empty
-	//
-	if(HASH_COUNT(handle->m_proclist.m_proclist) == 0)
+	uint32_t* lengths = calloc(HASH_COUNT(handle->m_proclist), sizeof(uint32_t));
+	if(lengths == NULL)
 	{
-		return SCAP_SUCCESS;
-	}
-
-	scap_dumper_t *proclist_dumper = scap_write_proclist_begin(handle);
-	if(proclist_dumper == NULL)
-	{
+		snprintf(handle->m_lasterr, SCAP_LASTERR_SIZE, "scap_write_proclist memory allocation failure");
 		return SCAP_FAILURE;
 	}
-	
 
-	uint32_t totlen = 0;
-	struct scap_threadinfo *tinfo;
-	struct scap_threadinfo *ttinfo;
-	HASH_ITER(hh, handle->m_proclist.m_proclist, tinfo, ttinfo)
+	//
+	// First pass of the table to calculate the lengths
+	//
+	HASH_ITER(hh, handle->m_proclist, tinfo, ttinfo)
+	{
+		if(!tinfo->filtered_out)
+		{
+			//
+			// NB: new fields must be appended
+			//
+			uint32_t il= (uint32_t)
+				(sizeof(uint32_t) +     // len
+				 sizeof(uint64_t) +	// tid
+				 sizeof(uint64_t) +	// pid
+				 sizeof(uint64_t) +	// ptid
+				 sizeof(uint64_t) +	// sid
+				 sizeof(uint64_t) +	// vpgid
+				 2 + strnlen(tinfo->comm, SCAP_MAX_PATH_SIZE) +
+				 2 + strnlen(tinfo->exe, SCAP_MAX_PATH_SIZE) +
+				 2 + strnlen(tinfo->exepath, SCAP_MAX_PATH_SIZE) +
+				 2 + tinfo->args_len +
+				 2 + strnlen(tinfo->cwd, SCAP_MAX_PATH_SIZE) +
+				 sizeof(uint64_t) +	// fdlimit
+				 sizeof(uint32_t) +      // flags
+				 sizeof(uint32_t) +	// uid
+				 sizeof(uint32_t) +	// gid
+				 sizeof(uint32_t) +  // vmsize_kb
+				 sizeof(uint32_t) +  // vmrss_kb
+				 sizeof(uint32_t) +  // vmswap_kb
+				 sizeof(uint64_t) +  // pfmajor
+				 sizeof(uint64_t) +  // pfminor
+				 2 + tinfo->env_len +
+				 sizeof(int64_t) +  // vtid
+				 sizeof(int64_t) +  // vpid
+				 2 + tinfo->cgroups_len +
+				 2 + strnlen(tinfo->root, SCAP_MAX_PATH_SIZE) +
+				 sizeof(int32_t) + // loginuid;
+				 sizeof(uint8_t) + // exe_writable
+				 sizeof(uint64_t) + // cap_inheritable
+				 sizeof(uint64_t) + // cap_permitted
+				 sizeof(uint64_t)); // cap_effective
+
+			lengths[idx++] = il;
+			totlen += il;
+		}
+	}
+	idx = 0;
+	if(scap_write_proclist_header(handle, d, totlen) != SCAP_SUCCESS)
+	{
+		free(lengths);
+		return SCAP_FAILURE;
+	}
+
+	//
+	// Second pass of the table to dump it
+	//
+	HASH_ITER(hh, handle->m_proclist, tinfo, ttinfo)
 	{
 		if(tinfo->filtered_out)
 		{
 			continue;
 		}
 
-		uint32_t len = 0;
-		if(scap_write_proclist_entry(handle, proclist_dumper, tinfo, &len) != SCAP_SUCCESS)
+		if(scap_write_proclist_entry(handle, d, tinfo, lengths[idx++]) != SCAP_SUCCESS)
 		{
-			scap_dump_close(proclist_dumper);
+			free(lengths);
 			return SCAP_FAILURE;
 		}
-
-		totlen += len;
 	}
 
-	return scap_write_proclist_end(handle, d, proclist_dumper, totlen);
+	free(lengths);
+
+	return scap_write_proclist_trailer(handle, d, totlen);
 }
 
 //
@@ -1116,37 +1078,6 @@ scap_dumper_t *scap_memory_dump_open(scap_t *handle, uint8_t* targetbuf, uint64_
 }
 
 //
-// Create a memstream (see open_memstream) "savefile"
-//
-scap_dumper_t *scap_memstream_dump_create(scap_t *handle)
-{
-	scap_dumper_t *res = (scap_dumper_t *)malloc(sizeof(scap_dumper_t));
-	if(res == NULL)
-	{
-		snprintf(handle->m_lasterr, SCAP_LASTERR_SIZE, "scap_memstream_dump_create memory allocation failure (1)");
-		return NULL;
-	}
-
-	res->m_f = NULL;
-	res->m_targetbuf = NULL;
-	res->m_targetbufcurpos = NULL;
-	res->m_targetbufend = NULL;
-
-	res->m_type = DT_MEMSTREAM;
-
-	// we don't really care about the size, so we recycle m_targetbufend
-	res->m_memstream = open_memstream((char **)&res->m_targetbuf, (size_t *)&res->m_targetbufend);
-	if (res->m_memstream == NULL)
-	{
-		snprintf(handle->m_lasterr, SCAP_LASTERR_SIZE, "scap_memstream_dump_create memstream creation failure (1)");
-		free(res);
-		return NULL;
-	}
-
-	return res;
-}
-
-//
 // Close a "savefile" opened with scap_dump_open
 //
 void scap_dump_close(scap_dumper_t *d)
@@ -1154,11 +1085,6 @@ void scap_dump_close(scap_dumper_t *d)
 	if(d->m_type == DT_FILE)
 	{
 		gzclose(d->m_f);
-	}
-	else if (d->m_type == DT_MEMSTREAM)
-	{
-		fclose(d->m_memstream);
-		free(d->m_targetbuf);
 	}
 
 	free(d);
@@ -1196,10 +1122,6 @@ void scap_dump_flush(scap_dumper_t *d)
 	if(d->m_type == DT_FILE)
 	{
 		gzflush(d->m_f, Z_FULL_FLUSH);
-	}
-	else if (d->m_type == DT_MEMSTREAM)
-	{
-		fflush(d->m_memstream);
 	}
 }
 
