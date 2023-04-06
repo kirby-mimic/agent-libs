@@ -88,7 +88,7 @@ typedef enum ppm_dumper_type
 {
 	DT_FILE = 0,
 	DT_MEM = 1,
-	DT_MANAGED_BUF = 2,
+	DT_MEMSTREAM = 2,
 }ppm_dumper_type;
 
 #define PPM_DUMPER_MANAGED_BUF_SIZE (3 * 1024 * 1024)
@@ -97,6 +97,7 @@ typedef enum ppm_dumper_type
 struct scap_dumper
 {
 	gzFile m_f;
+	FILE* m_memstream;
 	ppm_dumper_type m_type;
 	uint8_t* m_targetbuf;
 	uint8_t* m_targetbufcurpos;
