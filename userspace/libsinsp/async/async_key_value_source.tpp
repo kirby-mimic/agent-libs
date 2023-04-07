@@ -16,6 +16,8 @@ limitations under the License.
 */
 #include "logger.h"
 
+#include <hotpot.h>
+
 #include <assert.h>
 #include <algorithm>
 #include <chrono>
@@ -112,6 +114,8 @@ bool async_key_value_source<key_type, value_type>::is_running() const
 template<typename key_type, typename value_type>
 void async_key_value_source<key_type, value_type>::run()
 {
+	hotpot_cpuset("dr-", "async_key_value_source");
+
 	bool terminate = false;
 
 	while(!terminate)
