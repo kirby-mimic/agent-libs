@@ -35,7 +35,7 @@ bool scap_is_api_compatible(unsigned long driver_api_version, unsigned long requ
 
 /**
  * Apply the `semver` checks on current and required versions.
- */  
+ */
 bool scap_apply_semver_check(uint32_t current_major, uint32_t current_minor, uint32_t current_patch,
 							uint32_t required_major, uint32_t required_minor, uint32_t required_patch);
 
