@@ -294,6 +294,8 @@ public:
 	std::string m_exepath; ///< full executable path
 	bool m_exe_writable;
 	bool m_exe_upper_layer; ///< True if the executable file belongs to upper layer in overlayfs
+    bool m_exec_from_memfd; ///< True if the executable is a fileless entity, ie memfd
+    std::string m_memfd_name; /// Name of memfd identifier
 	std::vector<std::string> m_args; ///< Command line arguments (e.g. "-d1")
 	std::vector<std::string> m_env; ///< Environment variables
 	std::unique_ptr<cgroups_t> m_cgroups; ///< subsystem-cgroup pairs

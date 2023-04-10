@@ -2159,6 +2159,12 @@ static __always_inline struct inode *get_exe_inode(struct task_struct *task)
 	return _READ(exe_file->f_inode);
 }
 
+static __always_inline struct file *get_exe_file(struct task_struct *task)
+{
+	struct mm_struct *mm = _READ(task->mm);
+	return _READ(mm->exe_file);
+}
+
 /* `timespec64` was introduced in kernels >= 3.17 so it is ok here */
 static __always_inline unsigned long long bpf_epoch_ns_from_time(struct timespec64 time)
 {
@@ -2268,6 +2274,60 @@ static __always_inline bool get_exe_upper_layer(struct inode *inode)
 	}
 
 	return false;
+}
+
+static __always_inline bool get_exe_is_memfd(struct file *file, char *memfd_name_out, size_t size)
+{
+    struct dentry *dentry = _READ(file->f_path.dentry);
+    if (!dentry)
+	{
+        bpf_printk("get_exe_is_from_memfd(): failed to get dentry");
+        return false;
+    }
+
+    const unsigned char *name = _READ(dentry->d_name.name);
+    if (!name)
+	{
+        bpf_printk("get_exe_is_from_memfd(): failed to get name");
+        return false;
+    }
+
+    struct dentry *parent = _READ(dentry->d_parent);
+    if (!parent)
+	{
+        bpf_printk("get_exe_is_from_memfd(): failed to get parent");
+        return false;
+    }
+
+	if (parent != dentry)
+	{
+		return false;
+	}
+
+	const char expected_prefix[] = "memfd:";
+    char memfd_name[sizeof(expected_prefix)] = {'\0'};
+
+    if (bpf_probe_read_str(memfd_name, sizeof(memfd_name), name) != sizeof(expected_prefix))
+	{
+		return false;
+	}
+
+	for (int i = 0; i < sizeof(expected_prefix); i++)
+	{
+		if (expected_prefix[i] != memfd_name[i])
+		{
+			return false;
+		}
+	}
+
+	if (memfd_name_out)
+	{
+        bpf_probe_read_str(memfd_name_out, size, name);
+	}
+
+	bpf_printk("get_exe_is_from_memfd(): observed exec from memfd");
+
+	return true;
 }
 
 FILLER(proc_startupdate, true)
@@ -2796,6 +2856,7 @@ FILLER(execve_family_flags, true)
 {
 	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 	struct cred *cred = (struct cred *)_READ(task->cred);
+    struct file *file = get_exe_file(task);
 	struct inode *inode = get_exe_inode(task);
 
 	/* `exe_writable` and `exe_upper_layer` flag logic */
@@ -2803,6 +2864,9 @@ FILLER(execve_family_flags, true)
 	bool exe_upper_layer = false;
 	uint32_t flags = 0;
 	kuid_t euid;
+
+	bool exec_from_memfd = false;
+	char memfd_name[256]; /* NAME_MAX */
 
 	if(inode)
 	{
@@ -2823,8 +2887,12 @@ FILLER(execve_family_flags, true)
 		{
 			flags |= PPM_EXE_UPPER_LAYER;
 		}
+        // write all additional flags for execve family here...
+    }
 
-		// write all additional flags for execve family here...
+	if (file && (exec_from_memfd = get_exe_is_memfd(file, memfd_name, sizeof(memfd_name))))
+	{
+		flags |= PPM_EXE_IS_FROM_MEMFD;
 	}
 
 	/* Parameter 20: flags (type: PT_FLAGS32) */
@@ -2865,7 +2933,18 @@ FILLER(execve_family_flags, true)
 
 	/* Parameter 27: uid */
 	euid = _READ(cred->euid);
-	return bpf_val_to_ring_type(data, euid.val, PT_UINT32);
+	res = bpf_val_to_ring_type(data, euid.val, PT_UINT32);
+	CHECK_RES(res);
+
+    /* Parameter 28: memfd name */
+	if (exec_from_memfd)
+	{
+		bpf_printk("execve_family_flags(): get_exe_is_memfd() got memfd name: %s", memfd_name);
+		res = bpf_val_to_ring_type(data, (unsigned long)memfd_name, PT_CHARBUF);
+		CHECK_RES(res);
+	}
+
+    return 0;
 }
 
 FILLER(sys_accept4_e, true)
@@ -6478,11 +6557,13 @@ FILLER(sched_prog_exec_4, false)
 {
 	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 	struct cred *cred = (struct cred *)_READ(task->cred);
+    struct file *file = get_exe_file(task);
 	struct inode *inode = get_exe_inode(task);
 
 	/* `exe_writable` and `exe_upper_layer` flag logic */
 	bool exe_writable = false;
 	bool exe_upper_layer = false;
+
 	uint32_t flags = 0;
 	kuid_t euid;
 
@@ -6505,9 +6586,9 @@ FILLER(sched_prog_exec_4, false)
 		{
 			flags |= PPM_EXE_UPPER_LAYER;
 		}
-
+ 
 		// write all additional flags for execve family here...
-	}
+    }
 
 	/* Parameter 20: flags (type: PT_FLAGS32) */
 	int res = bpf_val_to_ring_type(data, flags, PT_UINT32);
@@ -6547,7 +6628,25 @@ FILLER(sched_prog_exec_4, false)
 
 	/* Parameter 27: uid */
 	euid = _READ(cred->euid);
-	return bpf_val_to_ring_type(data, euid.val, PT_UINT32);
+	res = bpf_val_to_ring_type(data, euid.val, PT_UINT32);
+    CHECK_RES(res);
+
+    /* Parameter 28: memfd name */
+    if (file)
+    {
+        bool exec_from_memfd = false;
+        char memfd_name[256]; /* NAME_MAX */
+        exec_from_memfd = get_exe_is_memfd(file, memfd_name, sizeof(memfd_name));
+        if (exec_from_memfd)
+        {
+            bpf_printk("sched_prog_exec_4(): get_exe_is_memfd() returned memfd execution");
+            flags |= PPM_EXE_IS_FROM_MEMFD;
+            res = bpf_val_to_ring_type(data, (unsigned long) memfd_name, PT_CHARBUF);
+            CHECK_RES(res);
+        }
+	}
+
+    return 0;
 }
 #endif
 

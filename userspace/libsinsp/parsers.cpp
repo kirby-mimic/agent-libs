@@ -2118,6 +2118,7 @@ void sinsp_parser::parse_execve_exit(sinsp_evt *evt)
 
 		evt->m_tinfo->m_exe_writable = ((flags & PPM_EXE_WRITABLE) != 0);
 		evt->m_tinfo->m_exe_upper_layer = ((flags & PPM_EXE_UPPER_LAYER) != 0);
+		evt->m_tinfo->m_exec_from_memfd = ((flags & PPM_EXE_IS_FROM_MEMFD) != 0);
 	}
 
 	// Get capabilities
@@ -2170,6 +2171,12 @@ void sinsp_parser::parse_execve_exit(sinsp_evt *evt)
 	{
 		parinfo = evt->get_param(26);
 		evt->m_tinfo->m_user.uid = *(uint32_t *)parinfo->m_val;
+	}
+    
+    if(evt->get_num_params() > 27)
+	{
+		parinfo = evt->get_param(27);
+		evt->m_tinfo->m_exec_from_memfd = (char*)parinfo->m_val;
 	}
 	//
 	// execve starts with a clean fd list, so we get rid of the fd list that clone

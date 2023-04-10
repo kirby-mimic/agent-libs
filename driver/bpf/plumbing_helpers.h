@@ -16,6 +16,7 @@ or GPL2.txt for full copies of the license.
 #include "types.h"
 #include "builtins.h"
 
+#define BPF_DEBUG 1
 #define _READ(P) ({ typeof(P) _val;				\
 		    memset(&_val, 0, sizeof(_val));		\
 		    bpf_probe_read(&_val, sizeof(_val), &P);	\
