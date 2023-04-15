@@ -252,6 +252,9 @@ static bool verbose = 0;
 
 static unsigned int max_consumers = 5;
 
+void attach_fsnotify_filters(void);
+void detach_fsnotify_filters(void);
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0))
 static enum cpuhp_state hp_state = 0;
 #endif
@@ -2883,6 +2886,8 @@ int scap_init(void)
 		g_tracepoints_refs[j] = 0;
 	}
 
+	attach_fsnotify_filters();
+
 	return 0;
 
 init_module_err:
@@ -2913,6 +2918,8 @@ void scap_exit(void)
 	int j;
 
 	pr_info("driver unloading\n");
+
+	detach_fsnotify_filters();
 
 	for (j = 0; j < g_ppm_numdevs; ++j) {
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 20)

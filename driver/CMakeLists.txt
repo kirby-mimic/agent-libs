@@ -102,6 +102,7 @@ set(DRIVER_SOURCES
 	systype_compat.h
 	ppm_tp.h
 	tp_table.c
+	fsnotify_filter.c
 )
 
 foreach(FILENAME IN LISTS DRIVER_SOURCES)
