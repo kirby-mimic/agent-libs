@@ -563,6 +563,26 @@ static int32_t scap_read_proclist(scap_reader_t* r, uint32_t block_length, uint3
 		// }
 
 		//
+		// pidns_init_start_ts
+		//
+		if(sub_len && (subreadsize + sizeof(int64_t)) <= sub_len)
+		{
+			readsize = r->read(r, &(tinfo.pidns_init_start_ts), sizeof(int64_t));
+			CHECK_READ_SIZE_ERR(readsize, sizeof(uint64_t), error);
+			subreadsize += readsize;
+		}
+
+		//
+		// tty
+		//
+		if(sub_len && (subreadsize + sizeof(int32_t)) <= sub_len)
+		{
+			readsize = gzread(f, &(tinfo.tty), sizeof(int32_t));
+			CHECK_READ_SIZE_ERR(readsize, sizeof(uint32_t), error);
+			subreadsize += readsize;
+		}
+
+		//
 		// loginuid
 		//
 		if(sub_len && (subreadsize + sizeof(int32_t)) <= sub_len)
@@ -602,6 +622,46 @@ static int32_t scap_read_proclist(scap_reader_t* r, uint32_t block_length, uint3
 		if(sub_len && (subreadsize + sizeof(uint64_t)) <= sub_len)
 		{
 			readsize = r->read(r, &(tinfo.cap_effective), sizeof(uint64_t));
+			CHECK_READ_SIZE_ERR(readsize, sizeof(uint64_t), error);
+			subreadsize += readsize;
+		}
+
+		//
+		// exe_upper_layer
+		//
+		if(sub_len && (subreadsize + sizeof(uint8_t)) <= sub_len)
+		{
+			readsize = r->read(r, &(tinfo.exe_upper_layer), sizeof(uint8_t));
+			CHECK_READ_SIZE_ERR(readsize, sizeof(uint8_t), error);
+			subreadsize += readsize;
+		}
+
+		//
+		// exe_ino
+		//
+		if(sub_len && (subreadsize + sizeof(uint64_t)) <= sub_len)
+		{
+			readsize = r->read(r, &(tinfo.exe_ino), sizeof(uint64_t));
+			CHECK_READ_SIZE_ERR(readsize, sizeof(uint64_t), error);
+			subreadsize += readsize;
+		}
+
+		//
+		// exe_ino_ctime
+		//
+		if(sub_len && (subreadsize + sizeof(uint64_t)) <= sub_len)
+		{
+			readsize = r->read(r, &(tinfo.exe_ino_ctime), sizeof(uint64_t));
+			CHECK_READ_SIZE_ERR(readsize, sizeof(uint64_t), error);
+			subreadsize += readsize;
+		}
+
+		//
+		// exe_ino_mtime
+		//
+		if(sub_len && (subreadsize + sizeof(uint64_t)) <= sub_len)
+		{
+			readsize = r->read(r, &(tinfo.exe_ino_mtime), sizeof(uint64_t));
 			CHECK_READ_SIZE_ERR(readsize, sizeof(uint64_t), error);
 			subreadsize += readsize;
 		}
