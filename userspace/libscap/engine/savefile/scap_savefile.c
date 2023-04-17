@@ -563,26 +563,6 @@ static int32_t scap_read_proclist(scap_reader_t* r, uint32_t block_length, uint3
 		// }
 
 		//
-		// pidns_init_start_ts
-		//
-		if(sub_len && (subreadsize + sizeof(int64_t)) <= sub_len)
-		{
-			readsize = r->read(r, &(tinfo.pidns_init_start_ts), sizeof(int64_t));
-			CHECK_READ_SIZE_ERR(readsize, sizeof(uint64_t), error);
-			subreadsize += readsize;
-		}
-
-		//
-		// tty
-		//
-		if(sub_len && (subreadsize + sizeof(int32_t)) <= sub_len)
-		{
-			readsize = gzread(f, &(tinfo.tty), sizeof(int32_t));
-			CHECK_READ_SIZE_ERR(readsize, sizeof(uint32_t), error);
-			subreadsize += readsize;
-		}
-
-		//
 		// loginuid
 		//
 		if(sub_len && (subreadsize + sizeof(int32_t)) <= sub_len)
@@ -623,6 +603,26 @@ static int32_t scap_read_proclist(scap_reader_t* r, uint32_t block_length, uint3
 		{
 			readsize = r->read(r, &(tinfo.cap_effective), sizeof(uint64_t));
 			CHECK_READ_SIZE_ERR(readsize, sizeof(uint64_t), error);
+			subreadsize += readsize;
+		}
+
+		//
+		// pidns_init_start_ts
+		//
+		if(sub_len && (subreadsize + sizeof(int64_t)) <= sub_len)
+		{
+			readsize = r->read(r, &(tinfo.pidns_init_start_ts), sizeof(int64_t));
+			CHECK_READ_SIZE_ERR(readsize, sizeof(uint64_t), error);
+			subreadsize += readsize;
+		}
+
+		//
+		// tty
+		//
+		if(sub_len && (subreadsize + sizeof(int32_t)) <= sub_len)
+		{
+			readsize = gzread(f, &(tinfo.tty), sizeof(int32_t));
+			CHECK_READ_SIZE_ERR(readsize, sizeof(uint32_t), error);
 			subreadsize += readsize;
 		}
 
