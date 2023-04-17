@@ -293,7 +293,7 @@ int scap_write_proclist_end(scap_t *handle, scap_dumper_t *d, scap_dumper_t *pro
 	ASSERT(proclist_dumper->m_type == DT_MANAGED_BUF);
 
 	int res = SCAP_SUCCESS;
-
+	printf("[LIBS] [scap_write_proclist_end] enter\n");
 	do
 	{
 		scap_dump_flush(proclist_dumper);
@@ -316,7 +316,7 @@ int scap_write_proclist_end(scap_t *handle, scap_dumper_t *d, scap_dumper_t *pro
 	} while(false);
 
 	scap_dump_close(proclist_dumper);
-
+	printf("[LIBS] [scap_write_proclist_end] exit\n");
 	return res;
 }
 
@@ -332,7 +332,7 @@ int32_t scap_write_proclist_header(scap_t *handle, scap_dumper_t *d, uint32_t to
 	//
 	bh.block_type = PL_BLOCK_TYPE_V9;
 	bh.block_total_length = scap_normalize_block_len(sizeof(block_header) + totlen + 4);
-
+	printf("[LIBS] [scap_write_proclist_end] type %u block lenght %u\n", bh.block_type, bh.block_total_length);
 	if(scap_dump_write(d, &bh, sizeof(bh)) != sizeof(bh))
 	{
 		snprintf(handle->m_lasterr, SCAP_LASTERR_SIZE, "error writing to file (1)");
