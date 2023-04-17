@@ -510,18 +510,19 @@ int32_t scap_write_proclist_entry_bufs(scap_t *handle, scap_dumper_t *d, struct 
                     scap_dump_writev(d, cgroups, cgroupscnt) != cgroupslen ||
 		    scap_dump_write(d, &rootlen, sizeof(uint16_t)) != sizeof(uint16_t) ||
                     scap_dump_write(d, (char *) root, rootlen) != rootlen ||
-			scap_dump_write(d, &(tinfo->pidns_init_start_ts), sizeof(uint64_t)) != sizeof(uint64_t) ||
-			scap_dump_write(d, &(tinfo->tty), sizeof(int32_t)) != sizeof(int32_t) ||
             scap_dump_write(d, &(tinfo->loginuid), sizeof(uint32_t)) != sizeof(uint32_t) ||
 			scap_dump_write(d, &(tinfo->exe_writable), sizeof(uint8_t)) != sizeof(uint8_t) ||
 			scap_dump_write(d, &(tinfo->cap_inheritable), sizeof(uint64_t)) != sizeof(uint64_t) ||
 			scap_dump_write(d, &(tinfo->cap_permitted), sizeof(uint64_t)) != sizeof(uint64_t) ||
-			scap_dump_write(d, &(tinfo->cap_effective), sizeof(uint64_t)) != sizeof(uint64_t) || 
+			scap_dump_write(d, &(tinfo->cap_effective), sizeof(uint64_t)) != sizeof(uint64_t) ||
 			scap_dump_write(d, &(tinfo->exe_upper_layer), sizeof(uint8_t)) != sizeof(uint8_t) ||
-			scap_dump_write(d, &(tinfo->exe_ino), sizeof(uint64_t)) != sizeof(uint64_t) ||
+	   scap_dump_write(d, &(tinfo->pidns_init_start_ts), sizeof(uint64_t)) != sizeof(uint64_t) ||
+	   scap_dump_write(d, &(tinfo->tty), sizeof(int32_t)) != sizeof(int32_t) ||
+	   scap_dump_write(d, &(tinfo->exe_ino), sizeof(uint64_t)) != sizeof(uint64_t) ||
 			scap_dump_write(d, &(tinfo->exe_ino_ctime), sizeof(uint64_t)) != sizeof(uint64_t) ||
 			scap_dump_write(d, &(tinfo->exe_ino_mtime), sizeof(uint64_t)) != sizeof(uint64_t))
 	{
+
 		snprintf(handle->m_lasterr, SCAP_LASTERR_SIZE, "error writing to file (2)");
 		return SCAP_FAILURE;
 	}
