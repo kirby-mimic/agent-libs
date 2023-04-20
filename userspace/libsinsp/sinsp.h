@@ -1130,6 +1130,8 @@ public:
 	// should not return events.
 	bool suppress_events_comm(const std::string &comm);
 
+	bool suppress_events_tid(int64_t tid);
+
 	bool check_suppressed(int64_t tid);
 
 	void set_docker_socket_path(std::string socket_path);
