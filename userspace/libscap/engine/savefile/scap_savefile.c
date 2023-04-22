@@ -562,6 +562,55 @@ static int32_t scap_read_proclist(scap_reader_t* r, uint32_t block_length, uint3
 		//    ...
 		// }
 
+		// In 0.10.x libs tag, 2 fields were added to the scap file producer,
+		// written in the middle of the proclist entry, breaking forward compatibility
+		// for old scap file readers.
+		// Detect this hacky behavior, and manage it.
+		// Added fields:
+		// * exe_upper_layer
+		// * exe_ino
+		// * exe_ino_ctime
+		// * exe_ino_mtime
+		// * pidns_init_start_ts (in the middle)
+		// * tty (in the middle)
+		// So, to check if we need to enable the "pre-0.10.x hack",
+		// we need to check if remaining data to be read is <= than
+		// sum of sizes for fields existent in libs < 0.10.x, ie:
+		// * loginuid (4B)
+		// * exe_writable (1B)
+		// * cap_inheritable (8B)
+		// * cap_permitted (8B)
+		// * cap_effective (8B)
+		// TOTAL: 29B
+		bool pre_0_10_0 = false;
+		if (sub_len - subreadsize <= 29)
+		{
+			pre_0_10_0 = true;
+		}
+
+		if (!pre_0_10_0)
+		{
+			//
+			// pidns_init_start_ts
+			//
+			if(sub_len && (subreadsize + sizeof(uint64_t)) <= sub_len)
+			{
+				readsize = r->read(r, &(tinfo.pidns_init_start_ts), sizeof(uint64_t));
+				CHECK_READ_SIZE_ERR(readsize, sizeof(uint64_t), error);
+				subreadsize += readsize;
+			}
+
+			//
+			// tty
+			//
+			if(sub_len && (subreadsize + sizeof(int32_t)) <= sub_len)
+			{
+				readsize = r->read(r, &(tinfo.tty), sizeof(int32_t));
+				CHECK_READ_SIZE_ERR(readsize, sizeof(int32_t), error);
+				subreadsize += readsize;
+			}
+		}
+
 		//
 		// loginuid
 		//
@@ -602,6 +651,46 @@ static int32_t scap_read_proclist(scap_reader_t* r, uint32_t block_length, uint3
 		if(sub_len && (subreadsize + sizeof(uint64_t)) <= sub_len)
 		{
 			readsize = r->read(r, &(tinfo.cap_effective), sizeof(uint64_t));
+			CHECK_READ_SIZE_ERR(readsize, sizeof(uint64_t), error);
+			subreadsize += readsize;
+		}
+
+		//
+		// exe_upper_layer
+		//
+		if(sub_len && (subreadsize + sizeof(uint8_t)) <= sub_len)
+		{
+			readsize = r->read(r, &(tinfo.exe_upper_layer), sizeof(uint8_t));
+			CHECK_READ_SIZE_ERR(readsize, sizeof(uint8_t), error);
+			subreadsize += readsize;
+		}
+
+		//
+		// exe_ino
+		//
+		if(sub_len && (subreadsize + sizeof(uint64_t)) <= sub_len)
+		{
+			readsize = r->read(r, &(tinfo.exe_ino), sizeof(uint64_t));
+			CHECK_READ_SIZE_ERR(readsize, sizeof(uint64_t), error);
+			subreadsize += readsize;
+		}
+
+		//
+		// exe_ino_ctime
+		//
+		if(sub_len && (subreadsize + sizeof(uint64_t)) <= sub_len)
+		{
+			readsize = r->read(r, &(tinfo.exe_ino_ctime), sizeof(uint64_t));
+			CHECK_READ_SIZE_ERR(readsize, sizeof(uint64_t), error);
+			subreadsize += readsize;
+		}
+
+		//
+		// exe_ino_mtime
+		//
+		if(sub_len && (subreadsize + sizeof(uint64_t)) <= sub_len)
+		{
+			readsize = r->read(r, &(tinfo.exe_ino_mtime), sizeof(uint64_t));
 			CHECK_READ_SIZE_ERR(readsize, sizeof(uint64_t), error);
 			subreadsize += readsize;
 		}
