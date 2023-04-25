@@ -417,6 +417,47 @@ static __always_inline int bpf_test_bit(int nr, unsigned long *addr)
 	return 1UL & (_READ(addr[BIT_WORD(nr)]) >> (nr & (BITS_PER_LONG - 1)));
 }
 
+#if defined(CAPTURE_SCHED_PROC_FORK) || defined(CAPTURE_SCHED_PROC_EXEC)
+static __always_inline bool bpf_drop_syscall_exit_events(void *ctx, enum ppm_event_type evt_type)
+{
+	long ret = 0;
+	switch (evt_type)
+	{
+		/* On s390x, clone and fork child events will be generated but
+		 * due to page faults, no args/envp information will be collected.
+		 * Also no child events appear for clone3 syscall.
+		 *
+		 * Because child events are covered by CAPTURE_SCHED_PROC_FORK,
+		 * let proactively ignore them.
+		 */
+#ifdef CAPTURE_SCHED_PROC_FORK
+		case PPME_SYSCALL_CLONE_20_X:
+		case PPME_SYSCALL_FORK_20_X:
+		case PPME_SYSCALL_VFORK_20_X:
+		case PPME_SYSCALL_CLONE3_X:
+			ret = bpf_syscall_get_retval(ctx);
+			/* We ignore only child events, so ret == 0! */
+			return ret == 0;
+#endif
+
+		/* If `CAPTURE_SCHED_PROC_EXEC` logic is enabled we collect execve-family
+		 * exit events through a dedicated tracepoint so we can ignore them here.
+		 */
+#ifdef CAPTURE_SCHED_PROC_EXEC
+		case PPME_SYSCALL_EXECVE_19_X:
+		case PPME_SYSCALL_EXECVEAT_X:
+			ret = bpf_syscall_get_retval(ctx);
+			/* We ignore only successful events, so ret == 0! */
+			return ret == 0;
+#endif
+
+		default:
+			break;
+	}
+	return false;
+}
+#endif
+
 static __always_inline bool drop_event(void *ctx,
 				       struct scap_bpf_per_cpu_state *state,
 				       enum ppm_event_type evt_type,
