@@ -12,9 +12,11 @@ or GPL2.txt for full copies of the license.
 #include "../systype_compat.h"
 #include "../ppm_flag_helpers.h"
 #include "../ppm_version.h"
+#include "missing_definitions.h"
 
 #include <linux/tty.h>
 #include <linux/audit.h>
+#include <linux/mount.h>
 
 
 /* Linux kernel 4.15 introduced the new const `UID_GID_MAP_MAX_BASE_EXTENTS` in place of 
@@ -2248,20 +2250,30 @@ static __always_inline bool get_exe_writable(struct inode *inode, struct cred *c
 	return false;
 }
 
-static __always_inline bool get_exe_upper_layer(struct inode *inode)
+static __always_inline bool get_exe_upper_layer(struct dentry *dentry, struct super_block *sb)
 {
-	struct super_block *sb = _READ(inode->i_sb);
 	unsigned long sb_magic = _READ(sb->s_magic);
 	if(sb_magic == PPM_OVERLAYFS_SUPER_MAGIC)
 	{
 		struct dentry *upper_dentry = NULL;
-		char *vfs_inode = (char *)inode;
-		
+ 		char *vfs_inode = (char *)_READ(dentry->d_inode);
+ 		unsigned int d_flags = _READ(dentry->d_flags);
+ 		bool disconnected = (d_flags & DCACHE_DISCONNECTED);
+ 
+ 		struct ovl_entry *oe = (struct ovl_entry*)_READ(dentry->d_fsdata);
+ #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 16, 0)
+ 		unsigned long has_upper = (unsigned long)_READ(oe->has_upper);
+ #else
+ 		unsigned long flags = _READ(oe->flags);
+ 		unsigned long has_upper = (flags & (1U << (OVL_E_UPPER_ALIAS)));
+ #endif
+
 		// Pointer arithmetics due to unexported ovl_inode struct
 		// warning: this works if and only if the dentry pointer is placed right after the inode struct
-		bpf_probe_read(&upper_dentry, sizeof(upper_dentry), vfs_inode + sizeof(struct inode));
 
-		if(upper_dentry)
+		struct dentry *tmp = (struct dentry *)(vfs_inode + sizeof(struct inode));
+		upper_dentry = _READ(tmp);
+		if(upper_dentry && (has_upper || disconnected))
 		{
 			return true;
 		}
@@ -2798,13 +2810,23 @@ FILLER(execve_family_flags, true)
 	struct cred *cred = (struct cred *)_READ(task->cred);
 	struct inode *inode = get_exe_inode(task);
 
+	struct mm_struct *mm = (struct mm_struct*)_READ(task->mm);
+	struct file *exe_file = (struct file*)_READ(mm->exe_file);
+	struct path f_path = (struct path)_READ(exe_file->f_path);
+	struct dentry* dentry = f_path.dentry;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 18, 0)
+	struct super_block* sb = _READ(dentry->d_sb);
+#else
+	struct super_block *sb = _READ(inode->i_sb);
+#endif
+
 	/* `exe_writable` and `exe_upper_layer` flag logic */
 	bool exe_writable = false;
 	bool exe_upper_layer = false;
 	uint32_t flags = 0;
 	kuid_t euid;
 
-	if(inode)
+	if(sb && inode)
 	{
 		/*
 		 * exe_writable
@@ -2818,7 +2840,7 @@ FILLER(execve_family_flags, true)
 		/*
 		 * exe_upper_layer
 		 */
-		exe_upper_layer = get_exe_upper_layer(inode);
+		exe_upper_layer = get_exe_upper_layer(dentry,sb);
 		if (exe_upper_layer)
 		{
 			flags |= PPM_EXE_UPPER_LAYER;
@@ -6479,6 +6501,16 @@ FILLER(sched_prog_exec_4, false)
 	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 	struct cred *cred = (struct cred *)_READ(task->cred);
 	struct inode *inode = get_exe_inode(task);
+	struct mm_struct *mm = (struct mm_struct*)_READ(task->mm);
+	struct file *exe_file = (struct file*)_READ(mm->exe_file);
+	struct path f_path = (struct path)_READ(exe_file->f_path);
+	struct dentry* dentry = f_path.dentry;
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 18, 0)
+	struct super_block* sb = _READ(dentry->d_sb);
+#else
+	struct super_block *sb = _READ(inode->i_sb);
+#endif
 
 	/* `exe_writable` and `exe_upper_layer` flag logic */
 	bool exe_writable = false;
@@ -6486,7 +6518,7 @@ FILLER(sched_prog_exec_4, false)
 	uint32_t flags = 0;
 	kuid_t euid;
 
-	if(inode)
+	if(sb && inode)
 	{
 		/*
 		 * exe_writable
@@ -6500,7 +6532,7 @@ FILLER(sched_prog_exec_4, false)
 		/*
 		 * exe_upper_layer
 		 */
-		exe_upper_layer = get_exe_upper_layer(inode);
+		exe_upper_layer = get_exe_upper_layer(dentry,sb);
 		if (exe_upper_layer)
 		{
 			flags |= PPM_EXE_UPPER_LAYER;
