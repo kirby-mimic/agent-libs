@@ -4636,6 +4636,16 @@ void sinsp_parser::parse_dup_exit(sinsp_evt *evt)
 	//
 	if(retval >= 0)
 	{
+		if (evt->get_type() == PPME_SYSCALL_DUP2_X)
+		{
+			parinfo = evt->get_param(1);
+			if (retval == *(int64_t *)parinfo->m_val)
+			{
+				// dup2 is a no-op if newfd and oldfd are the same
+				return;
+			}
+		}
+
 		//
 		// Heuristic to determine if a thread is part of a shell pipe
 		//
