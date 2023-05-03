@@ -283,6 +283,7 @@ public:
 		TYPE_DEV_MINOR = 40,
 		TYPE_INO = 41,
 		TYPE_FDNAMERAW = 42,
+		TYPE_FDINFO = 43,
 	};
 
 	enum fd_type
@@ -303,6 +304,7 @@ public:
 
 	sinsp_filter_check_fd();
 	sinsp_filter_check* allocate_new();
+	int32_t parse_field_name(const char* str, bool alloc_state, bool needed_for_filtering);
 	uint8_t* extract(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings = true);
 	bool compare_ip(sinsp_evt *evt);
 	bool compare_net(sinsp_evt *evt);
@@ -316,6 +318,7 @@ public:
 	string m_tstr;
 	uint8_t m_tcstr[2];
 	uint32_t m_tbool;
+	int64_t m_fdlookup;
 
 private:
 	uint8_t* extract_from_null_fd(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings);

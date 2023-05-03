@@ -183,3 +183,30 @@ TEST_F(sinsp_with_test_input, creates_fd_generic)
 	ASSERT_EQ(get_field_as_string(evt, "fd.num"), "4");
 }
 
+TEST_F(sinsp_with_test_input, test_fdinfo)
+{
+	g_logger.format(sinsp_logger::SEV_ERROR, "Hello");
+	add_default_init_thread();
+
+	open_inspector();
+	sinsp_evt* evt = NULL;
+
+	// since adding and reading events happens on a single thread they can be interleaved.
+	// tests may need to change if that will not be the case anymore
+	add_event_advance_ts(increasing_ts(), 1, PPME_SYSCALL_OPEN_E, 3, "/tmp/the_file", PPM_O_RDWR, 0);
+	evt = add_event_advance_ts(increasing_ts(), 1, PPME_SYSCALL_OPEN_X, 6, 1, "/tmp/the_file", PPM_O_RDWR, 0, 5, 123);
+
+	ASSERT_EQ(evt->get_type(), PPME_SYSCALL_OPEN_X);
+	ASSERT_EQ(get_field_as_string(evt, "fd.name"), "/tmp/the_file");
+	ASSERT_EQ(get_field_as_string(evt, "fd.num"), "1");
+	ASSERT_EQ(get_field_as_string(evt, "fdinfo[1].name"), "/tmp/the_file");
+
+	add_event_advance_ts(increasing_ts(), 1, PPME_SYSCALL_OPEN_E, 3, "/tmp/another_file", PPM_O_RDWR, 0);
+	evt = add_event_advance_ts(increasing_ts(), 1, PPME_SYSCALL_OPEN_X, 6, 2, "/tmp/another_file", PPM_O_RDWR, 0, 5, 456);
+
+	ASSERT_EQ(evt->get_type(), PPME_SYSCALL_OPEN_X);
+	ASSERT_EQ(get_field_as_string(evt, "fd.name"), "/tmp/another_file");
+	ASSERT_EQ(get_field_as_string(evt, "fd.num"), "2");
+	ASSERT_EQ(get_field_as_string(evt, "fdinfo[1].name"), "/tmp/the_file");
+	ASSERT_EQ(get_field_as_string(evt, "fdinfo[2].name"), "/tmp/another_file");
+}

@@ -156,12 +156,14 @@ const filtercheck_field_info sinsp_filter_check_fd_fields[] =
 	{PT_INT32, EPF_NONE, PF_DEC, "fd.dev.minor", "FD Minor Device", "minor device number containing the referenced file"},
 	{PT_INT64, EPF_NONE, PF_DEC, "fd.ino", "FD Inode Number", "inode number of the referenced file"},
 	{PT_CHARBUF, EPF_NONE, PF_NA, "fd.nameraw", "FD Name Raw", "FD full name raw. Just like fd.name, but only used if fd is a file path. File path is kept raw with limited sanitization and without deriving the absolute path."},
+	{PT_CHARBUF, EPF_NONE, PF_NA, "fdinfo", "FD Information", "Information for any open file descriptors at the time of the event."},
 };
 
 sinsp_filter_check_fd::sinsp_filter_check_fd()
 {
 	m_tinfo = NULL;
 	m_fdinfo = NULL;
+	m_fdlookup = -1;
 
 	m_info.m_name = "fd";
 	m_info.m_desc = "Every syscall that has a file descriptor in its arguments has these fields set with information related to the file.";
@@ -173,6 +175,40 @@ sinsp_filter_check_fd::sinsp_filter_check_fd()
 sinsp_filter_check* sinsp_filter_check_fd::allocate_new()
 {
 	return (sinsp_filter_check*) new sinsp_filter_check_fd();
+}
+
+int32_t sinsp_filter_check_fd::parse_field_name(const char* str, bool alloc_state, bool needed_for_filtering)
+{
+	string val(str);
+	g_logger.format(sinsp_logger::SEV_DEBUG, "In sinsp_filter_check_fd::parse_field_name");
+
+	if(STR_MATCH("fdinfo"))
+	{
+		size_t start = val.find('[');
+		size_t end = val.find(']');
+
+		if ((start == string::npos || end == string::npos) || (end < start))
+		{
+			throw sinsp_exception("filter syntax error: " + val);
+		}
+
+		// Extract fd number
+		string numstr = val.substr(start + 1,  end - start - 1);
+
+		// Can throw
+		m_fdlookup = sinsp_numparser::parsed32(numstr);
+
+		g_logger.format(sinsp_logger::SEV_DEBUG, "Extracted fd %d from %s", m_fdlookup, val.c_str());
+
+		// hack string to be as if it were fd.name rather than fd[4].name
+		val = string("fd").append(val.substr(end+1));
+
+		g_logger.format(sinsp_logger::SEV_DEBUG, "Hacked original %s string to %s", str, val.c_str());
+
+		return sinsp_filter_check::parse_field_name(val.c_str(), alloc_state, needed_for_filtering);
+	}
+
+	return sinsp_filter_check::parse_field_name(str, alloc_state, needed_for_filtering);
 }
 
 bool sinsp_filter_check_fd::extract_fdname_from_creator(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings, bool fd_nameraw)
@@ -1788,11 +1824,15 @@ bool sinsp_filter_check_fd::extract_fd(sinsp_evt *evt)
 			return false;
 		}
 
-		m_fdinfo = evt->get_fd_info();
+		if(m_fdlookup != -1) {
+			m_fdinfo = m_tinfo->get_fd(m_fdlookup);
+		} else {
+			m_fdinfo = evt->get_fd_info();
 
-		if(m_fdinfo == NULL && m_tinfo->m_lastevent_fd != -1)
-		{
-			m_fdinfo = m_tinfo->get_fd(m_tinfo->m_lastevent_fd);
+			if(m_fdinfo == NULL && m_tinfo->m_lastevent_fd != -1)
+			{
+				m_fdinfo = m_tinfo->get_fd(m_tinfo->m_lastevent_fd);
+			}
 		}
 
 		// We'll check if fd is null below
