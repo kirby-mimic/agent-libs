@@ -19,6 +19,9 @@ limitations under the License.
 
 #ifndef VISIBILITY_PRIVATE
 #define VISIBILITY_PRIVATE private:
+#define VISIBILITY_PROTECTED protected:
+#else
+#define VISIBILITY_PROTECTED
 #endif
 
 #ifdef _WIN32
