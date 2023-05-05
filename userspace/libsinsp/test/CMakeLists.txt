@@ -49,9 +49,12 @@ set(LIBSINSP_UNIT_TESTS_SOURCES
 	filter_compiler.ut.cpp
 	user.ut.cpp
 	container_info.ut.cpp
+ 	thread_state.ut.cpp
 	"${PUBLIC_SINSP_API_SUITE}"
 	"${TABLE_SUITE}"
 )
+
+add_definitions(-DVISIBILITY_PRIVATE=)
 
 if(NOT MINIMAL_BUILD)
 	list(APPEND LIBSINSP_UNIT_TESTS_SOURCES procfs_utils.ut.cpp)

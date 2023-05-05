@@ -49,6 +49,84 @@ typedef struct erase_fd_params
 	uint64_t m_ts;
 }erase_fd_params;
 
+class sinsp_threadinfo;
+
+/* New struct that keep information regarding the thread group */
+typedef struct thread_group_info
+{
+	thread_group_info(int64_t group_pid, bool reaper, std::weak_ptr<sinsp_threadinfo> current_thread):
+		m_pid(group_pid),
+		m_reaper(reaper){
+			/* When we create the thread group info the count is 1, because we only have the creator thread */
+			m_alive_count = 1;
+			m_threads.push_front(current_thread);
+		 };	
+
+	inline void increment_thread_count()
+	{
+		m_alive_count++;
+	}
+
+	inline void decrement_thread_count()
+	{
+		m_alive_count--;
+	}
+
+	inline uint64_t get_thread_count() const
+	{
+		return m_alive_count;
+	}
+
+	inline bool is_reaper() const
+	{
+		return m_reaper;
+	}
+
+	inline void set_reaper(bool reaper)
+	{
+		m_reaper = reaper;
+	}
+
+	inline int64_t get_tgroup_pid() const
+	{
+		return m_pid;
+	}
+
+	inline const std::list<std::weak_ptr<sinsp_threadinfo>>& get_thread_list() const
+	{
+		return m_threads;
+	}
+
+	inline void add_thread_to_the_group(std::shared_ptr<sinsp_threadinfo> thread, bool main) 
+	{
+		/* The main thread should always be the first element of the list, if present.
+	 	 * In this way we can efficiently obtain the main thread.
+	 	 */
+		if(main)
+		{
+			m_threads.push_front(thread);
+		}
+		else
+		{
+			m_threads.push_back(thread);
+		}
+		/* we are adding a thread so we increment the count */
+		m_alive_count++;
+	}
+
+	inline sinsp_threadinfo* get_first_thread() const 
+	{
+		return m_threads.front().lock().get();
+	}
+
+VISIBILITY_PRIVATE
+  int64_t m_pid; /* unsigned if we want to use `-1` as an invalid value */
+  uint64_t m_alive_count;
+  std::list<std::weak_ptr<sinsp_threadinfo>> m_threads;
+  bool m_reaper;
+}thread_group_info;
+
+
 /** @defgroup state State management
  *  @{
  */
@@ -110,6 +188,58 @@ public:
 		return (m_tid == m_pid) || m_flags & PPM_CL_IS_MAIN_THREAD;
 	}
 
+	/*!
+	  \brief Return true if the thread is invalid. Sometimes we create some
+	  invalid thread info, if we are not able to scan proc.
+	*/
+	inline bool is_invalid() const
+	{
+		return m_tid < 0 || m_pid < 0 || m_ptid < 0;
+	}
+
+	/*!
+	  \brief Return true if the thread is dead.
+	*/
+	inline bool is_dead() const
+	{
+		return m_flags & PPM_CL_CLOSED;
+	}
+
+	/*!
+	  \brief Mark thread as dead.
+	*/
+	inline void set_dead()
+	{
+		m_flags |= PPM_CL_CLOSED;
+	}
+
+    /*!
+      \brief Return the number of alive threads in the thread group, including the thread leader.
+    */
+    inline uint64_t get_num_threads() const
+    {
+        return m_tginfo ? m_tginfo->get_thread_count() : 0;
+    }
+
+    /*!
+      \brief Return the number of alive threads in the thread group, excluding the thread leader.
+    */
+    inline uint64_t get_num_not_leader_threads() const
+    {
+        if(!m_tginfo)
+        {
+            return 0;
+        }
+        
+        auto main_thread = get_main_thread();
+        if(main_thread != nullptr && !main_thread->is_dead())
+        {
+            return m_tginfo->get_thread_count()-1;
+        }
+        /* we don't have the main thread in the group or it is dead */
+        return m_tginfo->get_thread_count();
+    }
+
 	/*
 	  \brief returns true if there is a loop detected in the thread parent state.
 	  Needs traverse_parent_state() to have been called first.
@@ -124,39 +254,26 @@ public:
 	*/
 	inline sinsp_threadinfo* get_main_thread() const
 	{
-		auto main_thread = m_main_thread.lock();
-		if(!main_thread)
+		if(this->is_main_thread())
 		{
-			//
-			// Is this a child thread?
-			//
-			if((m_pid == m_tid) || m_flags & PPM_CL_IS_MAIN_THREAD)
-			{
-				//
-				// No, this is either a single thread process or the root thread of a
-				// multithread process.
-				// Note: we don't set m_main_thread because there are cases in which this is
-				//       invoked for a threadinfo that is in the stack. Caching the this pointer
-				//       would cause future mess.
-				//
-				return const_cast<sinsp_threadinfo*>(this);
-			}
-			else
-			{
-				//
-				// Yes, this is a child thread. Find the process root thread.
-				//
-				auto ptinfo = lookup_thread();
-				if (!ptinfo)
-				{
-					return NULL;
-				}
-				m_main_thread = ptinfo;
-				return &*ptinfo;
-			}
+			return const_cast<sinsp_threadinfo*>(this);
 		}
 
-		return &*main_thread;
+		/* Here we could use the first element of our list */
+		/* This is possible when we have invalid threads
+		 */
+		if(m_tginfo == nullptr)
+		{
+			return nullptr;
+		}
+
+		/* If we have the main thread in the group, it is always the first one */
+		auto possible_main = m_tginfo->get_first_thread();
+		if(possible_main == nullptr || !possible_main->is_main_thread())
+		{
+			return nullptr;
+		}
+		return possible_main;
 	}
 
 	/*!
@@ -238,19 +355,7 @@ public:
 	typedef std::function<bool (sinsp_threadinfo *)> visitor_func_t;
 	void traverse_parent_state(visitor_func_t &visitor);
 
-	// Note that the provided tid, a thread in this main thread's
-	// pid, has been used in an exec enter event. In the
-	// corresponding exec exit event, the threadinfo for this tid
-	// will be removed, as it no longer exists.
-	void set_exec_enter_tid(int64_t tid);
-
-	// Fill in the provided tid with any tid set in
-	// set_exec_enter_tid(). Returns true if a tid was set, false
-	// otherwise.
-	bool get_exec_enter_tid(int64_t* tid);
-
-	// Clear any value set in set_exec_enter_tid
-	void clear_exec_enter_tid();
+	void assign_children_to_reaper(sinsp_threadinfo* reaper);
 
 	static void populate_cmdline(std::string &cmdline, const sinsp_threadinfo *tinfo);
 
@@ -271,16 +376,6 @@ public:
 
 	using cgroups_t = std::vector<std::pair<std::string, std::string>>;
 	cgroups_t& cgroups() const;
-
-	// In rare cases, a thread may do an exec, which results in
-	// the thread having its tid reset to be the main thread of
-	// the pid and all other threads for the pid being destroyed.
-	//
-	// We need to keep track of the tid that started the exec so
-	// when parsing the exec exit event, we delete the thread that
-	// performed the exec, as it is now the main thread of the new
-	// pid.
-	std::unique_ptr<int64_t> m_exec_enter_tid;
 
 	//
 	// Core state
@@ -311,7 +406,6 @@ public:
 	uint64_t m_exe_ino_mtime; ///< executable inode mtime (last modification time)
 	uint64_t m_exe_ino_ctime_duration_clone_ts; ///< duration in ns between executable inode ctime (last status change time) and clone_ts
 	uint64_t m_exe_ino_ctime_duration_pidns_start; ///< duration in ns between pidns start ts and executable inode ctime (last status change time) if pidns start predates ctime
-	uint64_t m_nchilds; ///< When this is 0 the process can be deleted
 	uint32_t m_vmsize_kb; ///< total virtual memory (as kb).
 	uint32_t m_vmrss_kb; ///< resident non-swapped memory (as kb).
 	uint32_t m_vmswap_kb; ///< swapped memory (as kb).
@@ -325,6 +419,8 @@ public:
 	size_t m_program_hash; ///< Unique hash of the current program
 	size_t m_program_hash_scripts;  ///< Unique hash of the current program, including arguments for scripting programs (like python or ruby)
 	int32_t m_tty; ///< Number of controlling terminal
+	std::shared_ptr<thread_group_info> m_tginfo;
+	std::list<std::weak_ptr<sinsp_threadinfo>> m_children;
 
 
 	// In some cases, a threadinfo has a category that identifies
@@ -398,7 +494,10 @@ public: // types required for use in sets
 		}
 	};
 
-protected:
+VISIBILITY_PROTECTED
+	/* Note that `fd_table` should be shared with the main thread only if `PPM_CL_CLONE_FILES`
+	 * is specified. Today we always specify `PPM_CL_CLONE_FILES` for all threads.
+	 */
 	inline sinsp_fdtable* get_fd_table()
 	{
 		if(!(m_flags & PPM_CL_CLONE_FILES))
@@ -456,7 +555,6 @@ VISIBILITY_PRIVATE
 	}
 	void allocate_private_state();
 	void compute_program_hash();
-	std::shared_ptr<sinsp_threadinfo> lookup_thread() const;
 
 	size_t strvec_len(const std::vector<std::string> &strs) const;
 	void strvec_to_iovec(const std::vector<std::string> &strs,
@@ -481,7 +579,6 @@ VISIBILITY_PRIVATE
 	//
 	sinsp_fdtable m_fdtable; // The fd table of this thread
 	std::string m_cwd; // current working directory
-	mutable std::weak_ptr<sinsp_threadinfo> m_main_thread;
 	uint8_t* m_lastevent_data; // Used by some event parsers to store the last enter event
 	std::vector<void*> m_private_state;
 
@@ -510,13 +607,14 @@ VISIBILITY_PRIVATE
 class threadinfo_map_t
 {
 public:
+	typedef std::function<bool(const std::shared_ptr<sinsp_threadinfo>&)> shared_ptr_visitor_t;
 	typedef std::function<bool(const sinsp_threadinfo&)> const_visitor_t;
 	typedef std::function<bool(sinsp_threadinfo&)> visitor_t;
 	typedef std::shared_ptr<sinsp_threadinfo> ptr_t;
 
-	inline void put(sinsp_threadinfo* tinfo)
+	inline void put(ptr_t tinfo)
 	{
-		m_threads[tinfo->m_tid] = ptr_t(tinfo);
+		m_threads[tinfo->m_tid] = tinfo;
 	}
 
 	inline sinsp_threadinfo* get(uint64_t tid)
@@ -549,6 +647,18 @@ public:
 		m_threads.clear();
 	}
 
+	bool loop_shared_pointer(shared_ptr_visitor_t callback)
+	{
+		for (auto& it : m_threads)
+		{
+			if (!callback(it.second))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
 	bool const_loop(const_visitor_t callback) const
 	{
 		for (const auto& it : m_threads)
@@ -578,7 +688,7 @@ public:
 		return m_threads.size();
 	}
 
-protected:
+VISIBILITY_PROTECTED
 	std::unordered_map<int64_t, ptr_t> m_threads;
 };
 
@@ -603,7 +713,7 @@ public:
 		return (uint32_t)m_memory_sizes.size();
 	}
 
-private:
+VISIBILITY_PRIVATE
 	std::vector<uint32_t> m_memory_sizes;
 
 	friend class sinsp_threadinfo;
@@ -619,15 +729,15 @@ public:
 	void clear();
 
 	bool add_thread(sinsp_threadinfo *threadinfo, bool from_scap_proctable);
+	sinsp_threadinfo* find_new_reaper(sinsp_threadinfo*);
 	void remove_thread(int64_t tid, bool force);
 	// Returns true if the table is actually scanned
 	// NOTE: this is implemented in sinsp.cpp so we can inline it from there
 	inline bool remove_inactive_threads();
+	void remove_main_thread_fdtable(sinsp_threadinfo* main_thread);
 	void fix_sockets_coming_from_proc();
 	void reset_child_dependencies();
-	void create_child_dependencies();
-	void recreate_child_dependencies();
-
+	void create_thread_dependencies_after_proc_scan();
 	/*!
       \brief Look up a thread given its tid and return its information,
        and optionally go dig into proc if the thread is not in the thread table.
@@ -682,13 +792,39 @@ public:
 
 	void set_m_max_n_proc_lookups(int32_t val) { m_max_n_proc_lookups = val; }
 	void set_m_max_n_proc_socket_lookups(int32_t val) { m_max_n_proc_socket_lookups = val; }
-private:
-	void increment_mainthread_childcount(sinsp_threadinfo* threadinfo);
+	
+	inline std::shared_ptr<thread_group_info> get_thread_group_info(int64_t pid) const
+	{ 
+		auto tgroup = m_thread_groups.find(pid);
+		if(tgroup != m_thread_groups.end())
+		{
+			return tgroup->second;
+		}
+		return nullptr;
+	}
+
+	inline void set_thread_group_info(int64_t pid, const std::shared_ptr<thread_group_info>& tginfo)
+	{ 
+		/* It should be impossible to have a pid conflict...
+		 * Right now we manage it but we could also remove it.
+		 */
+		auto ret = m_thread_groups.insert({pid, tginfo});
+		if(!ret.second)
+		{	
+			m_thread_groups.erase(ret.first);
+			m_thread_groups.insert({pid, tginfo});
+		}
+	}
+
+VISIBILITY_PRIVATE
+	void create_thread_dependencies(const std::shared_ptr<sinsp_threadinfo>& tinfo);
 	inline void clear_thread_pointers(sinsp_threadinfo& threadinfo);
 	void free_dump_fdinfos(std::vector<scap_fdinfo*>* fdinfos_to_free);
 	void thread_to_scap(sinsp_threadinfo& tinfo, scap_threadinfo* sctinfo);
 
 	sinsp* m_inspector;
+	/* the key is the pid of the group, and the value is a shared pointer to the thread_group_info */
+	std::unordered_map<int64_t, std::shared_ptr<thread_group_info>> m_thread_groups;
 	threadinfo_map_t m_threadtable;
 	int64_t m_last_tid;
 	std::weak_ptr<sinsp_threadinfo> m_last_tinfo;

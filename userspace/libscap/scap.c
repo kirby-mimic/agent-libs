@@ -75,6 +75,8 @@ scap_t* scap_open_live_int(char *error, int32_t *rc, scap_open_args* oargs, cons
 	// Preliminary initializations
 	//
 	handle->m_mode = SCAP_MODE_LIVE;
+	handle->m_mode = oargs->mode;
+
 	handle->m_vtable = vtable;
 
 	handle->m_engine.m_handle = handle->m_vtable->alloc_handle(handle, handle->m_lasterr);

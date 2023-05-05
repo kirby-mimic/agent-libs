@@ -1867,8 +1867,8 @@ const filtercheck_field_info sinsp_filter_check_thread_fields[] =
 	{PT_CHARBUF, EPF_NONE, PF_NA, "proc.cmdline", "Command Line", "full process command line, i.e. proc.name + proc.args."},
 	{PT_CHARBUF, EPF_NONE, PF_NA, "proc.exeline", "Executable Command Line", "full process command line, with exe as first argument, i.e. proc.exe + proc.args."},
 	{PT_CHARBUF, EPF_NONE, PF_NA, "proc.cwd", "Current Working Directory", "the current working directory of the event."},
-	{PT_UINT32, EPF_NONE, PF_DEC, "proc.nthreads", "Threads", "the number of threads that the process generating the event currently has, including the main process thread."},
-	{PT_UINT32, EPF_NONE, PF_DEC, "proc.nchilds", "Children", "the number of child threads that the process generating the event currently has. This excludes the main process thread."},
+	{PT_UINT32, EPF_NONE, PF_DEC, "proc.nthreads", "Threads", "The number of alive threads that the process generating the event currently has, including the leader thread. Please note that the main process may not be here, in that case 'proc.nthreads' and 'proc.nchilds' are equal"},
+	{PT_UINT32, EPF_NONE, PF_DEC, "proc.nchilds", "Children", "The number of alive not leader threads that the process generating the event currently has. This excludes the leader thread."},
 	{PT_INT64, EPF_NONE, PF_ID, "proc.ppid", "Parent Process ID", "the pid of the parent of the process generating the event."},
 	{PT_CHARBUF, EPF_NONE, PF_NA, "proc.pname", "Parent Name", "the name (excluding the path) of the parent of the process generating the event."},
 	{PT_CHARBUF, EPF_NONE, PF_NA, "proc.pcmdline", "Parent Command Line", "the full command line (proc.name + proc.args) of the parent of the process generating the event."},
@@ -2319,20 +2319,16 @@ uint8_t* sinsp_filter_check_thread::extract(sinsp_evt *evt, OUT uint32_t* len, b
 		RETURN_EXTRACT_STRING(m_tstr);
 	case TYPE_NTHREADS:
 		{
-			sinsp_threadinfo* ptinfo = tinfo->get_main_thread();
-			if(ptinfo)
-			{
-				m_u64val = ptinfo->m_nchilds + 1;
-				RETURN_EXTRACT_VAR(m_u64val);
-			}
-			else
-			{
-				ASSERT(false);
-				return NULL;
-			}
+			m_u64val = tinfo->get_num_threads();
+			RETURN_EXTRACT_VAR(m_u64val);
 		}
+		break;
 	case TYPE_NCHILDS:
-		RETURN_EXTRACT_VAR(tinfo->m_nchilds);
+		{
+			m_u64val = tinfo->get_num_not_leader_threads();
+			RETURN_EXTRACT_VAR(m_u64val);
+		}
+		break;
 	case TYPE_ISMAINTHREAD:
 		m_tbool = (uint32_t)tinfo->is_main_thread();
 		RETURN_EXTRACT_VAR(m_tbool);
