@@ -712,6 +712,11 @@ or GPL2.txt for full copies of the license.
 #define PPM_EPOLL_CLOEXEC       (1 << 0)
 
 /*
+ * Prctl flags
+ */
+//XXX TODO ADD FLAGS
+
+/*
  * SuS says limits have to be unsigned.
  * Which makes a ton more sense anyway.
  *
@@ -1180,7 +1185,9 @@ enum ppm_event_type {
 	PPME_SYSCALL_EPOLL_CREATE_X = 375,
 	PPME_SYSCALL_EPOLL_CREATE1_E = 376,
 	PPME_SYSCALL_EPOLL_CREATE1_X = 377,
-	PPM_EVENT_MAX = 378
+ 	PPME_SYSCALL_PRCTL_E = 378,
+ 	PPME_SYSCALL_PRCTL_X = 379,
+	PPM_EVENT_MAX = 380
 };
 /*@}*/
 
