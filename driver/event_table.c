@@ -403,5 +403,5 @@ const struct ppm_event_info g_event_info[PPM_EVENT_MAX] = {
 	 *     in order to properly manage the file descriptor returned by the exit event.
 	 */
  	/* PPME_SYSCALL_PRCTL_E */{"prctl", EC_PROCESS | EC_SYSCALL, EF_MODIFIES_STATE, 5, {{"option", PT_INT32}, {"arg2", PT_UINT64}, {"arg3", PT_UINT64}, {"arg4", PT_UINT64}, {"arg5", PT_UINT64}  } },
- 	/* PPME_SYSCALL_PRCTL_X */{"prctl", EC_PROCESS | EC_SYSCALL, EF_MODIFIES_STATE, 2, {{"res", PT_ERRNO, PF_DEC}, {"comm", PT_CHARBUF, PF_NA}} },
+	/* PPME_SYSCALL_PRCTL_X */{"prctl", EC_PROCESS | EC_SYSCALL, EF_MODIFIES_STATE, 6, {{"res", PT_ERRNO, PF_DEC}, {"option", PT_ENUMFLAGS32, PF_DEC, prctl_options}, {"arg2", PT_CHARBUF}, {"arg3", PT_UINT64}, {"arg4", PT_UINT64}, {"arg5", PT_UINT64}} },
 };
