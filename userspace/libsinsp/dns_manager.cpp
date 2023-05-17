@@ -392,7 +392,7 @@ public:
 	}
 
 private:
-	bool resolve(const string& name, uint64_t ts, int n_iter)
+	bool resolve(const std::string& name, uint64_t ts, int n_iter)
 	{
 		addrinfo hints{}, *result, *rp;
 		memset(&hints, 0, sizeof(struct addrinfo));
@@ -401,7 +401,7 @@ private:
 		hints.ai_family = AF_UNSPEC;
 		int s = getaddrinfo(name.c_str(), nullptr, &hints, &result);
 
-		if (s)
+		if(s)
 		{
 			G_LOG_FORMAT(sinsp_logger::SEV_WARNING,
 			             "dns_info: unable to resolve name='%s', error=%d",
@@ -644,7 +644,7 @@ bool sinsp_dns_manager::match(const char* name, int af, void* addr, uint64_t ts)
 	bool expect = false;
 	if (m_resolver_flag.compare_exchange_strong(expect, true))
 	{
-		m_resolver = new thread(sinsp_dns_manager::refresh, m_exit_signal.get_future());
+		m_resolver = new std::thread(sinsp_dns_manager::refresh, m_exit_signal.get_future());
 	}
 
 	auto result = m_dns_cache->get_work()->match_by_name(af, name, addr, ts);
@@ -660,9 +660,8 @@ bool sinsp_dns_manager::match(const char* name, int af, void* addr, uint64_t ts)
 
 	// MATCH_NO_NAME
 	const auto& m = sinsp_dns_manager::get();
-	m_dns_cache->insert(
-	    name,
-	    make_shared<dns_info>(name, m.m_base_refresh_timeout, m.m_max_refresh_timeout, ts));
+	m_dns_cache->insert(name,
+			    std::make_shared<dns_info>(name, m.m_base_refresh_timeout, m.m_max_refresh_timeout, ts));
 
 	return m_dns_cache->get_work()->match_by_name(af, name, addr, ts) == dns_af_cache::MATCH_OK;
 }
@@ -673,7 +672,7 @@ std::string sinsp_dns_manager::name_of(int af, void* addr, uint64_t ts)
 	bool expect = false;
 	if (m_resolver_flag.compare_exchange_strong(expect, true))
 	{
-		m_resolver = new thread(sinsp_dns_manager::refresh, m_exit_signal.get_future());
+		m_resolver = new std::thread(sinsp_dns_manager::refresh, m_exit_signal.get_future());
 	}
 
 	auto ret = m_dns_cache->get_work()->name_of(af, addr, ts);
