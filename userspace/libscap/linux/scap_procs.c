@@ -980,16 +980,12 @@ static int32_t scap_proc_add_from_proc(scap_t* handle, uint32_t tid, char* procd
 			 dir_name, handle->m_lasterr);
 	}
 
-	char proc_cmdline[SCAP_MAX_PATH_SIZE];
-	snprintf(proc_cmdline, sizeof(proc_cmdline), "%scmdline", dir_name);
-	if(stat(proc_cmdline, &dirstat) == 0)
 	// Container start time for host processes will be equal to when the
 	// host init started
 	char proc_cmdline[SCAP_MAX_PATH_SIZE];
 	snprintf(proc_cmdline, sizeof(proc_cmdline), "%scmdline", dir_name);
 	if(stat(proc_cmdline, &dirstat) == 0)
 	{
-		tinfo->clone_ts = dirstat.st_ctim.tv_sec * (uint64_t) 1000000000 + dirstat.st_ctim.tv_nsec;
 		tinfo->clone_ts = dirstat.st_ctim.tv_sec * (uint64_t) SECOND_TO_NS + dirstat.st_ctim.tv_nsec;
 	}
 
