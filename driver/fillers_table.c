@@ -333,4 +333,5 @@ const struct ppm_event_entry g_ppm_events[PPM_EVENT_MAX] = {
 	[PPME_SYSCALL_EPOLL_CREATE1_E] = {FILLER_REF(sys_epoll_create1_e)},
 	[PPME_SYSCALL_EPOLL_CREATE1_X] = {FILLER_REF(sys_epoll_create1_x)},
  	[PPME_SYSCALL_PRCTL_E] = {FILLER_REF(sys_prctl_e)},
+ 	[PPME_SYSCALL_PRCTL_X] = {FILLER_REF(sys_prctl_x)},
 };
