@@ -2,11 +2,11 @@
 #include <sinsp.h>
 
 /* These numbers must be updated when we add new events */
-#define SYSCALL_EVENTS_NUM 332
+#define SYSCALL_EVENTS_NUM 356
 #define TRACEPOINT_EVENTS_NUM 6
-#define METAEVENTS_NUM 19
+#define METAEVENTS_NUM 20
 #define PLUGIN_EVENTS_NUM 1
-#define UNKNOWN_EVENTS_NUM 20
+#define UNKNOWN_EVENTS_NUM 21
 
 /* Check if the events category is correct in our event table.
  * This test will not pass if we forget to update the event table

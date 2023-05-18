@@ -1084,6 +1084,22 @@ static __always_inline int bpf_val_to_ring_type(struct filler_data *data,
 	return __bpf_val_to_ring(data, val, 0, type, -1, false);
 }
 
+static __always_inline int bpf_push_empty_param(struct filler_data *data)
+{
+	/* This is not so necessary but just keep it for compliance with other helpers */
+	if (data->state->tail_ctx.curarg >= PPM_MAX_EVENT_PARAMS) {
+		bpf_printk("invalid curarg: %d\n", data->state->tail_ctx.curarg);
+		return PPM_FAILURE_BUG;
+	}
+	/* We push 0 in the length array */
+	fixup_evt_arg_len(data->buf, data->state->tail_ctx.curarg, 0);
+	data->curarg_already_on_frame = false;
+
+	 /* We increment the current argument - to make verifier happy, properly check it against u32 max */
+	data->state->tail_ctx.curarg = (data->state->tail_ctx.curarg + 1) & (PPM_MAX_EVENT_PARAMS - 1);
+	return PPM_SUCCESS;
+}
+
 static __always_inline bool bpf_in_ia32_syscall()
 {
 	struct task_struct *task = (struct task_struct *)bpf_get_current_task();

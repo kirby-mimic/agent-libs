@@ -421,6 +421,9 @@ const struct syscall_evt_pair g_syscall_table[SYSCALL_TABLE_SIZE] = {
 #ifdef __NR_epoll_create1
 	[__NR_epoll_create1 - SYSCALL_TABLE_ID0] = {UF_USED | UF_NEVER_DROP, PPME_SYSCALL_EPOLL_CREATE1_E, PPME_SYSCALL_EPOLL_CREATE1_X, PPM_SC_EPOLL_CREATE1},
 #endif
+#ifdef __NR_prctl
+	[__NR_prctl - SYSCALL_TABLE_ID0] = { UF_USED | UF_NEVER_DROP, PPME_SYSCALL_PRCTL_E, PPME_SYSCALL_PRCTL_X, PPM_SC_PRCTL },
+#endif
 	[__NR_restart_syscall - SYSCALL_TABLE_ID0] = { .ppm_sc = PPM_SC_RESTART_SYSCALL },
 	[__NR_exit - SYSCALL_TABLE_ID0] = {.ppm_sc = PPM_SC_EXIT},
 #ifdef __NR_time
@@ -483,7 +486,6 @@ const struct syscall_evt_pair g_syscall_table[SYSCALL_TABLE_SIZE] = {
 	[__NR_sched_get_priority_min - SYSCALL_TABLE_ID0] = {.ppm_sc = PPM_SC_SCHED_GET_PRIORITY_MIN},
 	[__NR_sched_rr_get_interval - SYSCALL_TABLE_ID0] = {.ppm_sc = PPM_SC_SCHED_RR_GET_INTERVAL},
 	[__NR_mremap - SYSCALL_TABLE_ID0] = {.ppm_sc = PPM_SC_MREMAP},
-	[__NR_prctl - SYSCALL_TABLE_ID0] = {.ppm_sc = PPM_SC_PRCTL},
 #ifdef __NR_arch_prctl
 	[__NR_arch_prctl - SYSCALL_TABLE_ID0] = {.ppm_sc = PPM_SC_ARCH_PRCTL},
 #endif
@@ -1224,6 +1226,9 @@ const struct syscall_evt_pair g_syscall_ia32_table[SYSCALL_TABLE_SIZE] = {
 #ifdef __NR_ia32_epoll_create1
 	[__NR_ia32_epoll_create1 - SYSCALL_TABLE_ID0] = {UF_USED | UF_NEVER_DROP, PPME_SYSCALL_EPOLL_CREATE1_E, PPME_SYSCALL_EPOLL_CREATE1_X, PPM_SC_EPOLL_CREATE1},
 #endif
+#ifdef __NR_ia32_prctl
+	[__NR_ia32_prctl - SYSCALL_TABLE_ID0] = { UF_USED | UF_NEVER_DROP, PPME_SYSCALL_PRCTL_E, PPME_SYSCALL_PRCTL_X, PPM_SC_PRCTL },
+#endif
 	[__NR_ia32_restart_syscall - SYSCALL_TABLE_ID0] = { .ppm_sc = PPM_SC_RESTART_SYSCALL },
 	[__NR_ia32_exit - SYSCALL_TABLE_ID0] = {.ppm_sc = PPM_SC_EXIT},
 #ifdef __NR_ia32_time
@@ -1286,7 +1291,6 @@ const struct syscall_evt_pair g_syscall_ia32_table[SYSCALL_TABLE_SIZE] = {
 	[__NR_ia32_sched_get_priority_min - SYSCALL_TABLE_ID0] = {.ppm_sc = PPM_SC_SCHED_GET_PRIORITY_MIN},
 	[__NR_ia32_sched_rr_get_interval - SYSCALL_TABLE_ID0] = {.ppm_sc = PPM_SC_SCHED_RR_GET_INTERVAL},
 	[__NR_ia32_mremap - SYSCALL_TABLE_ID0] = {.ppm_sc = PPM_SC_MREMAP},
-	[__NR_ia32_prctl - SYSCALL_TABLE_ID0] = {.ppm_sc = PPM_SC_PRCTL},
 #ifdef __NR_ia32_arch_prctl
 	[__NR_ia32_arch_prctl - SYSCALL_TABLE_ID0] = {.ppm_sc = PPM_SC_ARCH_PRCTL},
 #endif

@@ -271,6 +271,7 @@ std::set<uint32_t> ordered_sinsp_state_ppm_sc_set{
 #ifdef __NR_epoll_create1
 	PPM_SC_EPOLL_CREATE1,
 #endif
+	PPM_SC_PRCTL
 };
 
 /* This test asserts that `enforce_sinsp_state_ppm_sc` correctly retrieves

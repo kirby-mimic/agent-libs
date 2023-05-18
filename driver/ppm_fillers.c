@@ -6663,6 +6663,78 @@ out:
 	return res;
 }
 
+int f_sys_prctl_x(struct event_filler_arguments *args)
+{
+	int res;
+	int retval;
+	syscall_arg_t option;
+	syscall_arg_t arg2;
+
+	/* Parameter 1: res (type: PT_ERRNO) */
+	retval = (int64_t)syscall_get_return_value(current, args->regs);
+	res = val_to_ring(args, retval, 0, false, 0);
+	CHECK_RES(res);
+
+	/*
+	 * option
+	 */
+	syscall_get_arguments_deprecated(current, args->regs, 0, 1, &option);
+	option = prctl_options_to_scap(option);
+	res = val_to_ring(args, option, 0, false, 0);
+	CHECK_RES(res);
+
+	/*
+	 * arg2
+	 */
+	syscall_get_arguments_deprecated(current, args->regs, 1, 1, &arg2);
+
+	switch(option){
+		case PPM_PR_GET_NAME:
+		case PPM_PR_SET_NAME:
+			/*
+			 * arg2_str
+			 */
+			res = val_to_ring(args, arg2, 0, true, 0);
+			CHECK_RES(res);
+			/*
+			 * arg2_int
+			 */
+			res = val_to_ring(args, 0, 0, false, 0);
+			CHECK_RES(res);
+			break;
+		case PPM_PR_GET_CHILD_SUBREAPER:
+			{
+				int reaper_attr = 0;
+				/* Parameter 3: arg2_str (type: PT_CHARBUF) */
+				res = push_empty_param(args);
+				CHECK_RES(res);
+				/* Parameter 4: arg2_int (type: PT_INT64) */
+				if(unlikely(ppm_copy_from_user(&reaper_attr, (void *)arg2, sizeof(reaper_attr))))
+				{
+					reaper_attr = 0;
+				}
+				res = val_to_ring(args, (s64)reaper_attr, 0, false, 0);
+				CHECK_RES(res);
+			}
+			break;
+		case PPM_PR_SET_CHILD_SUBREAPER:
+		default:
+			/*
+			 * arg2_str
+			 */
+			res = push_empty_param(args);
+			CHECK_RES(res);
+			/*
+			 * arg2_int
+			 */
+			res = val_to_ring(args, arg2, 0, false, 0);
+			CHECK_RES(res);
+			break;
+	}
+
+	return add_sentinel(args);
+}
+
 #ifdef CAPTURE_SCHED_PROC_EXEC
 int f_sched_prog_exec(struct event_filler_arguments *args)
 {
