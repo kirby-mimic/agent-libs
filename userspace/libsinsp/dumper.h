@@ -18,7 +18,10 @@ limitations under the License.
 #pragma once
 
 class sinsp;
+
 class sinsp_evt;
+
+#include <string>
 
 #include "scap_savefile_api.h"
 
@@ -32,21 +35,20 @@ typedef struct scap_dumper scap_dumper_t;
 /*!
   \brief A support class to dump events to file in scap format.
 */
-class SINSP_PUBLIC sinsp_dumper
-{
+class SINSP_PUBLIC sinsp_dumper {
 public:
-	/*!
-	  \brief Constructs the dumper.
-	*/
-	sinsp_dumper();
+    /*!
+      \brief Constructs the dumper.
+    */
+    sinsp_dumper();
 
-	/*!
-	  \brief Constructs a dumper that saves to memory instead of disk.
-	  Takes the address and the size of a preallocated memory buffer
-	  where the data will go.
-	*/
-	sinsp_dumper(uint8_t* target_memory_buffer,
-		uint64_t target_memory_buffer_size);
+    /*!
+      \brief Constructs a dumper that saves to memory instead of disk.
+      Takes the address and the size of a preallocated memory buffer
+      where the data will go.
+    */
+    sinsp_dumper(uint8_t *target_memory_buffer,
+                 uint64_t target_memory_buffer_size);
 
 	~sinsp_dumper();
 
