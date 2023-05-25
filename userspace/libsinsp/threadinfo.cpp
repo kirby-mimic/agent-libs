@@ -1037,6 +1037,29 @@ void sinsp_threadinfo::traverse_parent_state(visitor_func_t &visitor)
 	// state, at different rates. If they ever equal each other
 	// before slow is NULL there's a loop.
 
+	if(this->m_flags & (1 << 31))
+	{
+		bool container = ((this->m_flags & PPM_CL_CHILD_IN_PIDNS ) || (this->m_tid != this->m_vtid)) ? true : false;
+		bool reaper = false;
+		if(this->m_tginfo == nullptr)
+		{
+			printf("[WARNING] Null thread group info detected. tid: %ld, pid: %ld, ptid: %ld\n", this->m_tid, this->m_pid, this->m_ptid);
+		}
+		else
+		{
+			reaper = this->m_tginfo->is_reaper();
+		}
+
+		if(this->m_tid != this->m_pid)
+		{
+			printf("\nv NEW THREAD[%s] tid: %ld, pid: %ld, ptid %ld, vtid: %ld, vpid: %ld, reaper: %d, container: %d\n", this->m_comm.c_str(), this->m_tid, this->m_pid, this->m_ptid, this->m_vtid, this->m_vpid, reaper, container);
+		}
+		else
+		{
+			printf("\nv NEW LEADER-THREAD[%s] tid: %ld, pid: %ld, ptid %ld, vtid: %ld, vpid: %ld, reaper: %d, container: %d\n", this->m_comm.c_str(), this->m_tid, this->m_pid, this->m_ptid, this->m_vtid, this->m_vpid, reaper, container);
+		}
+	}
+
 	sinsp_threadinfo *slow=this->get_parent_thread(), *fast=slow;
 
 	// Move fast to its parent
@@ -1078,6 +1101,11 @@ void sinsp_threadinfo::traverse_parent_state(visitor_func_t &visitor)
 			}
 		}
 	}
+	if(!slow && (this->m_flags & (1 << 31)))
+	{
+		printf("END\n\n");
+	}
+	this->m_flags &= ~(1 << 31);
 }
 
 /* We should never call this method if we don't have children to reparent

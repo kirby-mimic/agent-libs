@@ -1732,12 +1732,55 @@ const sinsp_plugin_manager* sinsp::get_plugin_manager()
 	return m_plugin_manager;
 }
 
+sinsp_threadinfo::visitor_func_t scap_file_visitor = [](sinsp_threadinfo* pt)
+{
+	if(pt == nullptr)
+	{
+		printf("[WARNING] Null thread info detected\n\n");
+	}
+
+	bool reaper = false;
+	if(pt->m_tginfo == nullptr)
+	{
+		printf("[WARNING] Null thread group info detected. tid: %ld, pid: %ld, ptid: %ld\n\n", pt->m_tid, pt->m_pid, pt->m_ptid);
+	}
+	else
+	{
+		reaper = pt->m_tginfo->is_reaper();
+	}
+
+	bool container = ((pt->m_flags & PPM_CL_CHILD_IN_PIDNS ) || (pt->m_tid != pt->m_vtid)) ? true : false;
+
+	if(pt->m_tid != pt->m_pid)
+	{
+		printf("v THREAD[%s] tid: %ld, pid: %ld, ptid: %ld, vtid: %ld, vpid: %ld, reaper: %d, container: %d\n", pt->m_comm.c_str(), pt->m_tid, pt->m_pid, pt->m_ptid, pt->m_vtid, pt->m_vpid, reaper, container);
+	}
+	else
+	{
+		printf("v LEADER-THREAD[%s] tid: %ld, pid: %ld, ptid: %ld, vtid: %ld, vpid: %ld, reaper: %d, container: %d\n", pt->m_comm.c_str(), pt->m_tid, pt->m_pid, pt->m_ptid, pt->m_vtid, pt->m_vpid, reaper, container);
+	}
+	if(pt->m_tid == 1)
+	{
+		printf("END\n\n");
+		return false;
+	}
+	return true;
+};
+
 void sinsp::stop_capture()
 {
 	if(scap_stop_capture(m_h) != SCAP_SUCCESS)
 	{
 		throw sinsp_exception(scap_getlasterr(m_h));
 	}
+
+	printf("-----------------stop the capture-----------------------\n\n");
+	this->m_thread_manager->m_threadtable.loop([&] (sinsp_threadinfo& tinfo) {
+		/* This flag is used to not pollute with prints in `traverse_parent_state` */
+		tinfo.m_flags |= (1 << 31);
+		tinfo.traverse_parent_state(scap_file_visitor);
+		return true;
+	});
 }
 
 void sinsp::start_capture()
