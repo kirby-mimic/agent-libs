@@ -2100,7 +2100,7 @@ threadinfo_map_t::ptr_t sinsp_thread_manager::get_thread_ref(int64_t tid, bool q
             // Add a fake entry to avoid a continuous lookup
             //
             newti->m_tid = tid;
-            newti->m_pid = -1;
+            newti->m_pid = tid;
             newti->m_ptid = -1;
             newti->m_comm = "<NA>";
             newti->m_exe = "<NA>";
