@@ -1602,6 +1602,24 @@ void sinsp::remove_thread(int64_t tid)
 	m_thread_manager->remove_thread(tid);
 }
 
+void sinsp::reparent_children(int64_t tid)
+{
+	auto current = m_thread_manager->get_thread_ref(tid, false);
+
+	if(current == nullptr)
+	{
+		return;
+	}
+
+	if(current->m_children.size())
+	{
+		auto reaper = m_thread_manager->find_new_reaper(current.get());
+		current->assign_children_to_reaper(reaper);
+	}
+
+	return;
+}
+
 bool sinsp::suppress_events_comm(const std::string &comm)
 {
 	if(m_suppressed_comms.size() >= SCAP_MAX_SUPPRESSED_COMMS)

@@ -4139,6 +4139,8 @@ void sinsp_parser::parse_thread_exit(sinsp_evt *evt)
 	}
 	evt->m_tinfo->set_dead();
 
+	m_inspector->reparent_children(evt->get_tid());
+
 	m_inspector->m_tid_to_remove = evt->get_tid();
 }
 
