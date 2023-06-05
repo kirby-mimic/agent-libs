@@ -1340,18 +1340,18 @@ int32_t sinsp::next(OUT sinsp_evt **puevt)
 	evt->m_evtnum = m_nevts;
 	m_lastevent_ts = ts;
 
-	//
-	// Delayed removal of threads from the thread table, so that
-	// things like exit() or close() can be parsed.
-	//
-	if(m_tid_to_remove != -1)
-	{
-		remove_thread(m_tid_to_remove);
-		m_tid_to_remove = -1;
-	}
-
 	if(m_automatic_threadtable_purging)
 	{
+		//
+		// Delayed removal of threads from the thread table, so that
+		// things like exit() or close() can be parsed.
+		//
+		if(m_tid_to_remove != -1)
+		{
+			remove_thread(m_tid_to_remove);
+			m_tid_to_remove = -1;
+		}
+
 		if(!is_offline())
 		{
 			m_thread_manager->remove_inactive_threads();
