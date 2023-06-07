@@ -218,7 +218,7 @@ public:
 		if (it == m_addrs.end())
 		{
 			// new address
-			m_addrs.template emplace(addr, ts);
+			m_addrs.emplace(addr, ts);
 			return true;
 		}
 
