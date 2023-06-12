@@ -1031,7 +1031,7 @@ private:
 	void import_ifaddr_list();
 	void import_user_list();
 	void add_protodecoders();
-	void remove_thread(int64_t tid, bool force);
+	void remove_thread(int64_t tid);
 
 	//
 	// Note: lookup_only should be used when the query for the thread is made
@@ -1185,6 +1185,7 @@ public:
 #ifdef GATHER_INTERNAL_STATS
 	sinsp_stats m_stats;
 #endif
+	/* This is no more used we could remove that */
 #ifdef HAS_ANALYZER
 	std::vector<uint64_t> m_tid_collisions;
 #endif
