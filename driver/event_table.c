@@ -455,8 +455,13 @@ const struct ppm_event_info g_event_info[] = {
 	[PPME_ASYNCEVENT_X] = {"NA", EC_UNKNOWN, EF_UNUSED, 0},
 };
 
+// We don't need this check in kmod (this source file is included during kmod compilation!)
+// This also avoids weird situation where the _Static_assert is not available in some very old compilers,
+// thus breaking the kmod build.
+#ifndef __KERNEL__
 // This code is compiled on windows and osx too!
 // Make sure to be on gcc or that the c standard is >= c11
 #if defined __GNUC__ || __STDC_VERSION__ >= 201112L
 _Static_assert(sizeof(g_event_info) / sizeof(*g_event_info) == PPM_EVENT_MAX, "Missing event entries in event table.");
+#endif
 #endif
