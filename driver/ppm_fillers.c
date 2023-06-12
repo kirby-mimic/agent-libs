@@ -1450,7 +1450,6 @@ cgroups_error:
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)
 			if (file_inode(exe_file) != NULL)
 			{
-
 				/* Support exe_writable */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)
 				exe_writable |= (file_permission(exe_file, MAY_WRITE) == 0);
@@ -7500,7 +7499,10 @@ cgroups_error:
 		if(file_inode(exe_file) != NULL)
 		{
 			/* Support exe_writable */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)
+			exe_writable |= (file_permission(exe_file, MAY_WRITE) == 0);
+			exe_writable |= inode_owner_or_capable(file_mnt_idmap(exe_file), file_inode(exe_file));
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0)
 			exe_writable |= (inode_permission(current_user_ns(), file_inode(exe_file), MAY_WRITE) == 0);
 			exe_writable |= inode_owner_or_capable(current_user_ns(), file_inode(exe_file));
 #else
@@ -7557,9 +7559,15 @@ cgroups_error:
 	 */
 
 	cred = get_current_cred();
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)
 	cap_inheritable = ((uint64_t)cred->cap_inheritable.cap[1] << 32) | cred->cap_inheritable.cap[0];
 	cap_permitted = ((uint64_t)cred->cap_permitted.cap[1] << 32) | cred->cap_permitted.cap[0];
 	cap_effective = ((uint64_t)cred->cap_effective.cap[1] << 32) | cred->cap_effective.cap[0];
+#else
+	cap_inheritable = (uint64_t)cred->cap_inheritable.val;
+	cap_permitted = (uint64_t)cred->cap_permitted.val;
+	cap_effective = (uint64_t)cred->cap_effective.val;
+#endif	
 	put_cred(cred);
 
 	/* Parameter 21: cap_inheritable (type: PT_UINT64) */
