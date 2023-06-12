@@ -186,12 +186,23 @@ static __always_inline void extract__ino_from_fd(s32 fd, u64 *ino)
 /**
  * @brief Return the `f_inode` of task exe_file.
  *
- * @param mm pointer to task mm struct.
+ * @param task pointer to task struct.
  * @return `f_inode` of task exe_file.
  */
 static __always_inline struct inode *extract__exe_inode_from_task(struct task_struct *task)
 {
 	return READ_TASK_FIELD(task, mm, exe_file, f_inode);
+}
+
+/**
+ * @brief Return the `exe_file` of task mm.
+ *
+ * @param task pointer to task struct.
+ * @return `f_inode` of task mm.
+ */
+static __always_inline struct file *extract__exe_file_from_task(struct task_struct *task)
+{
+	return READ_TASK_FIELD(task, mm, exe_file);
 }
 
 /**
@@ -711,6 +722,61 @@ static __always_inline bool extract__exe_upper_layer(struct inode *inode)
 	}
 
 	return false;
+}
+
+/*
+ * Detect whether the file being referenced is an anonymous file created using memfd_create()
+ * and is being executed by referencing its file descriptor (fd). This type of file does not
+ * exist on disk and resides solely in memory, but it is treated as a legitimate file with an
+ * inode object and other file attributes.
+ *
+ **/
+static __always_inline bool extract__exe_from_memfd(struct file *file)
+{
+	struct dentry *dentry = BPF_CORE_READ(file, f_path.dentry);
+	if(!dentry)
+	{
+		bpf_printk("extract__exe_from_memfd(): failed to get dentry");
+		return false;
+	}
+
+	struct dentry *parent = BPF_CORE_READ(dentry, d_parent);
+	if(!parent)
+	{
+		bpf_printk("extract__exe_from_memfd(): failed to get parent");
+		return false;
+	}
+
+	if(parent != dentry)
+	{
+		return false;
+	}
+
+	const unsigned char *name = BPF_CORE_READ(dentry, d_name.name);
+	if(!name)
+	{
+		bpf_printk("extract__exe_from_memfd(): failed to get name");
+		return false;
+	}
+
+	const char expected_prefix[] = "memfd:";
+	char memfd_name[sizeof(expected_prefix)] = {'\0'};
+
+	if(bpf_probe_read_str(memfd_name, sizeof(memfd_name), name) != sizeof(memfd_name))
+	{
+		return false;
+	}
+
+#pragma unroll
+	for(int i = 0; i < sizeof(expected_prefix); i++)
+	{
+		if(expected_prefix[i] != memfd_name[i])
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
 /* log(NGROUPS_MAX) = log(65536) */
