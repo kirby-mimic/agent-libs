@@ -119,6 +119,7 @@ static int32_t scap_read_proclist(scap_reader_t* r, uint32_t block_length, uint3
 		tinfo.exe_ino = 0;
 		tinfo.exe_ino_ctime = 0;
 		tinfo.exe_ino_mtime = 0;
+		tinfo.exe_from_memfd = false;
 
 		//
 		// len
@@ -692,6 +693,16 @@ static int32_t scap_read_proclist(scap_reader_t* r, uint32_t block_length, uint3
 		{
 			readsize = r->read(r, &(tinfo.exe_ino_mtime), sizeof(uint64_t));
 			CHECK_READ_SIZE_ERR(readsize, sizeof(uint64_t), error);
+			subreadsize += readsize;
+		}
+
+		// exe_from_memfd
+		if(sub_len && (subreadsize + sizeof(uint8_t)) <= sub_len)
+		{
+			uint8_t exe_from_memfd = 0;
+			readsize = r->read(r, &exe_from_memfd, sizeof(uint8_t));
+			CHECK_READ_SIZE_ERR(readsize, sizeof(uint8_t), error);
+			tinfo.exe_from_memfd = (exe_from_memfd != 0);
 			subreadsize += readsize;
 		}
 
