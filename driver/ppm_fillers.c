@@ -165,6 +165,7 @@ static inline uint32_t get_exe_from_memfd(const struct file *exe_file)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
 	const char expected_prefix[] = "memfd:";
 	const char *fname = exe_file->f_path.dentry->d_name.name;
+	int i = 0;
 
 	if(!(exe_file &&
 		 exe_file->f_path.dentry &&
@@ -173,7 +174,7 @@ static inline uint32_t get_exe_from_memfd(const struct file *exe_file)
 		return 0;
 	}
 
-	for(int i = 0; fname && i < sizeof(expected_prefix); i++)
+	for(i = 0; fname && i < sizeof(expected_prefix); i++)
 	{
 		if(expected_prefix[i] != fname[i])
 		{
