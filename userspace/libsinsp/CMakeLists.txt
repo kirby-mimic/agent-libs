@@ -195,12 +195,14 @@ add_library(sinsp ${SINSP_SOURCES})
 set_sinsp_target_properties(sinsp)
 
 set(SINSP_LIBRARIES
-	scap
-	"${CURL_LIBRARIES}"
-	"${JSONCPP_LIB}"
-	"${CARES_LIB}"
-	"${RE2_LIB}"
-	"${TBB_LIB}")
+		PRIVATE
+			scap
+		INTERFACE
+			"${CURL_LIBRARIES}"
+			"${JSONCPP_LIB}"
+			"${CARES_LIB}"
+			"${RE2_LIB}"
+			"${TBB_LIB}")
 
 if(USE_BUNDLED_VALIJSON)
 	add_dependencies(sinsp valijson)
@@ -244,34 +246,38 @@ if(NOT WIN32)
 			prepare_cri_grpc(v1)
 
 			list(APPEND SINSP_LIBRARIES
-				"cri_v1alpha2"
-				"cri_v1"
-				"${GRPC_LIBRARIES}"
-				"${GRPCPP_LIB}"
-				"${GRPC_LIB}"
-				"${GPR_LIB}"
-				"${PROTOBUF_LIB}"
-				"${CARES_LIB}"
-				"${JQ_LIB}"
-				"${B64_LIB}")
+					PRIVATE
+						"cri_v1alpha2"
+						"cri_v1"
+					INTERFACE
+						"${GRPC_LIBRARIES}"
+						"${GRPCPP_LIB}"
+						"${GRPC_LIB}"
+						"${GPR_LIB}"
+						"${PROTOBUF_LIB}"
+						"${CARES_LIB}"
+						"${JQ_LIB}"
+						"${B64_LIB}")
 
 			if(NOT MUSL_OPTIMIZED_BUILD)
 				list(APPEND SINSP_LIBRARIES
-				rt
-				anl)
+						INTERFACE
+								rt
+								anl)
 			endif()
 
 		else()
 			list(APPEND SINSP_LIBRARIES
-				"${JQ_LIB}"
-				"${B64_LIB}"
-				rt)
+					INTERFACE
+						"${JQ_LIB}"
+						"${B64_LIB}"
+						rt)
 		endif() # NOT MINIMAL_BUILD
 		# when JQ is compiled statically, it will
 		# also compile a static object for oniguruma we need to link
 		if(ONIGURUMA_LIB)
 			list(APPEND SINSP_LIBRARIES
-			"${ONIGURUMA_LIB}")
+			INTERFACE "${ONIGURUMA_LIB}")
 			add_dependencies(sinsp jq)
 		endif()
 
@@ -279,16 +285,17 @@ if(NOT WIN32)
 	endif() # NOT APPLE
 
 	list(APPEND SINSP_LIBRARIES
-        	"${OPENSSL_LIBRARIES}")
+        	INTERFACE "${OPENSSL_OR_SSL_SHIM}")
 
 	if(WITH_CHISEL)
 		list(APPEND SINSP_LIBRARIES
-			"${LUAJIT_LIB}")
+			INTERFACE "${LUAJIT_LIB}")
 	endif()
 
 	list(APPEND SINSP_LIBRARIES
-		dl
-		pthread)
+			INTERFACE
+				dl
+				pthread)
 else()
 	if(WITH_CHISEL)
 		list(APPEND SINSP_LIBRARIES
