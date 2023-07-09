@@ -189,11 +189,19 @@ list(APPEND MODERN_PROBE_INCLUDE "-I${CMAKE_CURRENT_SOURCE_DIR}")
 # `driver` and the `libbpf` includes.
 set(PPM_INCLUDE ${LIBSCAP_DIR})
 
+if (${ARCH} EQUAL "x86")
+    set(BPF_SYSCALL_NUMBER 321)
+elseif(${ARCH} EQUAL "arm64")
+    set(BPF_SYSCALL_NUMBER 280)
+else()
+endif()
+
 ## Set CLANG FLAGS
 set(CLANG_FLAGS "")
 list(APPEND CLANG_FLAGS
     -g -O2
     -target bpf
+    -D__NR_bpf=${BPF_SYSCALL_NUMBER}
     -D__${DEBUG}__
     -D__TARGET_ARCH_${ARCH} # Match libbpf usage in `/libbpf/src/bpf_tracing.h`
     -D__USE_VMLINUX__ # Used to compile without kernel headers.
