@@ -17,6 +17,8 @@ limitations under the License.
 
 #pragma once
 
+#include "compat/misc.h"
+
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
 #include <shared_definitions/struct_definitions.h>
