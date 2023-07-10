@@ -269,6 +269,7 @@ static inline int32_t ringbuffer_next(struct scap_device_set *devset, OUT scap_e
 				ADVANCE_TAIL(dev);
 			}
 
+			READBUF(dev, &dev->m_sn_next_event, &dev->m_sn_len);
 			continue;
 		}
 

@@ -73,6 +73,7 @@ int32_t devset_grow(struct scap_device_set *devset, size_t num_devs, char *laste
 		devs[j].m_lastreadsize = 0;
 		devs[j].m_sn_len = 0;
 		devs[j].m_state = DEV_CLOSED;
+		printf("[CHICKEN] %s | %d | Device %ld has been CLOSED\n", __FUNCTION__, __LINE__, j);
 	}
 
 	devset->m_devs = devs;

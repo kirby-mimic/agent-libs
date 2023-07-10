@@ -20,6 +20,7 @@ int32_t udig_map_ring(struct scap_device *dev, uint32_t ring_size, char *error, 
 	struct scap_ringbuffer_info *info;
 	uint32_t mem_size = sizeof(*info);
 
+	printf("[CHICKEN] %s | %d | Ring mapping enter\n", __FUNCTION__, __LINE__);
 	//
 	// Map the ring. This is a multi-step process because we want to map two
 	// consecutive copies of the same memory to reuse the driver fillers, which
@@ -30,6 +31,7 @@ int32_t udig_map_ring(struct scap_device *dev, uint32_t ring_size, char *error, 
 	char *buf1 = (char *)mmap(NULL, ring_size * 2, PROT_NONE, MAP_SHARED, dev->m_fd, 0);
 	if((long)buf1 < 0)
 	{
+		printf("[CHICKEN] %s | %d | Initial mem allocation failed, dev has been CLOSED\n", __FUNCTION__, __LINE__);
 		close(dev->m_fd);
 		return scap_errprintf(error, -(long)buf1, "udig_map_ring double mmap failed");
 	}
@@ -44,6 +46,7 @@ int32_t udig_map_ring(struct scap_device *dev, uint32_t ring_size, char *error, 
 			munmap(dev->m_buffer, ring_size);
 		}
 		munmap(buf1, ring_size * 2);
+		printf("[CHICKEN] %s | %d | First half mem allocation failed, dev has been CLOSED\n", __FUNCTION__, __LINE__);
 		close(dev->m_fd);
 		return scap_errprintf(error, -(long)dev->m_buffer, "udig_map_ring first half mmap failed");
 	}
@@ -59,6 +62,7 @@ int32_t udig_map_ring(struct scap_device *dev, uint32_t ring_size, char *error, 
 		{
 			munmap(ring2, ring_size);
 		}
+		printf("[CHICKEN] %s | %d | Second half mem allocation failed, dev has been CLOSED\n", __FUNCTION__, __LINE__);
 		return scap_errprintf(error, -(long)ring2,
 				      "udig_map_ring second half mmap failed, needed %p, obtained %p, base=%p", buf2,
 				      ring2, buf1);
@@ -70,6 +74,7 @@ int32_t udig_map_ring(struct scap_device *dev, uint32_t ring_size, char *error, 
 	uint8_t *descs = (uint8_t *)mmap(NULL, mem_size, PROT_READ | PROT_WRITE, MAP_SHARED, dev->m_fd, ring_size);
 	if((long)descs < 0)
 	{
+		printf("[CHICKEN] %s | %d | Descriptor memory mapping failed, dev has been CLOSED\n", __FUNCTION__, __LINE__);
 		munmap(dev->m_buffer, ring_size * 2);
 		close(dev->m_fd);
 		return scap_errprintf(error, -(long)descs, "udig_map_ring_descriptors mmap ring_descs failed");
@@ -90,6 +95,8 @@ int32_t udig_map_ring(struct scap_device *dev, uint32_t ring_size, char *error, 
 	// Note that, according to the man page of shm_open, we are guaranteed that
 	// the content of the buffer will initially be initialized to 0.
 	//
+
+	printf("[CHICKEN] %s | %d | Ring mapping DONE\n", __FUNCTION__, __LINE__);
 
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
@@ -130,4 +137,5 @@ void scap_udig_close_dev(struct scap_device *dev, struct scap_stats *stats)
 	dev->m_fd = -1;
 	__sync_synchronize();
 	dev->m_state = DEV_CLOSED;
+	printf("[CHICKEN] Device dev_fd %d CLOSED, %s, %d\n", dev->m_fd, __FUNCTION__, __LINE__);
 }

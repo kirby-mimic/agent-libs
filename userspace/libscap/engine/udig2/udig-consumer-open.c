@@ -28,6 +28,8 @@ static int32_t scap_udig_open_dev(struct scap_udig *handle, struct scap_device *
 	int res;
 	int mem_size = sizeof(struct scap_ringbuffer_info);
 
+	printf("[CHICKEN] %s | %d | Opening dev\n", __FUNCTION__, __LINE__);
+
 	dev->m_state = DEV_OPENING;
 	__sync_synchronize();
 
@@ -35,6 +37,7 @@ static int32_t scap_udig_open_dev(struct scap_udig *handle, struct scap_device *
 	dev->m_fd = syscall(__NR_memfd_create, "udig_ringbuf", PPM_MFD_CLOEXEC);
 	if(dev->m_fd < 0)
 	{
+		printf("[CHICKEN] %s | %d | Dev CLOSED m_fd < 0\n", __FUNCTION__, __LINE__);
 		dev->m_state = DEV_CLOSED;
 		return scap_errprintf(handle->m_lasterr, -dev->m_fd, "Failed to create memfd");
 	}
@@ -42,6 +45,7 @@ static int32_t scap_udig_open_dev(struct scap_udig *handle, struct scap_device *
 	res = ftruncate(dev->m_fd, buffer_size + mem_size);
 	if(res < 0)
 	{
+		printf("[CHICKEN] %s | %d | Dev CLOSED ftrucate failed\n", __FUNCTION__, __LINE__);
 		close(dev->m_fd);
 		dev->m_state = DEV_CLOSED;
 		return scap_errprintf(handle->m_lasterr, errno, "Failed to resize ring buffer");
@@ -50,6 +54,7 @@ static int32_t scap_udig_open_dev(struct scap_udig *handle, struct scap_device *
 	if(udig_map_ring(dev, buffer_size, handle->m_lasterr, PROT_READ) != SCAP_SUCCESS)
 	{
 		// udig_map_ring closes the ring_fd on error
+		printf("[CHICKEN] %s | %d | Dev CLOSED udig_map_ring failed\n", __FUNCTION__, __LINE__);
 		dev->m_state = DEV_CLOSED;
 		return SCAP_FAILURE;
 	}
@@ -62,6 +67,7 @@ static int32_t scap_udig_open_dev(struct scap_udig *handle, struct scap_device *
 	dev->m_sn_len = 0;
 	dev->m_sn_next_event = dev->m_buffer;
 
+	printf("[CHICKEN] %s | %d | Dev m_fd %d OPEN\n", __FUNCTION__, __LINE__, dev->m_fd);
 	dev->m_state = DEV_OPEN;
 	__sync_synchronize();
 	if(handle->m_udig_capturing)
@@ -103,6 +109,8 @@ static struct scap_device *scap_udig_find_free_dev(struct scap_udig *handle)
 		{
 			devset->m_ndevs = i + 1;
 		}
+
+		printf("[CHICKEN] %s | %d | Free device found (num %d)\n", __FUNCTION__, __LINE__, i);
 		return dev;
 	}
 
@@ -128,6 +136,7 @@ static void scap_udig_send_fd(int conn_fd, int sent_fd)
 	msg.msg_controllen = CMSG_SPACE(sizeof(sent_fd));
 
 	*((int *)CMSG_DATA(cmsg)) = sent_fd;
+	printf("[CHICKEN] %s | %d | sendmsg over conn_fd %d: %s\n", __FUNCTION__, __LINE__, conn_fd, CMSG_DATA(cmsg));
 	sendmsg(conn_fd, &msg, 0);
 }
 
@@ -162,6 +171,7 @@ void *accept_thread(void *arg)
 			usleep(1000);
 		}
 
+		printf("[CHICKEN] %s | %d | Consumer, sending fd %d, dev->m_fd %d\n", __FUNCTION__, __LINE__, fd, dev->m_fd);
 		scap_udig_send_fd(fd, dev->m_fd);
 		close(fd);
 	}
