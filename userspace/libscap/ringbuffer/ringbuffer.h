@@ -269,7 +269,6 @@ static inline int32_t ringbuffer_next(struct scap_device_set *devset, OUT scap_e
 				ADVANCE_TAIL(dev);
 			}
 
-			READBUF(dev, &dev->m_sn_next_event, &dev->m_sn_len);
 			continue;
 		}
 
@@ -302,6 +301,7 @@ static inline int32_t ringbuffer_next(struct scap_device_set *devset, OUT scap_e
 	 	 * the block with `ADVANCE_TO_EVT`
 	 	 */
 		struct scap_device *dev = &devset->m_devs[*pcpuid];
+		printf("[CHICKEN] %s | %d | Advancing to event on dev m_fd %d, pcpuid %d\n", __FUNCTION__, __LINE__, dev->m_fd, *pcpuid);
 		ADVANCE_TO_EVT(dev, (*pevent));
 		return SCAP_SUCCESS;
 	}
