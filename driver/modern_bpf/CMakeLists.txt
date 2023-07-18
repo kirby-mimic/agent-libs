@@ -152,6 +152,7 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE)
 if(${CLANG_SYSTEM_INCLUDES_result} EQUAL 0)
   string(REPLACE "\n" " " CLANG_SYSTEM_INCLUDES ${CLANG_SYSTEM_INCLUDES_output})
+  string(REPLACE " " ";" CLANG_SYSTEM_INCLUDES ${CLANG_SYSTEM_INCLUDES})
   message(STATUS "${MODERN_BPF_LOG_PREFIX} BPF system include flags: ${CLANG_SYSTEM_INCLUDES}")
 else()
   message(FATAL_ERROR "${MODERN_BPF_LOG_PREFIX} Failed to determine BPF system includes: ${CLANG_SYSTEM_INCLUDES_error}")
@@ -200,7 +201,6 @@ list(APPEND CLANG_FLAGS
     -I${LIBBPF_INCLUDE}
     ${MODERN_PROBE_INCLUDE}
     -I${PPM_INCLUDE}
-    -isystem
 )
 
 message(STATUS "${MODERN_BPF_LOG_PREFIX} Compilation flags: ${CLANG_FLAGS}")
