@@ -14,6 +14,32 @@ elseif(NOT USE_BUNDLED_LIBBPF)
         message(FATAL_ERROR "Couldn't find system libbpf")
     endif()
 else()
+    #execute_process(COMMAND uname -m
+    #  COMMAND sed "s/x86_64/x86/"
+    #  COMMAND sed "s/aarch64/arm64/"
+    #  COMMAND sed "s/ppc64le/powerpc/"
+    #  COMMAND sed "s/mips.*/mips/"
+    #  COMMAND sed "s/s390x/s390/"
+    #  OUTPUT_VARIABLE ARCH
+    #  ERROR_VARIABLE ARCH_error
+    #  RESULT_VARIABLE ARCH_result
+    #  OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+    #if (${ARCH_result} EQUAL 0)
+    #    message(FATAL_ERROR ${ARCH})
+    #    if(${ARCH} EQUAL arm64)
+            set(BPF_SYSCALL_NUMBER 280)
+    #    elseif (${ARCH} EQUAL x86)
+    #        set(BPF_SYSCALL_NUMBER 321)
+    #    else()
+    #        message(FATAL_ERROR "Unsupported arch for manually setting BPF syscall number: '${ARCH}'")
+    #    endif()
+    #else()
+    #    message(FATAL_ERROR "Failed to determine target architecture: ${ARCH_error}")
+    #endif()
+
+
+
     set(LIBBPF_SRC "${PROJECT_BINARY_DIR}/libbpf-prefix/src")
     set(LIBBPF_BUILD_DIR "${LIBBPF_SRC}/libbpf-build")
     set(LIBBPF_INCLUDE "${LIBBPF_BUILD_DIR}/root/usr/include")
@@ -26,7 +52,7 @@ else()
         URL_HASH
         "SHA256=3d6afde67682c909e341bf194678a8969f17628705af25f900d5f68bd299cb03"
         CONFIGURE_COMMAND mkdir -p build root
-        BUILD_COMMAND ${CMD_MAKE} BUILD_STATIC_ONLY=y OBJDIR=${LIBBPF_BUILD_DIR}/build DESTDIR=${LIBBPF_BUILD_DIR}/root NO_PKG_CONFIG=1 "EXTRA_CFLAGS=-I${LIBELF_INCLUDE} -I${ZLIB_INCLUDE}" "LDFLAGS=-Wl,-Bstatic" "EXTRA_LDFLAGS=-L${LIBELF_SRC}/libelf/libelf -L${ZLIB_SRC}" -C ${LIBBPF_SRC}/libbpf/src install install_uapi_headers
+        BUILD_COMMAND CFLAGS=-D__NR_bpf=${BPF_SYSCALL_NUMBER} ${CMD_MAKE} BUILD_STATIC_ONLY=y OBJDIR=${LIBBPF_BUILD_DIR}/build DESTDIR=${LIBBPF_BUILD_DIR}/root NO_PKG_CONFIG=1 "EXTRA_CFLAGS=-I${LIBELF_INCLUDE} -I${ZLIB_INCLUDE}" "LDFLAGS=-Wl,-Bstatic" "EXTRA_LDFLAGS=-L${LIBELF_SRC}/libelf/libelf -L${ZLIB_SRC}" -C ${LIBBPF_SRC}/libbpf/src install install_uapi_headers
         INSTALL_COMMAND ""
         UPDATE_COMMAND ""
     )
