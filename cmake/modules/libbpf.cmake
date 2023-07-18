@@ -14,31 +14,30 @@ elseif(NOT USE_BUNDLED_LIBBPF)
         message(FATAL_ERROR "Couldn't find system libbpf")
     endif()
 else()
-    #execute_process(COMMAND uname -m
-    #  COMMAND sed "s/x86_64/x86/"
-    #  COMMAND sed "s/aarch64/arm64/"
-    #  COMMAND sed "s/ppc64le/powerpc/"
-    #  COMMAND sed "s/mips.*/mips/"
-    #  COMMAND sed "s/s390x/s390/"
-    #  OUTPUT_VARIABLE ARCH
-    #  ERROR_VARIABLE ARCH_error
-    #  RESULT_VARIABLE ARCH_result
-    #  OUTPUT_STRIP_TRAILING_WHITESPACE)
+    execute_process(COMMAND uname -m
+          COMMAND sed "s/x86_64/x86/"
+          COMMAND sed "s/aarch64/arm64/"
+          COMMAND sed "s/ppc64le/powerpc/"
+          COMMAND sed "s/mips.*/mips/"
+          COMMAND sed "s/s390x/s390/"
+          OUTPUT_VARIABLE ARCH_output
+          ERROR_VARIABLE ARCH_error
+          RESULT_VARIABLE ARCH_result
+          OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if(${ARCH_result} EQUAL 0)
+          set(ARCH ${ARCH_output})
+          message(STATUS "${MODERN_BPF_LOG_PREFIX} Target arch: ${ARCH}")
+    else()
+          message(FATAL_ERROR "${MODERN_BPF_LOG_PREFIX} Failed to determine target architecture: ${ARCH_error}")
+    endif()
 
-    #if (${ARCH_result} EQUAL 0)
-    #    message(FATAL_ERROR ${ARCH})
-    #    if(${ARCH} EQUAL arm64)
-            set(BPF_SYSCALL_NUMBER 280)
-    #    elseif (${ARCH} EQUAL x86)
-    #        set(BPF_SYSCALL_NUMBER 321)
-    #    else()
-    #        message(FATAL_ERROR "Unsupported arch for manually setting BPF syscall number: '${ARCH}'")
-    #    endif()
-    #else()
-    #    message(FATAL_ERROR "Failed to determine target architecture: ${ARCH_error}")
-    #endif()
-
-
+    if(${ARCH} STREQUAL "arm64")
+        set(BPF_SYSCALL_NUMBER 280)
+    elseif (${ARCH} STREQUAL "x86")
+        set(BPF_SYSCALL_NUMBER 321)
+    else()
+        message(FATAL_ERROR "Unsupported arch for manually setting BPF syscall number: '${ARCH}'")
+    endif()
 
     set(LIBBPF_SRC "${PROJECT_BINARY_DIR}/libbpf-prefix/src")
     set(LIBBPF_BUILD_DIR "${LIBBPF_SRC}/libbpf-build")
