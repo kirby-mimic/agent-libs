@@ -158,12 +158,14 @@ const filtercheck_field_info sinsp_filter_check_fd_fields[] =
 	{PT_INT32, EPF_NONE, PF_DEC, "fd.dev.minor", "FD Minor Device", "minor device number containing the referenced file"},
 	{PT_INT64, EPF_NONE, PF_DEC, "fd.ino", "FD Inode Number", "inode number of the referenced file"},
 	{PT_CHARBUF, EPF_NONE, PF_NA, "fd.nameraw", "FD Name Raw", "FD full name raw. Just like fd.name, but only used if fd is a file path. File path is kept raw with limited sanitization and without deriving the absolute path."},
+	{PT_CHARBUF, EPF_IS_LIST, PF_DEC, "fd.types", "FD Type", "List of FD types in used. Can be passed an fd number e.g. fd.types[0] to get the type of stdout as a single item list."},
 };
 
 sinsp_filter_check_fd::sinsp_filter_check_fd()
 {
 	m_tinfo = NULL;
 	m_fdinfo = NULL;
+	m_argid = -1;
 
 	m_info.m_name = "fd";
 	m_info.m_desc = "Every syscall that has a file descriptor in its arguments has these fields set with information related to the file.";
@@ -175,6 +177,51 @@ sinsp_filter_check_fd::sinsp_filter_check_fd()
 sinsp_filter_check* sinsp_filter_check_fd::allocate_new()
 {
 	return (sinsp_filter_check*) new sinsp_filter_check_fd();
+}
+
+int32_t sinsp_filter_check_fd::extract_arg(string fldname, string val)
+{
+	uint32_t parsed_len = 0;
+
+	//
+	// 'arg' and 'resarg' are handled in a custom way
+	//
+	if(val[fldname.size()] == '[')
+	{
+		parsed_len = (uint32_t)val.find(']');
+		string numstr = val.substr(fldname.size() + 1, parsed_len - fldname.size() - 1);
+
+		m_argid = sinsp_numparser::parsed64(numstr);
+
+		parsed_len++;
+	}
+
+	return parsed_len;
+}
+
+
+int32_t sinsp_filter_check_fd::parse_field_name(const char* str, bool alloc_state, bool needed_for_filtering)
+{
+	string val(str);
+
+	if(STR_MATCH("fd.types"))
+	{
+		m_field_id = TYPE_FDTYPES;
+		m_field = &m_info.m_fields[m_field_id];
+		int32_t res = 0;
+
+		res = extract_arg("fd.types", val);
+
+		if(res == 0)
+		{
+			m_argid = -1;
+			res = (int32_t)val.size();
+		}
+
+		return res;
+	}
+
+	return sinsp_filter_check::parse_field_name(str, alloc_state, needed_for_filtering);
 }
 
 bool sinsp_filter_check_fd::extract_fdname_from_creator(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings, bool fd_nameraw)
@@ -479,6 +526,54 @@ uint8_t* sinsp_filter_check_fd::extract_from_null_fd(sinsp_evt *evt, OUT uint32_
 	}
 }
 
+bool sinsp_filter_check_fd::extract(sinsp_evt *evt, OUT std::vector<extract_value_t>& values, bool sanitize_strings)
+{
+	values.clear();
+
+	if(!extract_fd(evt))
+	{
+		return false;
+	}
+
+	if(m_field_id == TYPE_FDTYPES && m_argid == -1)
+	{
+		// We are of the form fd.types so gather all open file
+		// descriptor types into a (de-duplicated) list
+		//
+		// Note that fd.types[num] handling is in the following
+		// implementation of sinsp_filter_check_fd::extract
+
+		// All of the pointers come from the fd_typesting() function so
+		// we shouldn't have the situation of two distinct pointers to
+		// the same string literal and we can just compare based on pointer
+		std::unordered_set<char*> fd_types;
+
+		// Iterate over the list of open file descriptors and add all
+		// unique file descriptor types to the vector for comparison
+		auto fd_type_gather = [this, &fd_types, &values](uint64_t, const sinsp_fdinfo_t& fdinfo)
+		{
+			char* type = fdinfo.get_typestring();
+
+			if (fd_types.emplace(type).second)
+			{
+				extract_value_t val;
+				val.ptr = (uint8_t*)type;
+				val.len = strlen(type);
+
+				values.push_back(val);
+			}
+
+			return true;
+		};
+
+		m_tinfo->loop_fds(fd_type_gather);
+
+		return true;
+	}
+
+	return sinsp_filter_check::extract(evt, values, sanitize_strings);
+}
+
 uint8_t* sinsp_filter_check_fd::extract(sinsp_evt *evt, OUT uint32_t* len, bool sanitize_strings)
 {
 	*len = 0;
@@ -536,6 +631,7 @@ uint8_t* sinsp_filter_check_fd::extract(sinsp_evt *evt, OUT uint32_t* len, bool 
 		}
 		RETURN_EXTRACT_STRING(m_tstr);
 		break;
+	case TYPE_FDTYPES:
 	case TYPE_FDTYPE:
 		if(m_fdinfo == NULL)
 		{
@@ -1783,6 +1879,7 @@ bool sinsp_filter_check_fd::compare_domain(sinsp_evt *evt)
 
 	return false;
 }
+
 bool sinsp_filter_check_fd::extract_fd(sinsp_evt *evt)
 {
 	ppm_event_flags eflags = evt->get_info_flags();
@@ -1801,13 +1898,19 @@ bool sinsp_filter_check_fd::extract_fd(sinsp_evt *evt)
 			return false;
 		}
 
-		m_fdinfo = evt->get_fd_info();
-
-		if(m_fdinfo == NULL && m_tinfo->m_lastevent_fd != -1)
+		if (m_argid != -1)
 		{
-			m_fdinfo = m_tinfo->get_fd(m_tinfo->m_lastevent_fd);
+			m_fdinfo = m_tinfo->get_fd(m_argid);
 		}
+		else
+		{
+			m_fdinfo = evt->get_fd_info();
 
+			if (m_fdinfo == NULL && m_tinfo->m_lastevent_fd != -1)
+			{
+				m_fdinfo = m_tinfo->get_fd(m_tinfo->m_lastevent_fd);
+			}
+		}
 		// We'll check if fd is null below
 	}
 	else
@@ -1834,6 +1937,15 @@ bool sinsp_filter_check_fd::compare(sinsp_evt *evt)
 	else if(m_field_id == TYPE_NET)
 	{
 		return compare_net(evt);
+	}
+	else if(m_field_id == TYPE_FDTYPES)
+	{
+		m_extracted_values.clear();
+		if(!extract_cached(evt, m_extracted_values, false))
+		{
+			return false;
+		}
+		return flt_compare(m_cmpop, m_info.m_fields[m_field_id].m_type, m_extracted_values);
 	}
 
 	//
@@ -1937,8 +2049,8 @@ const filtercheck_field_info sinsp_filter_check_thread_fields[] =
 	{PT_RELTIME, EPF_NONE, PF_DEC, "thread.totexectime", "Current Thread CPU Time", "Total CPU time, in nanoseconds since the beginning of the capture, for the current thread. Exported by switch events only."},
 	{PT_CHARBUF, EPF_NONE, PF_NA, "thread.cgroups", "Thread Cgroups", "All cgroups the thread belongs to, aggregated into a single string."},
 	{PT_CHARBUF, EPF_ARG_REQUIRED, PF_NA, "thread.cgroup", "Thread Cgroup", "The cgroup the thread belongs to, for a specific subsystem. e.g. thread.cgroup.cpuacct."},
-	{PT_UINT32, EPF_NONE, PF_DEC, "proc.nthreads", "Threads", "The number of alive threads that the process generating the event currently has, including the leader thread. Please note that the leader thread may not be here, in that case 'proc.nthreads' and 'proc.nchilds' are equal"},
-	{PT_UINT32, EPF_NONE, PF_DEC, "proc.nchilds", "Children", "The number of alive not leader threads that the process generating the event currently has. This excludes the leader thread."},
+	{PT_UINT64, EPF_NONE, PF_DEC, "proc.nthreads", "Threads", "The number of alive threads that the process generating the event currently has, including the leader thread. Please note that the leader thread may not be here, in that case 'proc.nthreads' and 'proc.nchilds' are equal"},
+	{PT_UINT64, EPF_NONE, PF_DEC, "proc.nchilds", "Children", "The number of alive not leader threads that the process generating the event currently has. This excludes the leader thread."},
 	{PT_DOUBLE, EPF_NONE, PF_NA, "thread.cpu", "Thread CPU", "The CPU consumed by the thread in the last second."},
 	{PT_DOUBLE, EPF_NONE, PF_NA, "thread.cpu.user", "Thread User CPU", "The user CPU consumed by the thread in the last second."},
 	{PT_DOUBLE, EPF_NONE, PF_NA, "thread.cpu.system", "Thread System CPU", "The system CPU consumed by the thread in the last second."},

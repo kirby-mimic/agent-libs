@@ -18,14 +18,18 @@ limitations under the License.
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #ifndef MINIMAL_BUILD
-#include "cri.pb.h"
-#include "cri.grpc.pb.h"
+#include "cri-v1alpha2.pb.h"
+#include "cri-v1alpha2.grpc.pb.h"
+#include "cri-v1.pb.h"
+#include "cri-v1.grpc.pb.h"
 #endif // MINIMAL_BUILD
 
 #include "container_info.h"
+#include "cgroup_limits.h"
 
 #ifdef GRPC_INCLUDE_IS_GRPCPP
 #	include <grpcpp/grpcpp.h>
@@ -44,9 +48,70 @@ extern std::string s_cri_unix_socket_path;
 extern sinsp_container_type s_cri_runtime_type;
 extern bool s_cri_extra_queries;
 
-class cri_interface
+class cri_api_v1alpha2
 {
 public:
+	static constexpr const char *version = "v1alpha2";
+	using RuntimeService = runtime::v1alpha2::RuntimeService;
+	using ImageService = runtime::v1alpha2::ImageService;
+
+	using ContainerStatusRequest = runtime::v1alpha2::ContainerStatusRequest;
+	using ContainerStatusResponse = runtime::v1alpha2::ContainerStatusResponse;
+	using ContainerStatus = runtime::v1alpha2::ContainerStatus;
+
+	using ContainerStatsRequest = runtime::v1alpha2::ContainerStatsRequest;
+	using ContainerStatsResponse = runtime::v1alpha2::ContainerStatsResponse;
+
+	using ListContainersRequest = runtime::v1alpha2::ListContainersRequest;
+	using ListContainersResponse = runtime::v1alpha2::ListContainersResponse;
+
+	using ListImagesRequest = runtime::v1alpha2::ListImagesRequest;
+	using ListImagesResponse = runtime::v1alpha2::ListImagesResponse;
+
+	using PodSandboxStatusRequest = runtime::v1alpha2::PodSandboxStatusRequest;
+	using PodSandboxStatusResponse = runtime::v1alpha2::PodSandboxStatusResponse;
+
+	using VersionRequest = runtime::v1alpha2::VersionRequest;
+	using VersionResponse = runtime::v1alpha2::VersionResponse;
+
+	using NamespaceMode = runtime::v1alpha2::NamespaceMode;
+	using MountPropagation = runtime::v1alpha2::MountPropagation;
+};
+
+class cri_api_v1
+{
+public:
+	static constexpr const char *version = "v1";
+	using RuntimeService = runtime::v1::RuntimeService;
+	using ImageService = runtime::v1::ImageService;
+
+	using ContainerStatusRequest = runtime::v1::ContainerStatusRequest;
+	using ContainerStatusResponse = runtime::v1::ContainerStatusResponse;
+	using ContainerStatus = runtime::v1::ContainerStatus;
+
+	using ContainerStatsRequest = runtime::v1::ContainerStatsRequest;
+	using ContainerStatsResponse = runtime::v1::ContainerStatsResponse;
+
+	using ListContainersRequest = runtime::v1::ListContainersRequest;
+	using ListContainersResponse = runtime::v1::ListContainersResponse;
+
+	using ListImagesRequest = runtime::v1::ListImagesRequest;
+	using ListImagesResponse = runtime::v1::ListImagesResponse;
+
+	using PodSandboxStatusRequest = runtime::v1::PodSandboxStatusRequest;
+	using PodSandboxStatusResponse = runtime::v1::PodSandboxStatusResponse;
+
+	using VersionRequest = runtime::v1::VersionRequest;
+	using VersionResponse = runtime::v1::VersionResponse;
+
+	using NamespaceMode = runtime::v1::NamespaceMode;
+	using MountPropagation = runtime::v1::MountPropagation;
+};
+
+template<class api> class cri_interface
+{
+public:
+
 	cri_interface(const std::string& cri_path);
 
 	/**
@@ -71,7 +136,7 @@ public:
 	 * @param resp reference to the response (if the RPC is successful, it will be filled out)
 	 * @return status of the gRPC call
 	 */
-	grpc::Status get_container_status(const std::string& container_id, runtime::v1alpha2::ContainerStatusResponse& resp);
+	grpc::Status get_container_status(const std::string &container_id, typename api::ContainerStatusResponse &resp);
 
 	/**
 	 * @brief thin wrapper around CRI gRPC ContainerStats call
@@ -79,7 +144,14 @@ public:
 	 * @param resp reference to the response (if the RPC is successful, it will be filled out)
 	 * @return status of the gRPC call
 	 */
-	grpc::Status get_container_stats(const std::string& container_id, runtime::v1alpha2::ContainerStatsResponse& resp);
+	grpc::Status get_container_stats(const std::string &container_id, typename api::ContainerStatsResponse &resp);
+
+	/**
+	 * @brief get the size of the container's writable layer
+	 * @param container_id container ID
+	 * @return the size of the writable layer in bytes. Returns an empty option on error
+	 */
+	std::optional<int64_t> get_writable_layer_size(const std::string &container_id);
 
 	/**
 	 * @brief fill out container image information based on CRI response
@@ -88,7 +160,9 @@ public:
 	 * @param container the container info to fill out
 	 * @return true if successful
 	 */
-	bool parse_cri_image(const runtime::v1alpha2::ContainerStatus &status, const google::protobuf::Map<std::string, std::string> &info, sinsp_container_info &container);
+	bool parse_cri_image(const typename api::ContainerStatus &status,
+			     const google::protobuf::Map<std::string, std::string> &info,
+			     sinsp_container_info &container);
 
 	/**
 	 * @brief fill out container mount information based on CRI response
@@ -96,7 +170,7 @@ public:
 	 * @param container the container info to fill out
 	 * @return true if successful
 	 */
-	bool parse_cri_mounts(const runtime::v1alpha2::ContainerStatus &status, sinsp_container_info &container);
+	bool parse_cri_mounts(const typename api::ContainerStatus &status, sinsp_container_info &container);
 
 	/**
 	 * @brief fill out container environment variables based on CRI response
@@ -145,25 +219,27 @@ public:
 
 	/**
 	 * @brief get pod IP address
-	 * @param resp initialized runtime::v1alpha2::PodSandboxStatusResponse of the pod sandbox
+	 * @param resp initialized api::PodSandboxStatusResponse of the pod sandbox
 	 * @return the IP address if possible, 0 otherwise (e.g. when the pod uses host netns)
 	 */
-	uint32_t get_pod_sandbox_ip(runtime::v1alpha2::PodSandboxStatusResponse &resp);
+	uint32_t get_pod_sandbox_ip(typename api::PodSandboxStatusResponse &resp);
 
 	/**
-	 * @brief get unparsed JSON string with cni result of the pod sandbox from PodSandboxStatusResponse info() field.
-	 * @param resp initialized runtime::v1alpha2::PodSandboxStatusResponse of the pod sandbox
+	 * @brief get unparsed JSON string with cni result of the pod sandbox from PodSandboxStatusResponse info()
+	 * field.
+	 * @param resp initialized api::PodSandboxStatusResponse of the pod sandbox
 	 * @param cniresult initialized cniresult
 	 */
-	void get_pod_info_cniresult(runtime::v1alpha2::PodSandboxStatusResponse &resp, std::string &cniresult);
+	void get_pod_info_cniresult(typename api::PodSandboxStatusResponse &resp, std::string &cniresult);
 
 	/**
 	 * @brief make request and get PodSandboxStatusResponse and grpc::Status.
 	 * @param pod_sandbox_id ID of the pod sandbox
-	 * @param resp initialized runtime::v1alpha2::PodSandboxStatusResponse of the pod sandbox
+	 * @param resp initialized api::PodSandboxStatusResponse of the pod sandbox
 	 * @param status initialized grpc::Status
 	 */
-	void get_pod_sandbox_resp(const std::string &pod_sandbox_id, runtime::v1alpha2::PodSandboxStatusResponse &resp, grpc::Status &status);
+	void get_pod_sandbox_resp(const std::string &pod_sandbox_id, typename api::PodSandboxStatusResponse &resp,
+				  grpc::Status &status);
 
 	/**
 	 * @brief get container IP address if possible, 0 otherwise (e.g. when the pod uses host netns),
@@ -184,12 +260,23 @@ public:
 	 */
 	std::string get_container_image_id(const std::string &image_ref);
 
-private:
+	/**
+	 * @brief fill in container metadata using the CRI API
+	 * @param key the async lookup key (includes container_id)
+	 * @param container the container info to fill
+	 * @return true on success, false on failure
+	 */
+	bool parse(const libsinsp::cgroup_limits::cgroup_limits_key &key, sinsp_container_info &container);
 
-	std::unique_ptr<runtime::v1alpha2::RuntimeService::Stub> m_cri;
-	std::unique_ptr<runtime::v1alpha2::ImageService::Stub> m_cri_image;
+private:
+	bool parse_containerd(const typename api::ContainerStatusResponse &status, sinsp_container_info &container);
+
+	std::unique_ptr<typename api::RuntimeService::Stub> m_cri;
+	std::unique_ptr<typename api::ImageService::Stub> m_cri_image;
 	sinsp_container_type m_cri_runtime_type;
 };
 
+using cri_interface_v1alpha2 = cri_interface<cri_api_v1alpha2>;
+using cri_interface_v1 = cri_interface<cri_api_v1>;
 }
 }

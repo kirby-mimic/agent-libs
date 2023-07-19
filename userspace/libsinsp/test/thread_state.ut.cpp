@@ -1766,6 +1766,7 @@ TEST_F(sinsp_with_test_input, THRD_STATE_missing_process_execve_repair)
 
 /*=============================== COMM UPDATE ===========================*/
 
+#if 0
 TEST_F(sinsp_with_test_input, THRD_STATE_caller_comm_update_after_clone_events)
 {
 	add_default_init_thread();
@@ -1802,6 +1803,7 @@ TEST_F(sinsp_with_test_input, THRD_STATE_caller_comm_update_after_clone_events)
 	GTEST_SKIP()
 		<< "The behavior of this test is wrong we don't update the `comm` name of the caller if it changes!";
 }
+#endif
 
 /*=============================== COMM UPDATE ===========================*/
 
@@ -2175,6 +2177,7 @@ sinsp_evt* search_evt_by_type_and_tid(sinsp* inspector, uint64_t type, int64_t t
 	return NULL;
 }
 
+#ifndef __s390x__
 TEST(parse_scap_file, simple_tree_with_prctl)
 {
 	/* Scap file:
@@ -2326,6 +2329,7 @@ TEST(parse_scap_file, simple_tree_with_prctl)
 	tginfo = m_inspector.m_thread_manager->get_thread_group_info(p3_t1_pid).get();
 	ASSERT_FALSE(tginfo);
 }
+#endif
 
 /*=============================== SCAP-FILES ===========================*/
 

@@ -23,13 +23,13 @@ limitations under the License.
 #else
 #	include <grpc++/grpc++.h>
 #endif
-#include "cri.pb.h"
-#include "cri.grpc.pb.h"
 
-#include "cgroup_limits.h"
 #include "runc.h"
 #include "container_engine/mesos.h"
-#include <cri.h>
+
+#include "cri.hpp"
+
+#include <memory>
 #include "sinsp.h"
 #include "sinsp_int.h"
 
@@ -53,147 +53,6 @@ constexpr const cgroup_layout CRI_CGROUP_LAYOUT[] = {
 };
 } // namespace
 
-bool cri_async_source::parse_containerd(const runtime::v1alpha2::ContainerStatusResponse& status, sinsp_container_info &container)
-{
-	g_logger.format(sinsp_logger::SEV_DEBUG, "cri (%s) in parse_containerd", container.m_id.c_str());
-
-	const auto &info_it = status.info().find("info");
-	if(info_it == status.info().end())
-	{
-		g_logger.format(sinsp_logger::SEV_DEBUG, "cri (%s) no info property, returning", container.m_id.c_str());
-		return false;
-	}
-
-	Json::Value root;
-	Json::Reader reader;
-	if(!reader.parse(info_it->second, root))
-	{
-		g_logger.format(sinsp_logger::SEV_DEBUG, "cri (%s) could not json parse info, returning", container.m_id.c_str());
-		ASSERT(false);
-		return false;
-	}
-
-	g_logger.format(sinsp_logger::SEV_DEBUG, "cri (%s): will parse info json: %s",
-			container.m_id.c_str(),
-			info_it->second.c_str());
-
-	m_cri->parse_cri_env(root, container);
-	m_cri->parse_cri_json_image(root, container);
-	bool ret = m_cri->parse_cri_ext_container_info(root, container);
-	m_cri->parse_cri_user_info(root, container);
-
-	if(root.isMember("sandboxID") && root["sandboxID"].isString())
-	{
-		const auto pod_sandbox_id = root["sandboxID"].asString();
-		runtime::v1alpha2::PodSandboxStatusResponse resp_pod;
-		grpc::Status status_pod;
-		m_cri->get_pod_sandbox_resp(pod_sandbox_id, resp_pod, status_pod);
-		if (status_pod.ok())
-		{
-			container.m_container_ip = ntohl(m_cri->get_pod_sandbox_ip(resp_pod));
-			m_cri->get_pod_info_cniresult(resp_pod, container.m_pod_cniresult);
-		}
-	}
-
-	return ret;
-}
-
-bool cri_async_source::parse(const key_type& key, sinsp_container_info& container)
-{
-	runtime::v1alpha2::ContainerStatusResponse resp;
-	grpc::Status status = m_cri->get_container_status(container.m_id, resp);
-
-	g_logger.format(sinsp_logger::SEV_DEBUG,
-			"cri (%s): Status from ContainerStatus: (%s)",
-			container.m_id.c_str(),
-			status.error_message().c_str());
-
-	if(!status.ok())
-	{
-		if(m_cri->is_pod_sandbox(container.m_id))
-		{
-			container.m_is_pod_sandbox = true;
-			return true;
-		}
-		g_logger.format(sinsp_logger::SEV_DEBUG, "cri (%s): id is neither a container nor a pod sandbox: %s",
-				container.m_id.c_str(), status.error_message().c_str());
-		return false;
-	}
-
-	if(!resp.has_status())
-	{
-		g_logger.format(sinsp_logger::SEV_DEBUG, "cri (%s) no status, returning", container.m_id.c_str());
-		ASSERT(false);
-		return false;
-	}
-
-	const auto &resp_container = resp.status();
-	const auto &resp_container_info = resp.info();
-	container.m_full_id = resp_container.id();
-	container.m_name = resp_container.metadata().name();
-
-	// This is in Nanoseconds(in CRI API). Need to convert it to seconds.
-	container.m_created_time = static_cast<int64_t>(resp_container.created_at() / ONE_SECOND_IN_NS );
-
-	for(const auto &pair : resp_container.labels())
-	{
-		if(pair.second.length() <= sinsp_container_info::m_container_label_max_length)
-		{
-			container.m_labels[pair.first] = pair.second;
-		}
-	}
-
-	m_cri->parse_cri_image(resp_container, resp_container_info, container);
-	m_cri->parse_cri_mounts(resp_container, container);
-
-	if(!parse_containerd(resp, container))
-	{
-		libsinsp::cgroup_limits::cgroup_limits_value limits;
-		libsinsp::cgroup_limits::get_cgroup_resource_limits(key, limits);
-
-		container.m_memory_limit = limits.m_memory_limit;
-		container.m_cpu_shares = limits.m_cpu_shares;
-		container.m_cpu_quota = limits.m_cpu_quota;
-		container.m_cpu_period = limits.m_cpu_period;
-		container.m_cpuset_cpu_count = limits.m_cpuset_cpu_count;
-
-		// In some cases (e.g. openshift), the cri-o response
-		// may not have an info property, which is used to set
-		// the container user. In those cases, the container
-		// name stays at its default "<NA>" value.
-	}
-
-	g_logger.format(sinsp_logger::SEV_DEBUG,
-			"cri (%s): after parse_containerd: repo=%s tag=%s image=%s digest=%s",
-			container.m_id.c_str(),
-			container.m_imagerepo.c_str(),
-			container.m_imagetag.c_str(),
-			container.m_image.c_str(),
-			container.m_imagedigest.c_str());
-
-
-	if(s_cri_extra_queries)
-	{
-		if(!container.m_container_ip)
-		{
-			m_cri->get_container_ip(container.m_id, container.m_container_ip, container.m_pod_cniresult);
-		}
-		if(container.m_imageid.empty())
-		{
-			container.m_imageid = m_cri->get_container_image_id(resp_container.image_ref());
-			g_logger.format(sinsp_logger::SEV_DEBUG,
-					"cri (%s): after get_container_image_id: repo=%s tag=%s image=%s digest=%s",
-					container.m_id.c_str(),
-					container.m_imagerepo.c_str(),
-					container.m_imagetag.c_str(),
-					container.m_image.c_str(),
-					container.m_imagedigest.c_str());
-
-		}
-	}
-
-	return true;
-}
 
 cri::cri(container_cache_interface &cache) : container_engine_base(cache)
 {
@@ -227,10 +86,22 @@ cri::cri(container_cache_interface &cache) : container_engine_base(cache)
 			continue;
 		}
 
-		m_cri = std::unique_ptr<libsinsp::cri::cri_interface>(new libsinsp::cri::cri_interface(cri_path));
-		if(!m_cri->is_ok())
+		m_cri_v1 = std::make_unique<libsinsp::cri::cri_interface_v1>(cri_path);
+		if(!m_cri_v1->is_ok())
 		{
-			m_cri.reset(nullptr);
+			m_cri_v1.reset(nullptr);
+		}
+		else
+		{
+			// Store used unix_socket_path
+			s_cri_unix_socket_path = p;
+			break;
+		}
+
+		m_cri_v1alpha2 = std::make_unique<libsinsp::cri::cri_interface_v1alpha2>(cri_path);
+		if(!m_cri_v1alpha2->is_ok())
+		{
+			m_cri_v1alpha2.reset(nullptr);
 		}
 		else
 		{
@@ -286,7 +157,7 @@ bool cri::resolve(sinsp_threadinfo *tinfo, bool query_os_for_missing_info)
 	}
 	tinfo->m_container_id = container_id;
 
-	if(!m_cri)
+	if(!m_cri_v1alpha2 && !m_cri_v1)
 	{
 		// This isn't an error in the case where the
 		// configured unix domain socket doesn't exist. In
@@ -298,14 +169,14 @@ bool cri::resolve(sinsp_threadinfo *tinfo, bool query_os_for_missing_info)
 		return false;
 	}
 
-	if(!cache->should_lookup(container_id, m_cri->get_cri_runtime_type()))
+	if(!cache->should_lookup(container_id, get_cri_runtime_type()))
 	{
 		return true;
 	}
 
 	auto container = sinsp_container_info();
 	container.m_id = container_id;
-	container.m_type = m_cri->get_cri_runtime_type();
+	container.m_type = get_cri_runtime_type();
 	if (mesos::set_mesos_task_id(container, tinfo))
 	{
 		g_logger.format(sinsp_logger::SEV_DEBUG,
@@ -345,11 +216,12 @@ bool cri::resolve(sinsp_threadinfo *tinfo, bool query_os_for_missing_info)
 			// With n=5 the result is 13875ms, we keep some margin as we are
 			// taking into account elapsed time.
 			uint64_t max_wait_ms = 20000;
-			auto async_source = new cri_async_source(cache, m_cri.get(), max_wait_ms);
+			auto async_source =
+				new cri_async_source(cache, m_cri_v1alpha2.get(), m_cri_v1.get(), max_wait_ms);
 			m_async_source = std::unique_ptr<cri_async_source>(async_source);
 		}
 
-		cache->set_lookup_status(container_id, m_cri->get_cri_runtime_type(), sinsp_container_lookup::state::STARTED);
+		cache->set_lookup_status(container_id, get_cri_runtime_type(), sinsp_container_lookup::state::STARTED);
 
 		// sinsp_container_lookup is set-up to perform 5 retries at most, with
 		// an exponential backoff with 2000 ms of maximum wait time.
@@ -406,54 +278,16 @@ void cri::update_with_size(const std::string& container_id)
 		return;
 	}
 
-	// Synchronously get the stats response and update the container table.
-	// Note that this needs to use the full id.
-	runtime::v1alpha2::ContainerStatsResponse resp;
-	grpc::Status status = m_cri->get_container_stats(existing->m_full_id, resp);
+	std::optional<int64_t> writable_layer_size = get_writable_layer_size(existing->m_full_id);
 
-	g_logger.format(sinsp_logger::SEV_DEBUG,
-			"cri (%s): full id (%s): Status from ContainerStats: (%s)",
-			container_id.c_str(),
-			existing->m_full_id.c_str(),
-			status.error_message().empty() ? "SUCCESS" : status.error_message().c_str());
-
-	if(!status.ok())
+	if(!writable_layer_size.has_value())
 	{
-		return;
-	}
-
-	if(!resp.has_stats())
-	{
-		g_logger.format(sinsp_logger::SEV_DEBUG,
-				"cri (%s): Failed to update size: stats() not found",
-				container_id.c_str());
-		ASSERT(false);
-		return;
-	}
-
-	const auto& resp_stats = resp.stats();
-
-	if(!resp_stats.has_writable_layer())
-	{
-		g_logger.format(sinsp_logger::SEV_DEBUG,
-				"cri (%s): Failed to update size: writable_layer() not found",
-				container_id.c_str());
-		ASSERT(false);
-		return;
-	}
-
-	if(!resp_stats.writable_layer().has_used_bytes())
-	{
-		g_logger.format(sinsp_logger::SEV_DEBUG,
-				"cri (%s): Failed to update size: used_bytes() not found",
-				container_id.c_str());
-		ASSERT(false);
 		return;
 	}
 
 	// Make a mutable copy of the existing container_info
 	shared_ptr<sinsp_container_info> updated(std::make_shared<sinsp_container_info>(*existing));
-	updated->m_size_rw_bytes = resp_stats.writable_layer().used_bytes().value();
+	updated->m_size_rw_bytes = *writable_layer_size;
 
 	if(existing->m_size_rw_bytes == updated->m_size_rw_bytes)
 	{
@@ -464,4 +298,48 @@ void cri::update_with_size(const std::string& container_id)
 	container_cache().replace_container(updated);
 }
 
+sinsp_container_type cri::get_cri_runtime_type() const
+{
+	if(m_cri_v1)
+	{
+		return m_cri_v1->get_cri_runtime_type();
+	}
+	else if(m_cri_v1alpha2)
+	{
+		return m_cri_v1alpha2->get_cri_runtime_type();
+	}
+	else
+	{
+		return sinsp_container_type::CT_CRI;
+	}
+}
 
+std::optional<int64_t> cri::get_writable_layer_size(const string &container_id)
+{
+	if(m_cri_v1)
+	{
+		return m_cri_v1->get_writable_layer_size(container_id);
+	}
+	else if(m_cri_v1alpha2)
+	{
+		return m_cri_v1alpha2->get_writable_layer_size(container_id);
+	}
+	else
+	{
+		return std::nullopt;
+	}
+}
+
+bool cri_async_source::parse(const cri_async_source::key_type &key, sinsp_container_info &container)
+{
+	if(m_cri_v1)
+	{
+		return m_cri_v1->parse(key, container);
+
+	}
+	else if(m_cri_v1alpha2)
+	{
+		return m_cri_v1alpha2->parse(key, container);
+	}
+	return false;
+}

@@ -183,11 +183,8 @@ if(NOT MINIMAL_BUILD)
 	if(NOT WIN32 AND NOT APPLE)
 		list(APPEND SINSP_SOURCES
 			cgroup_limits.cpp
-			cri.cpp
 			container_engine/cri.cpp
 			sinsp_resource_utilization.cpp
-			${CMAKE_CURRENT_BINARY_DIR}/cri.grpc.pb.cc
-			${CMAKE_CURRENT_BINARY_DIR}/cri.pb.cc
 			grpc_channel_registry.cpp
 		)
 	endif()
@@ -217,6 +214,21 @@ if(WITH_CHISEL)
 	add_dependencies(sinsp luajit)
 endif()
 
+function(prepare_cri_grpc api_version)
+	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cri-${api_version}.proto ${CMAKE_CURRENT_BINARY_DIR}/cri-${api_version}.proto COPYONLY)
+	add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/cri-${api_version}.grpc.pb.cc
+			${CMAKE_CURRENT_BINARY_DIR}/cri-${api_version}.grpc.pb.h
+			${CMAKE_CURRENT_BINARY_DIR}/cri-${api_version}.pb.cc
+			${CMAKE_CURRENT_BINARY_DIR}/cri-${api_version}.pb.h
+			COMMENT "Generate CRI grpc code for API version ${api_version}"
+			DEPENDS
+			COMMAND ${PROTOC} -I ${CMAKE_CURRENT_BINARY_DIR} --cpp_out=. ${CMAKE_CURRENT_BINARY_DIR}/cri-${api_version}.proto
+			COMMAND ${PROTOC} -I ${CMAKE_CURRENT_BINARY_DIR} --grpc_out=. --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN} ${CMAKE_CURRENT_BINARY_DIR}/cri-${api_version}.proto
+			WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+	add_library(cri_${api_version} STATIC ${CMAKE_CURRENT_BINARY_DIR}/cri-${api_version}.pb.cc ${CMAKE_CURRENT_BINARY_DIR}/cri-${api_version}.grpc.pb.cc)
+	add_dependencies(cri_${api_version} grpc)
+endfunction()
+
 if(NOT WIN32)
 	if(NOT MINIMAL_BUILD)
 		add_dependencies(sinsp openssl curl)
@@ -228,19 +240,12 @@ if(NOT WIN32)
 		if(NOT MINIMAL_BUILD)
 			include(protobuf)
 			include(cares)
-			configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cri.proto ${CMAKE_CURRENT_BINARY_DIR}/cri.proto COPYONLY)
-			add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/cri.grpc.pb.cc
-						${CMAKE_CURRENT_BINARY_DIR}/cri.grpc.pb.h
-						${CMAKE_CURRENT_BINARY_DIR}/cri.pb.cc
-						${CMAKE_CURRENT_BINARY_DIR}/cri.pb.h
-					COMMENT "Generate CRI grpc code"
-					DEPENDS
-					COMMAND ${PROTOC} -I ${CMAKE_CURRENT_BINARY_DIR} --cpp_out=. ${CMAKE_CURRENT_BINARY_DIR}/cri.proto
-					COMMAND ${PROTOC} -I ${CMAKE_CURRENT_BINARY_DIR} --grpc_out=. --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN} ${CMAKE_CURRENT_BINARY_DIR}/cri.proto
-					WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+			prepare_cri_grpc(v1alpha2)
+			prepare_cri_grpc(v1)
 
-			add_dependencies(sinsp grpc)
 			list(APPEND SINSP_LIBRARIES
+				"cri_v1alpha2"
+				"cri_v1"
 				"${GRPC_LIBRARIES}"
 				"${GRPCPP_LIB}"
 				"${GRPC_LIB}"

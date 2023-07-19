@@ -111,7 +111,7 @@ template<> char sinsp_fdinfo_t::get_typechar()
 	}
 }
 
-template<> char* sinsp_fdinfo_t::get_typestring()
+template<> char* sinsp_fdinfo_t::get_typestring() const
 {
 	switch(m_type)
 	{
