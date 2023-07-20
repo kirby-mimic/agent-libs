@@ -92,7 +92,7 @@ if(CREATE_TEST_TARGETS AND NOT WIN32)
 endif()
 
 include(libscap)
-include(libsinsp)
+#include(libsinsp)
 
 if(CREATE_TEST_TARGETS AND NOT WIN32)
 	# Add command to run all unit tests at once via the make system.
